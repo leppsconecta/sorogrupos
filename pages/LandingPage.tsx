@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { 
-  Megaphone, 
-  Clock, 
-  Briefcase, 
-  FolderIcon, 
-  Users, 
-  LifeBuoy, 
-  Zap, 
+import {
+  Megaphone,
+  Clock,
+  Briefcase,
+  FolderIcon,
+  Users,
+  LifeBuoy,
+  Zap,
   Smartphone,
   CheckCircle2,
   Lock,
@@ -21,37 +21,70 @@ import {
 } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
-interface LandingPageProps {
-  onLogin: (email: string, pass: string) => boolean;
-}
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+
+interface LandingPageProps { }
 
 const WhatsAppIcon = ({ size = 20, className = "" }: { size?: number, className?: string }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className={className}>
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
   </svg>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [modalView, setModalView] = useState<'login' | 'forgot' | 'success'>('login');
-  
+  const [modalView, setModalView] = useState<'login' | 'forgot' | 'success' | 'register_success' | 'account_exists'>('login');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryInput, setRecoveryInput] = useState('');
   const [error, setError] = useState('');
 
-  const handleLoginForm = (e: React.FormEvent) => {
+  const { signIn, signUp } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleLoginForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = onLogin(email, password);
-    if (!success) {
-      setError('Credenciais inválidas.');
+    setError('');
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Auth state change will handle redirect in App.tsx
+    } catch (err: any) {
+      setError(err.message === 'Invalid login credentials' ? 'Credenciais inválidas.' : 'Erro ao fazer login. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRecoverPassword = (e: React.FormEvent) => {
+  const handleRecoverPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recoveryInput.trim()) return;
-    setModalView('success');
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(recoveryInput, {
+        redirectTo: window.location.origin,
+      });
+
+      if (error) throw error;
+      setModalView('success');
+    } catch (err) {
+      // For security, we often show success even if email not found, or handle specific errors
+      setModalView('success');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const closeAndResetModal = () => {
@@ -59,11 +92,86 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     setModalView('login');
     setError('');
     setRecoveryInput('');
+    setLoading(false);
   };
 
-  const handleRegisterForm = (e: React.FormEvent) => {
+  const handleRegisterForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Cadastro realizado com sucesso! Verifique seu e-mail para confirmar a conta.');
+
+    // Na landing page o form de "Teste Grátis" tem email/senha e outros campos
+    // Vou pegar os inputs pelo name ou alterar o form para usar state se necessário.
+    // Como o form original usa inputs controlados apenas para "Empresa", "WhatsApp", "Email", "Senha" visualmente neste código não vejo state variables para este form específico além de onSubmit.
+    // Vou precisar adicionar estados para o form de registro ou usar FormData.
+
+    // UPDATE: O form original está usando inputs não controlados (sem value/onChange explícito no código que vi,
+    // mas o código original mostrava inputs controlados no modal de login, mas no "Teste Grátis" não parecia ter state).
+    // Analisando código anterior... lines 133-168 no LandingPage.tsx original.
+    // Os inputs têm placeholder mas não vejo onChange ou value. Vou usar FormData.
+
+    setLoading(true); // Start loading
+
+    const form = e.target as HTMLFormElement;
+    const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
+    const companyInput = form.querySelector('input[placeholder="Nome da sua empresa"]') as HTMLInputElement;
+    const whatsappInput = form.querySelector('input[placeholder="(15) 99999-9999"]') as HTMLInputElement;
+
+    if (!emailInput || !passwordInput) return;
+
+    const regEmail = emailInput.value;
+    const regPass = passwordInput.value;
+    const regCompany = companyInput?.value;
+    const regPhone = whatsappInput?.value;
+
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email: regEmail,
+        password: regPass,
+        options: {
+          data: {
+            company_name: regCompany,
+            whatsapp: regPhone
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        // Logado automaticamente
+        // Auth state change will handle redirect
+      } else {
+        // Sucesso no cadastro, exibir modal amigável
+        setIsLoginModalOpen(true);
+        setModalView('register_success');
+      }
+    } catch (err: any) {
+      console.error('Erro detalhado no cadastro:', err);
+      if (err.message === 'User already registered' || err.status === 422) {
+        // Exibir modal customizado de conta existente
+        setIsLoginModalOpen(true);
+        setModalView('account_exists');
+      } else {
+        alert('Erro ao cadastrar: ' + err.message);
+      }
+    } finally {
+      setLoading(false); // Stop loading
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Erro Google login:', err);
+      alert('Erro ao conectar com Google: ' + err.message);
+    }
   };
 
   const scrollTo = (id: string) => {
@@ -85,14 +193,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       {/* Header - Fixed on top */}
       <header className="h-20 bg-blue-950 fixed top-0 left-0 w-full z-50 px-6 md:px-12 flex items-center justify-between shadow-xl">
         <Logo size="md" />
-        
+
         <nav className="hidden lg:flex items-center gap-10">
-          <button onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Home</button>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Home</button>
           <button onClick={() => scrollTo('beneficios')} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Benefícios</button>
           <button onClick={() => scrollTo('contato')} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Contato</button>
         </nav>
 
-        <button 
+        <button
           onClick={() => setIsLoginModalOpen(true)}
           className="px-8 py-2.5 bg-yellow-400 text-blue-950 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
         >
@@ -113,14 +221,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             Potencialize seu recrutamento. Dispare vagas em massa ou agende envios automáticos para centenas de comunidades de forma profissional.
           </p>
           <div className="flex flex-wrap items-center gap-4 justify-center lg:justify-start">
-             <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <WhatsAppIcon size={24} className="text-green-500" />
-                <span className="text-sm font-bold text-slate-700">Integrado ao WhatsApp</span>
-             </div>
-             <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <CheckCircle2 size={24} className="text-blue-600" />
-                <span className="text-sm font-bold text-slate-700">Recrutamento Escalável</span>
-             </div>
+            <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <WhatsAppIcon size={24} className="text-green-500" />
+              <span className="text-sm font-bold text-slate-700">Integrado ao WhatsApp</span>
+            </div>
+            <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <CheckCircle2 size={24} className="text-blue-600" />
+              <span className="text-sm font-bold text-slate-700">Recrutamento Escalável</span>
+            </div>
           </div>
         </div>
 
@@ -128,41 +236,65 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         <div className="w-full max-w-md">
           <div className="bg-blue-950 p-8 rounded-[3rem] shadow-3xl shadow-blue-900/50 border border-blue-900 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-48 h-48 bg-blue-800 rounded-full blur-3xl opacity-20 -mr-24 -mt-24"></div>
-            
+
             <h3 className="text-2xl font-black text-white mb-6 text-center relative z-10">Teste Grátis Agora</h3>
             <form onSubmit={handleRegisterForm} className="space-y-4 relative z-10">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Empresa</label>
                 <div className="relative">
                   <Building size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="text" placeholder="Nome da sua empresa" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input required type="text" placeholder="Nome da sua empresa" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">WhatsApp</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">WhatsApp</label>
                 <div className="relative">
                   <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="text" placeholder="(15) 99999-9999" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input required type="text" placeholder="(15) 99999-9999" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">E-mail</label>
                 <div className="relative">
                   <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="email" placeholder="seu@email.com" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input required type="email" placeholder="seu@email.com" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Senha</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">Senha</label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="password" placeholder="••••••••" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input required type="password" placeholder="••••••••" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
                 </div>
               </div>
-              
+
               <div className="pt-2">
-                <button className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-2xl shadow-yellow-400/40 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse-scale">
-                  Teste grátis <ArrowRight size={18} />
+                <button disabled={loading} className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-2xl shadow-yellow-400/40 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse-scale disabled:opacity-70 disabled:pointer-events-none">
+                  {loading ? (
+                    <>Criando conta...</>
+                  ) : (
+                    <>Teste grátis <ArrowRight size={18} /></>
+                  )}
+                </button>
+
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-blue-800"></div>
+                  <span className="flex-shrink-0 mx-4 text-blue-300/40 text-[10px] font-black uppercase tracking-widest">Ou continue com</span>
+                  <div className="flex-grow border-t border-blue-800"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="w-full py-4 bg-white text-blue-950 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg"
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  Criar conta com Google
                 </button>
               </div>
             </form>
@@ -252,7 +384,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   <textarea rows={3} placeholder="Como podemos te ajudar?" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-bold outline-none focus:ring-2 ring-blue-500 transition-all resize-none"></textarea>
                 </div>
                 <button type="button" className="w-full py-4 bg-blue-950 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-900 shadow-xl shadow-blue-900/20 active:scale-95 transition-all flex items-center justify-center gap-3">
-                   Enviar <Send size={18} />
+                  Enviar <Send size={18} />
                 </button>
               </form>
             </div>
@@ -263,10 +395,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       {/* Simplified Footer */}
       <footer className="bg-blue-950 text-white py-6 px-6 mt-auto">
         <div className="max-w-7xl mx-auto flex justify-center">
-          <a 
-            href="https://soroempregos.com.br" 
-            target="_blank" 
-            rel="noopener noreferrer" 
+          <a
+            href="https://soroempregos.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-blue-300 hover:text-white transition-colors text-sm font-normal"
           >
             conheça a soroempregos.com.br
@@ -279,8 +411,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-blue-950/80 backdrop-blur-md" onClick={closeAndResetModal} />
           <div className="relative bg-blue-950 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-scaleUp border border-blue-900">
-            <button 
-              onClick={closeAndResetModal} 
+            <button
+              onClick={closeAndResetModal}
               className="absolute top-8 right-8 p-2 text-white/40 hover:text-white transition-colors"
             >
               <X size={24} />
@@ -300,21 +432,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail</label>
                     <div className="relative">
                       <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        required 
-                        type="email" 
+                      <input
+                        required
+                        type="email"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        placeholder="seu@email.com" 
-                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" 
+                        placeholder="seu@email.com"
+                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center pr-1">
                       <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Senha</label>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => setModalView('forgot')}
                         className="text-[10px] font-black text-yellow-400 uppercase hover:underline tracking-widest"
                       >
@@ -323,17 +455,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     </div>
                     <div className="relative">
                       <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        required 
-                        type="password" 
+                      <input
+                        required
+                        type="password"
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        placeholder="••••••••" 
-                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" 
+                        placeholder="••••••••"
+                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
                       />
                     </div>
                   </div>
-                  
+
                   {error && <p className="text-xs font-black text-rose-400 text-center uppercase tracking-widest">{error}</p>}
 
                   <button className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-xl shadow-yellow-400/20 active:scale-95 transition-all mt-4">
@@ -345,7 +477,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
             {modalView === 'forgot' && (
               <div className="animate-fadeIn">
-                <button 
+                <button
                   onClick={() => setModalView('login')}
                   className="flex items-center gap-2 text-[10px] font-black text-blue-300 uppercase tracking-widest hover:text-white transition-colors mb-6"
                 >
@@ -364,13 +496,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail ou Telefone</label>
                     <div className="relative">
                       <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        required 
-                        type="text" 
+                      <input
+                        required
+                        type="text"
                         value={recoveryInput}
                         onChange={e => setRecoveryInput(e.target.value)}
-                        placeholder="Ex: (15) 99999-9999 ou seu@email.com" 
-                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" 
+                        placeholder="Ex: (15) 99999-9999 ou seu@email.com"
+                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
                       />
                     </div>
                   </div>
@@ -393,11 +525,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   Os dados de acesso foram enviados para o canal informado. Verifique sua caixa de entrada ou seu WhatsApp.
                 </p>
 
-                <button 
+                <button
                   onClick={() => setModalView('login')}
                   className="w-full py-4 bg-white text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-lg"
                 >
                   Voltar ao Login
+                </button>
+              </div>
+            )}
+
+            {modalView === 'register_success' && (
+              <div className="animate-scaleUp text-center py-4">
+                <div className="w-20 h-20 bg-emerald-500 text-white rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/20">
+                  <CheckCircle2 size={40} />
+                </div>
+
+                <h3 className="text-2xl font-black text-white mb-4">Conta Criada!</h3>
+                <p className="text-sm text-blue-300/70 mb-10 leading-relaxed">
+                  Seu cadastro foi realizado com sucesso. Verifique seu e-mail para ativar sua conta e acessar o painel.
+                </p>
+
+                <button
+                  onClick={() => setModalView('login')}
+                  className="w-full py-4 bg-white text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-lg"
+                >
+                  Fazer Login
+                </button>
+              </div>
+            )}
+
+            {modalView === 'account_exists' && (
+              <div className="animate-scaleUp text-center py-4">
+                <div className="w-20 h-20 bg-blue-900 text-yellow-400 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl">
+                  <Logo size="sm" />
+                </div>
+
+                <h3 className="text-2xl font-black text-white mb-4">Conta Já Existe</h3>
+                <p className="text-sm text-blue-300/70 mb-10 leading-relaxed">
+                  Este e-mail já está cadastrado em nossa plataforma. Por favor, faça login para continuar.
+                </p>
+
+                <button
+                  onClick={() => setModalView('login')}
+                  className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
+                >
+                  Ir para Login
                 </button>
               </div>
             )}

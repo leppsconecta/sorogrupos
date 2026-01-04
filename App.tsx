@@ -13,13 +13,15 @@ import { Plano } from './pages/Plano';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-const App: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const AppContent: React.FC = () => {
+  const { session, signOut } = useAuth();
+  const isLoggedIn = !!session;
   const [activeTab, setActiveTab] = useState('painel');
   const [theme, setTheme] = useState<Theme>('light');
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
-  
+
   // WhatsApp Global State
   const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
@@ -41,16 +43,10 @@ const App: React.FC = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const handleLogin = (email: string, pass: string) => {
-    if (email === 'felipelepefe@gmail.com' && pass === '123') {
-      setIsLoggedIn(true);
-      return true;
-    }
-    return false;
-  };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+
+  const handleLogout = async () => {
+    await signOut();
     setActiveTab('painel');
   };
 
@@ -110,25 +106,27 @@ const App: React.FC = () => {
   };
 
   if (!isLoggedIn) {
-    return <LandingPage onLogin={handleLogin} />;
+    if (!isLoggedIn) {
+      return <LandingPage />;
+    }
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         onCreateGroup={handleCreateGroupShortcut}
       />
-      
+
       <div className="flex flex-col flex-1 w-full overflow-hidden">
-        <Header 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
+        <Header
+          theme={theme}
+          toggleTheme={toggleTheme}
           activeTab={activeTab}
           onLogout={handleLogout}
         />
-        
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 custom-scrollbar">
           <div className="w-full max-w-7xl mx-auto">
             {renderContent()}
@@ -143,15 +141,15 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={resetModal} />
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl p-10 animate-scaleUp text-center">
-            <button 
-              onClick={resetModal} 
+            <button
+              onClick={resetModal}
               className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X size={24} />
             </button>
 
             {connectionMethod !== 'selection' && !showResult && (
-              <button 
+              <button
                 onClick={() => setConnectionMethod('selection')}
                 className="absolute top-8 left-8 p-2 text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-xs font-bold uppercase tracking-widest"
               >
@@ -167,9 +165,9 @@ const App: React.FC = () => {
               <div className="space-y-6 animate-fadeIn">
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Conectar WhatsApp</h3>
                 <p className="text-sm text-slate-500 mb-8 font-medium">Escolha o método de conexão preferido para seus disparos.</p>
-                
+
                 <div className="grid grid-cols-1 gap-4">
-                  <button 
+                  <button
                     onClick={() => setConnectionMethod('qrcode')}
                     className="flex items-center gap-4 p-6 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[2rem] hover:border-blue-500 transition-all group text-left"
                   >
@@ -182,7 +180,7 @@ const App: React.FC = () => {
                     </div>
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => setConnectionMethod('pairingCode')}
                     className="flex items-center gap-4 p-6 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[2rem] hover:border-blue-500 transition-all group text-left"
                   >
@@ -202,18 +200,18 @@ const App: React.FC = () => {
                   {connectionMethod === 'qrcode' ? 'QR Code' : 'Código de Emparelhamento'}
                 </h3>
                 <p className="text-sm text-slate-500 mb-8 font-medium">Insira o número de telefone para iniciar.</p>
-                
+
                 <div className="space-y-2 text-left">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número de Telefone</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="Ex: 5515999999999"
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 ring-blue-500/10 transition-all"
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleProcessConnection}
                   disabled={!phoneNumber || isProcessing}
                   className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
@@ -233,7 +231,7 @@ const App: React.FC = () => {
             ) : (
               <div className="space-y-8 animate-fadeIn">
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Escaneie ou Digite</h3>
-                
+
                 {connectionMethod === 'qrcode' ? (
                   <div className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border-2 border-slate-100 dark:border-slate-700 inline-block shadow-inner">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SorogruposWhatsAppSession" alt="WhatsApp QR Code" className="w-48 h-48 dark:invert" />
@@ -254,13 +252,13 @@ const App: React.FC = () => {
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-2xl flex items-start gap-3 text-left">
                   <Smartphone size={18} className="text-blue-600 flex-shrink-0" />
                   <p className="text-xs text-blue-800 dark:text-blue-300 font-medium">
-                    {connectionMethod === 'qrcode' 
-                      ? 'Abra o WhatsApp > Aparelhos Conectados > Conectar um Aparelho e escaneie o código.' 
+                    {connectionMethod === 'qrcode'
+                      ? 'Abra o WhatsApp > Aparelhos Conectados > Conectar um Aparelho e escaneie o código.'
                       : 'No WhatsApp, vá em Configurações > Aparelhos Conectados > Conectar um Aparelho > Conectar com número de telefone e digite o código acima.'}
                   </p>
                 </div>
 
-                <button 
+                <button
                   onClick={handleConnectSuccess}
                   className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
@@ -272,6 +270,14 @@ const App: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
