@@ -14,9 +14,10 @@ import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { FeedbackProvider } from './contexts/FeedbackContext';
 
 const AppContent: React.FC = () => {
-  const { session, signOut } = useAuth();
+  const { session, signOut, onboardingCompleted } = useAuth();
   const isLoggedIn = !!session;
   const [activeTab, setActiveTab] = useState('painel');
   const [theme, setTheme] = useState<Theme>('light');
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     setActiveTab('painel');
+    window.location.reload(); // Ensure clean state
   };
 
   const handleCreateGroupShortcut = () => {
@@ -85,6 +87,12 @@ const AppContent: React.FC = () => {
   };
 
   const renderContent = () => {
+    // If onboarding is incomplete, force 'perfil' tab
+    if (isLoggedIn && !onboardingCompleted && activeTab !== 'perfil') {
+      // We can force set activeTab here, but better to just render Perfil
+      // However, to keep UI in sync, we should useEffect to set it, or just render Perfil content masking others
+    }
+
     const commonProps = {
       isWhatsAppConnected,
       onOpenConnect: () => {
@@ -104,6 +112,14 @@ const AppContent: React.FC = () => {
       default: return <Dashboard setActiveTab={setActiveTab} {...commonProps} />;
     }
   };
+
+  useEffect(() => {
+    if (isLoggedIn && !onboardingCompleted) {
+      if (activeTab !== 'perfil') {
+        setActiveTab('perfil');
+      }
+    }
+  }, [isLoggedIn, onboardingCompleted, activeTab]);
 
   if (!isLoggedIn) {
     if (!isLoggedIn) {
@@ -276,7 +292,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <FeedbackProvider>
+        <AppContent />
+      </FeedbackProvider>
     </AuthProvider>
   );
 };
