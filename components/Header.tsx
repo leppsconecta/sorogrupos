@@ -12,12 +12,12 @@ interface HeaderProps {
   onOpenConnect?: () => void;
 }
 
-const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
+const OfficialWhatsAppIcon = ({ size = 20, color = "#25D366" }: { size?: number, color?: string }) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 24 24"
-    fill="#25D366" // Official WhatsApp Green
+    fill={color}
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
@@ -69,12 +69,13 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, o
         ) : (
           <button
             onClick={onOpenConnect}
-            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800/50 mr-2 transition-all group"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-xl border border-red-600 shadow-lg shadow-red-600/30 mr-2 transition-all group animate-pulse"
+            style={{ animationDuration: '800ms' }}
           >
-            <div className="opacity-50 group-hover:opacity-100 transition-opacity text-slate-500 group-hover:text-emerald-600">
-              <OfficialWhatsAppIcon size={16} />
+            <div className="text-white">
+              <OfficialWhatsAppIcon size={16} color="currentColor" />
             </div>
-            <span className="hidden sm:inline text-[10px] font-bold text-slate-500 group-hover:text-emerald-700 dark:text-slate-400 dark:group-hover:text-emerald-400 uppercase tracking-widest">Conectar</span>
+            <span className="hidden sm:inline text-[10px] font-bold text-white uppercase tracking-widest">WhatsApp Desconectado</span>
           </button>
         )}
 

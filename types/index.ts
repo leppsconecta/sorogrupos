@@ -22,8 +22,6 @@ export interface Company {
     email: string | null;
     whatsapp: string | null;
     linkedin: string | null;
-    tiktok: string | null;
-    kwai: string | null;
     created_at: string;
     updated_at: string;
 }

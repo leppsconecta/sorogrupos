@@ -12,7 +12,6 @@ import {
   Lock,
   Smartphone,
   Hash,
-  // Added Check to imports to fix the error
   Check,
   Instagram,
   Facebook,
@@ -20,36 +19,7 @@ import {
 } from 'lucide-react';
 
 // Custom Icons
-const TikTokIcon = ({ size = 18, className = "" }: { size?: number, className?: string }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-  </svg>
-);
 
-const KwaiIcon = ({ size = 18, className = "" }: { size?: number, className?: string }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M6 4v16" />
-    <path d="M18 4l-10 8" />
-    <path d="M8 12l10 8" />
-  </svg>
-);
 
 const TabButton = ({ id, label, icon: Icon, active, onClick }: { id: ProfileTab, label: string, icon: any, active: boolean, onClick: () => void }) => (
   <button
@@ -112,34 +82,13 @@ export const Perfil: React.FC = () => {
   const [formDataCompany, setFormDataCompany] = useState({
     name: company?.name || '',
     cnpj: company?.cnpj || '',
-    name: company?.name || '',
-    cnpj: company?.cnpj || '',
-    name: company?.name || '',
-    cnpj: company?.cnpj || '',
     whatsapp: company?.whatsapp || '',
     email: company?.email || '',
     zip_code: company?.zip_code || '',
     website: company?.website || '',
     instagram: company?.instagram || '',
     facebook: company?.facebook || '',
-    linkedin: company?.linkedin || '',
-    // custom fields not in DB explicitly but managed in state for now? 
-    // Wait, the DB only has website, instagram, linkedin. 
-    // And user asked for TikTok, Kwai. 
-    // I need to add them to DB if I want to save them?
-    // User request: "Ao clicar no icone (kawai, tiktok ou linkedin) abra o campo".
-    // I should probably save them in a json 'socials' field or just assume they map to something.
-    // Schema doesn't have tiktok/kwai. I will add them to state but since I can't save them to DB without schema change, I will ignore saving them to DB for now or reuse existing fields? 
-    // Actually, I should probably ask or just implement the UI behavior requested.
-    // I'll stick to what I can save: linkedin, instagram, website.
-    // Except if user implied I should support them in DB too.
-    // "Remova os campos de endereço... O campo CEP movido... Ao clicar no icone abra o campo".
-    // I'll implement the UI logic. If I can't save TikTok/Kwai, I won't save them yet or I'll put them in a catch-all if I had one. 
-    // Since I can't change schema for tiktok/kwai easily without migration (I can do migration), but user didn't explicitly ask for backend support for tiktok/kwai, just UI behavior.
-    // Wait, I can do a migration for tiktok and kwai columns?
-    // Let's stick to the requested UI changes first. I will add tiktok and kwai to state.
-    tiktok: '',
-    kwai: ''
+    linkedin: company?.linkedin || ''
   });
 
   // Update state when context data loads
@@ -156,8 +105,6 @@ export const Perfil: React.FC = () => {
         ...prev,
         name: company.name || '',
         cnpj: company.cnpj || '',
-        name: company.name || '',
-        cnpj: company.cnpj || '',
         whatsapp: company.whatsapp || '',
         zip_code: company.zip_code || '',
         email: company.email || '',
@@ -170,8 +117,6 @@ export const Perfil: React.FC = () => {
       // Set active socials if they have content
       const active = [];
       if (company.linkedin) active.push('linkedin');
-      if (company.tiktok) active.push('tiktok');
-      if (company.kwai) active.push('kwai');
       setActiveSocials(active);
     }
   }, [profile, company]);
@@ -222,8 +167,6 @@ export const Perfil: React.FC = () => {
         instagram: formDataCompany.instagram,
         facebook: (formDataCompany as any).facebook,
         linkedin: formDataCompany.linkedin,
-        tiktok: (formDataCompany as any).tiktok,
-        kwai: (formDataCompany as any).kwai,
         updated_at: new Date().toISOString()
       };
 
@@ -418,9 +361,7 @@ export const Perfil: React.FC = () => {
                   {/* Social Network Toggles */}
                   <div className="flex gap-2">
                     {[
-                      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
-                      { id: 'tiktok', icon: TikTokIcon, label: 'TikTok' },
-                      { id: 'kwai', icon: KwaiIcon, label: 'Kwai' }
+                      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn' }
                     ].map((social) => (
                       !activeSocials.includes(social.id) && (
                         <button
@@ -470,29 +411,7 @@ export const Perfil: React.FC = () => {
                     </div>
                   )}
 
-                  {activeSocials.includes('tiktok') && (
-                    <div className="max-w-full animate-fadeIn">
-                      <InputField
-                        label="TikTok"
-                        icon={TikTokIcon}
-                        value={(formDataCompany as any).tiktok}
-                        onChange={(e: any) => setFormDataCompany({ ...formDataCompany, tiktok: e.target.value })}
-                        required={false}
-                      />
-                    </div>
-                  )}
 
-                  {activeSocials.includes('kwai') && (
-                    <div className="max-w-full animate-fadeIn">
-                      <InputField
-                        label="Kwai"
-                        icon={KwaiIcon}
-                        value={(formDataCompany as any).kwai}
-                        onChange={(e: any) => setFormDataCompany({ ...formDataCompany, kwai: e.target.value })}
-                        required={false}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 
