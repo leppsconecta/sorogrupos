@@ -47,3 +47,14 @@ export interface ConfirmOptions {
     onConfirm: () => void;
     onCancel?: () => void;
 }
+
+export interface SupportTicket {
+    id: string;
+    code: string;
+    user_id: string;
+    subject: string;
+    description: string;
+    phone: string;
+    status: string;
+    created_at: string;
+}

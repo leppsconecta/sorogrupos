@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  X, 
-  Link as LinkIcon, 
-  Crown, 
+import {
+  Users,
+  Search,
+  Plus,
+  X,
+  Link as LinkIcon,
+  Crown,
   ExternalLink,
   MessageSquare,
   Copy,
@@ -53,7 +53,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [editingTagValue, setEditingTagValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [joinValue, setJoinValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   const handleCreateGroup = () => {
     if (!formName.trim() || !formContact.trim()) return;
-    
+
     const tags = formTagsInput
       .split(',')
       .map(t => t.trim())
@@ -138,7 +138,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       description: formDescription,
       tags: tags
     };
-    
+
     setGroups([newGroup, ...groups]);
     setIsCreateModalOpen(false);
   };
@@ -159,10 +159,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   // Tag Group Actions
   const toggleTagInGroup = (group: Group, tag: string) => {
     const hasTag = group.tags.includes(tag);
-    const updatedTags = hasTag 
+    const updatedTags = hasTag
       ? group.tags.filter(t => t !== tag)
       : [...group.tags, tag];
-    
+
     setGroups(groups.map(g => g.id === group.id ? { ...g, tags: updatedTags } : g));
   };
 
@@ -194,12 +194,12 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       const updatedList = [...availableTags];
       updatedList[editingTagIndex!] = newValue;
       setAvailableTags(updatedList);
-      
+
       setGroups(groups.map(g => ({
         ...g,
         tags: g.tags.map(t => t === oldTag ? newValue : t)
       })));
-      
+
       if (selectedTag === oldTag) setSelectedTag(newValue);
     }
     setEditingTagIndex(null);
@@ -207,40 +207,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      
-      {/* WhatsApp Connection Alert/Card */}
-      <div 
-        onClick={() => !isWhatsAppConnected && onOpenConnect()}
-        className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between
-          ${isWhatsAppConnected 
-            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800' 
-            : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800 animate-pulse'}`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center 
-            ${isWhatsAppConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-            <Smartphone size={20} />
-          </div>
-          <div>
-            <h3 className={`font-semibold text-xs uppercase tracking-widest ${isWhatsAppConnected ? 'text-emerald-700' : 'text-rose-700'}`}>
-              {isWhatsAppConnected ? 'WhatsApp Conectado' : 'Atenção: WhatsApp Desconectado'}
-            </h3>
-            <p className={`text-[10px] font-medium ${isWhatsAppConnected ? 'text-emerald-600/70' : 'text-rose-600/70'}`}>
-              {isWhatsAppConnected ? 'Tudo ok - Sistema pronto para disparos' : 'Clique aqui para conectar e habilitar as funções'}
-            </p>
-          </div>
-        </div>
-        {!isWhatsAppConnected && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[9px] font-semibold uppercase tracking-widest">
-            <AlertCircle size={12} /> Desconectado
-          </div>
-        )}
-        {isWhatsAppConnected && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-semibold uppercase tracking-widest">
-            <CheckCircle2 size={12} /> Ativo
-          </div>
-        )}
-      </div>
+
+
 
       {/* Search and Action Bar - All on the same line */}
       <div className="flex flex-col lg:flex-row items-center gap-4">
@@ -249,18 +217,18 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
             <Search className="text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
           </div>
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar comunidades pelo nome..." 
+            placeholder="Buscar comunidades pelo nome..."
             className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] pl-14 pr-6 py-4 text-sm font-medium outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
           />
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button 
+          <button
             onClick={handleSyncGroups}
             disabled={isSyncing}
             className={`flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:text-blue-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -270,7 +238,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             <span className="hidden sm:inline">{isSyncing ? 'Atualizando...' : 'Atualizar Grupos'}</span>
           </button>
 
-          <button 
+          <button
             onClick={() => setIsTagsModalOpen(true)}
             className="flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:text-blue-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
             title="Gerenciar Tags"
@@ -278,16 +246,16 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             <Settings2 size={18} />
             <span className="hidden sm:inline">Tags</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setIsJoinModalOpen(true)}
             className="flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             <LinkIcon size={18} />
             <span className="hidden sm:inline">Entrar no Grupo</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={openCreateModal}
             className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
           >
@@ -299,23 +267,23 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       {/* Tag Filter Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-        <button 
+        <button
           onClick={() => setSelectedTag(null)}
           className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-            ${selectedTag === null 
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+            ${selectedTag === null
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
               : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
             }`}
         >
           Todos
         </button>
         {availableTags.map(tag => (
-          <button 
+          <button
             key={tag}
             onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
             className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-              ${selectedTag === tag 
-                ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+              ${selectedTag === tag
+                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                 : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
               }`}
           >
@@ -327,31 +295,31 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       {/* Groups Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredGroups.map((group) => (
-          <div 
-            key={group.id} 
+          <div
+            key={group.id}
             className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative"
           >
             {/* Tag Button Top Right - Fixed to always show per request */}
             <div className="absolute top-4 right-4 z-10">
-               <button 
-                onClick={() => setTaggingGroup(group)} 
+              <button
+                onClick={() => setTaggingGroup(group)}
                 className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 active:scale-95"
                 title="Adicionar Tag"
-               >
+              >
                 <TagIcon size={16} />
-               </button>
+              </button>
             </div>
 
             {/* Group Thumbnail (Circular) */}
             <div className="relative mb-4">
               <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors">
-                <img 
-                  src={group.image} 
-                  alt={group.name} 
+                <img
+                  src={group.image}
+                  alt={group.name}
                   className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
                 />
               </div>
-              
+
               {group.isAdmin && (
                 <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-blue-950 shadow-lg border-2 border-white dark:border-slate-900">
                   <Crown size={14} />
@@ -368,7 +336,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 <Users size={12} className="text-blue-500" />
                 <span>{group.membersCount.toLocaleString()} participantes</span>
               </div>
-              
+
               <div className="flex flex-wrap justify-center gap-1.5 mt-3 min-h-[20px]">
                 {group.tags.map(tag => (
                   <span key={tag} className="bg-slate-50 dark:bg-slate-800 text-slate-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-700">
@@ -383,11 +351,11 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               <ExternalLink size={14} />
             </button>
 
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); copyLink(group); }}
               className={`w-full mt-3 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
-                ${copiedId === group.id 
-                  ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
+                ${copiedId === group.id
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
             >
               {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
@@ -421,18 +389,18 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 {/* Profile Picture Upload */}
                 <div className="flex flex-col items-center mb-6">
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-slate-300 relative group cursor-pointer overflow-hidden hover:border-blue-500 transition-all"
                   >
-                      {formImage ? (
-                        <img src={formImage} className="w-full h-full object-cover" alt="Preview" />
-                      ) : (
-                        <ImageIcon size={28} />
-                      )}
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <Upload size={20} className="text-white" />
-                      </div>
+                    {formImage ? (
+                      <img src={formImage} className="w-full h-full object-cover" alt="Preview" />
+                    ) : (
+                      <ImageIcon size={28} />
+                    )}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Upload size={20} className="text-white" />
+                    </div>
                   </div>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3">Clique para carregar foto</span>
                 </div>
@@ -540,12 +508,12 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 {availableTags.map(tag => {
                   const isSelected = taggingGroup.tags.includes(tag);
                   return (
-                    <button 
-                      key={tag} 
+                    <button
+                      key={tag}
                       onClick={() => toggleTagInGroup(taggingGroup, tag)}
                       className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border
-                        ${isSelected 
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                        ${isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-500'
                         }`}
                     >
@@ -582,37 +550,37 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
             <div className="p-8">
               <div className="flex gap-2 mb-6">
-                 <input type="text" value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()} placeholder="Nome da nova tag..." className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" />
-                 <button onClick={addGlobalTag} className="p-3.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all"><Plus size={20} /></button>
+                <input type="text" value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()} placeholder="Nome da nova tag..." className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" />
+                <button onClick={addGlobalTag} className="p-3.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all"><Plus size={20} /></button>
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                 {availableTags.map((tag, idx) => (
-                   <div key={tag} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl group border border-slate-100 dark:border-slate-800">
-                      {editingTagIndex === idx ? (
-                        <div className="flex-1 flex gap-2">
-                           <input 
-                            autoFocus
-                            type="text" 
-                            value={editingTagValue} 
-                            onChange={(e) => setEditingTagValue(e.target.value)} 
-                            onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
-                            className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-3 py-1.5 text-sm outline-none ring-1 ring-blue-500 shadow-inner" 
-                           />
-                           <button onClick={() => saveEditedTag(tag)} className="text-blue-600 hover:text-blue-700 transition-colors"><Check size={18}/></button>
-                           <button onClick={() => setEditingTagIndex(null)} className="text-slate-400"><X size={18}/></button>
+                {availableTags.map((tag, idx) => (
+                  <div key={tag} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl group border border-slate-100 dark:border-slate-800">
+                    {editingTagIndex === idx ? (
+                      <div className="flex-1 flex gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editingTagValue}
+                          onChange={(e) => setEditingTagValue(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
+                          className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-3 py-1.5 text-sm outline-none ring-1 ring-blue-500 shadow-inner"
+                        />
+                        <button onClick={() => saveEditedTag(tag)} className="text-blue-600 hover:text-blue-700 transition-colors"><Check size={18} /></button>
+                        <button onClick={() => setEditingTagIndex(null)} className="text-slate-400"><X size={18} /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200"># {tag}</span>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => startEditingTag(idx, tag)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit3 size={16} /></button>
+                          <button onClick={() => deleteGlobalTag(tag)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
                         </div>
-                      ) : (
-                        <>
-                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200"># {tag}</span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                             <button onClick={() => startEditingTag(idx, tag)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit3 size={16} /></button>
-                             <button onClick={() => deleteGlobalTag(tag)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                          </div>
-                        </>
-                      )}
-                   </div>
-                 ))}
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <button onClick={() => setIsTagsModalOpen(false)} className="w-full mt-8 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3.5 rounded-2xl font-bold text-sm transition-all hover:bg-slate-200">Fechar Gerenciador</button>

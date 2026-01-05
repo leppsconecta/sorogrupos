@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-  Send, 
-  Search, 
-  CheckCircle2, 
-  Clock, 
-  Users, 
-  Eye, 
+import {
+  Send,
+  Search,
+  CheckCircle2,
+  Clock,
+  Users,
+  Eye,
   Megaphone,
   ChevronDown,
   X,
@@ -70,13 +70,13 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const [vagaSearch, setVagaSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
-  
+
   // Custom Date/Time states
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [scheduleTime, setScheduleTime] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  
+
   // Carousel state
   const [previewIndex, setPreviewIndex] = useState(0);
 
@@ -115,8 +115,8 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   }, [groupSearch, selectedTag]);
 
   const filteredVagasList = useMemo(() => {
-    return MOCK_VAGAS.filter(v => 
-      v.role.toLowerCase().includes(vagaSearch.toLowerCase()) || 
+    return MOCK_VAGAS.filter(v =>
+      v.role.toLowerCase().includes(vagaSearch.toLowerCase()) ||
       v.jobCode.toLowerCase().includes(vagaSearch.toLowerCase()) ||
       v.city.toLowerCase().includes(vagaSearch.toLowerCase())
     );
@@ -142,7 +142,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   };
 
   const toggleGroupSelection = (id: string) => {
-    setSelectedGroupIds(prev => 
+    setSelectedGroupIds(prev =>
       prev.includes(id) ? prev.filter(gId => gId !== id) : [...prev, id]
     );
   };
@@ -173,7 +173,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   };
 
   const toggleDateSelection = (date: string) => {
-    setSelectedDates(prev => 
+    setSelectedDates(prev =>
       prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
     );
   };
@@ -183,7 +183,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
       alert("Selecione os dias, o horário, as vagas e os grupos.");
       return;
     }
-    
+
     const newSchedules = selectedDates.map(date => ({
       id: Math.random().toString(36).substr(2, 9),
       jobsCount: selectedVagaIds.length,
@@ -192,7 +192,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
       time: scheduleTime,
       status: 'pending'
     }));
-    
+
     setSchedules([...newSchedules, ...schedules]);
     alert(`${newSchedules.length} agendamento(s) realizado(s) com sucesso!`);
     setIsScheduling(false);
@@ -227,11 +227,11 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
 
   // UI Components
   const TabButton = ({ id, label, icon: Icon }: { id: typeof view, label: string, icon: any }) => (
-    <button 
+    <button
       onClick={() => setView(id)}
       className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm active:scale-95 whitespace-nowrap
-        ${view === id 
-          ? 'bg-blue-600 text-white shadow-blue-600/20' 
+        ${view === id
+          ? 'bg-blue-600 text-white shadow-blue-600/20'
           : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50'}`}
     >
       <Icon size={18} />
@@ -241,35 +241,8 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      
-      {/* WhatsApp Connection Alert/Card */}
-      <div 
-        onClick={() => !isWhatsAppConnected && onOpenConnect()}
-        className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between
-          ${isWhatsAppConnected 
-            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800' 
-            : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800 animate-pulse'}`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center 
-            ${isWhatsAppConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-            <Smartphone size={20} />
-          </div>
-          <div>
-            <h3 className={`font-semibold text-xs uppercase tracking-widest ${isWhatsAppConnected ? 'text-emerald-700' : 'text-rose-700'}`}>
-              {isWhatsAppConnected ? 'WhatsApp Conectado' : 'Atenção: WhatsApp Desconectado'}
-            </h3>
-            <p className={`text-[10px] font-medium ${isWhatsAppConnected ? 'text-emerald-600/70' : 'text-rose-600/70'}`}>
-              {isWhatsAppConnected ? 'Tudo ok - Sistema pronto para disparos' : 'Clique aqui para conectar e habilitar as funções'}
-            </p>
-          </div>
-        </div>
-        {!isWhatsAppConnected && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[9px] font-semibold uppercase tracking-widest">
-            <AlertCircle size={12} /> Desconectado
-          </div>
-        )}
-      </div>
+
+
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -289,25 +262,25 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Lado Esquerdo: Seleção e Preview */}
           <div className="lg:col-span-7 space-y-8">
-            
+
             {/* 1. Selecionar Vagas */}
             <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-4 relative">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-[11px] font-black text-blue-950 shadow-md">1</div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">Selecionar Vagas</h3>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                   {selectedVagaIds.length === 10 ? 'Limite Máximo Atingido' : `Vagas Ativas (${selectedVagaIds.length}/10)`}
+                  {selectedVagaIds.length === 10 ? 'Limite Máximo Atingido' : `Vagas Ativas (${selectedVagaIds.length}/10)`}
                 </p>
                 {selectedVagaIds.length > 0 && (
                   <button onClick={() => setSelectedVagaIds([])} className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:underline">Limpar Tudo</button>
                 )}
               </div>
-              
+
               <div className="relative" ref={jobDropdownRef}>
-                <button 
+                <button
                   onClick={() => setIsJobDropdownOpen(!isJobDropdownOpen)}
                   className="w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 px-6 py-4 rounded-2xl text-sm font-medium text-slate-500 hover:border-blue-500 transition-all outline-none"
                 >
@@ -324,8 +297,8 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                         <Search size={14} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                       </div>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={vagaSearch}
                         onChange={(e) => setVagaSearch(e.target.value)}
                         placeholder="Buscar por cargo ou código..."
@@ -333,7 +306,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                         onClick={(e) => e.stopPropagation()}
                       />
                       {vagaSearch && (
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); setVagaSearch(''); }}
                           className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                         >
@@ -347,7 +320,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                         <div className="text-center py-6 text-slate-400 text-[10px] font-bold uppercase">Nenhuma vaga encontrada</div>
                       ) : (
                         filteredVagasList.map(vaga => (
-                          <button 
+                          <button
                             key={vaga.id}
                             onClick={() => toggleVagaSelection(vaga.id)}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${selectedVagaIds.includes(vaga.id) ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
@@ -439,7 +412,7 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
               <div className="space-y-4">
                 <div className="relative">
                   <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input 
+                  <input
                     type="text"
                     value={groupSearch}
                     onChange={e => setGroupSearch(e.target.value)}
@@ -450,23 +423,23 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
 
                 {/* Tag Filter row within group selection */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                  <button 
+                  <button
                     onClick={() => setSelectedTag(null)}
                     className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-                      ${selectedTag === null 
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                      ${selectedTag === null
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                         : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
                       }`}
                   >
                     Todos
                   </button>
                   {AVAILABLE_TAGS.map(tag => (
-                    <button 
+                    <button
                       key={tag}
                       onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
                       className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-                        ${selectedTag === tag 
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                        ${selectedTag === tag
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
                         }`}
                     >
@@ -483,12 +456,12 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                   </div>
                 ) : (
                   filteredGroups.map(group => (
-                    <div 
+                    <div
                       key={group.id}
                       onClick={() => toggleGroupSelection(group.id)}
                       className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer group
-                        ${selectedGroupIds.includes(group.id) 
-                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' 
+                        ${selectedGroupIds.includes(group.id)
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
                           : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-blue-200'}`}
                     >
                       <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${selectedGroupIds.includes(group.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200 dark:border-slate-800 group-hover:border-blue-500'}`}>
@@ -509,14 +482,14 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
 
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => setIsScheduling(!isScheduling)}
                     className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-all border
                       ${isScheduling ? 'bg-yellow-400 text-blue-950 border-yellow-400 shadow-lg shadow-yellow-400/20' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
                   >
                     <CalendarIcon size={18} /> Agendar
                   </button>
-                  <button 
+                  <button
                     disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
                     onClick={handleSend}
                     className="flex-[2] flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-600/20 disabled:opacity-50 hover:bg-blue-700 transition-all active:scale-95"
@@ -530,7 +503,7 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2 relative" ref={datePickerRef}>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dias do Disparo (Janela de 7 dias)</label>
-                        <button 
+                        <button
                           onClick={() => setShowDatePicker(!showDatePicker)}
                           className={`w-full flex items-center justify-between bg-white dark:bg-slate-900 border px-4 py-3.5 rounded-xl text-xs font-bold transition-all
                             ${selectedDates.length > 0 ? 'border-blue-500 text-slate-900 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}
@@ -541,22 +514,22 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                           </div>
                           <ChevronDown size={14} className={`transition-transform duration-300 ${showDatePicker ? 'rotate-180' : ''}`} />
                         </button>
-                        
+
                         {showDatePicker && (
                           <div className="absolute bottom-full mb-2 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 p-2 animate-scaleUp">
                             <div className="grid grid-cols-1 gap-1">
                               {nextDays.map(d => (
-                                <button 
+                                <button
                                   key={d.value}
                                   onClick={() => toggleDateSelection(d.value)}
                                   className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all
                                     ${selectedDates.includes(d.value) ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'}`}
                                 >
                                   <div className="flex items-center gap-2">
-                                     <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${selectedDates.includes(d.value) ? 'bg-white border-white' : 'border-slate-200 dark:border-slate-700'}`}>
-                                        {selectedDates.includes(d.value) && <Check size={10} className="text-blue-600" />}
-                                     </div>
-                                     <span className="text-xs font-bold">{d.value}</span>
+                                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${selectedDates.includes(d.value) ? 'bg-white border-white' : 'border-slate-200 dark:border-slate-700'}`}>
+                                      {selectedDates.includes(d.value) && <Check size={10} className="text-blue-600" />}
+                                    </div>
+                                    <span className="text-xs font-bold">{d.value}</span>
                                   </div>
                                   <span className="text-[9px] font-black uppercase opacity-60">{d.label}</span>
                                 </button>
@@ -568,7 +541,7 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
 
                       <div className="space-y-2 relative" ref={timePickerRef}>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Horário (07:00 às 20:00)</label>
-                        <button 
+                        <button
                           onClick={() => setShowTimePicker(!showTimePicker)}
                           className={`w-full flex items-center justify-between bg-white dark:bg-slate-900 border px-4 py-3.5 rounded-xl text-xs font-bold transition-all
                             ${scheduleTime ? 'border-blue-500 text-slate-900 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}
@@ -584,7 +557,7 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                           <div className="absolute bottom-full mb-2 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 p-2 animate-scaleUp">
                             <div className="grid grid-cols-4 gap-1 max-h-48 overflow-y-auto custom-scrollbar">
                               {timeSlots.map(t => (
-                                <button 
+                                <button
                                   key={t}
                                   onClick={() => { setScheduleTime(t); setShowTimePicker(false); }}
                                   className={`py-2.5 rounded-lg text-[10px] font-black transition-all
@@ -598,10 +571,10 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                         )}
                       </div>
                     </div>
-                    
-                    <button 
-                      onClick={handleScheduleSubmit} 
-                      disabled={selectedDates.length === 0 || !scheduleTime} 
+
+                    <button
+                      onClick={handleScheduleSubmit}
+                      disabled={selectedDates.length === 0 || !scheduleTime}
                       className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/10 disabled:opacity-50 transition-all active:scale-95"
                     >
                       Agendar para {selectedDates.length} dia(s)
@@ -643,11 +616,11 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 mt-4 md:mt-0">
                     <div className="bg-blue-50 dark:bg-blue-900/30 px-4 py-1.5 rounded-full flex items-center gap-2 border border-blue-100 dark:border-blue-900/50">
-                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                       <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pendente</span>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pendente</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all"><Eye size={18} /></button>
