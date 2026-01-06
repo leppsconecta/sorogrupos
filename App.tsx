@@ -10,6 +10,7 @@ import { Grupos } from './pages/Grupos';
 import { Perfil } from './pages/Perfil';
 import { Suporte } from './pages/Suporte';
 import { Plano } from './pages/Plano';
+import { Agendamentos } from './pages/Agendamentos';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2, LogOut } from 'lucide-react';
@@ -316,6 +317,7 @@ const AppContent: React.FC = () => {
       case 'marketing': return <Marketing {...commonProps} />;
       case 'vagas': return <Vagas />;
       case 'grupos': return <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />;
+      case 'agendamentos': return <Agendamentos setActiveTab={setActiveTab} />;
       case 'plano': return <Plano />;
       case 'suporte': return <Suporte />;
       case 'perfil': return <Perfil />;

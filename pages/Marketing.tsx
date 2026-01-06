@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, createRef } from 'react';
 import {
   Send,
   Search,
@@ -86,8 +85,11 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Dropdown states & Refs for Click Outside
   const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
   const jobDropdownRef = useRef<HTMLDivElement>(null);
+
   const datePickerRef = useRef<HTMLDivElement>(null);
   const timePickerRef = useRef<HTMLDivElement>(null);
+  const vagaItemRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
+  const groupItemRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -137,14 +139,31 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         alert("Limite máximo atingido. Você pode selecionar no máximo 10 vagas por envio.");
         return prev;
       }
+      // Scroll to selected item
+      setTimeout(() => {
+        const ref = vagaItemRefs.current[id];
+        if (ref?.current) {
+          ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
       return [...prev, id];
     });
   };
 
   const toggleGroupSelection = (id: string) => {
-    setSelectedGroupIds(prev =>
-      prev.includes(id) ? prev.filter(gId => gId !== id) : [...prev, id]
-    );
+    setSelectedGroupIds(prev => {
+      const isCurrentlySelected = prev.includes(id);
+      if (!isCurrentlySelected) {
+        // Scroll to selected item
+        setTimeout(() => {
+          const ref = groupItemRefs.current[id];
+          if (ref?.current) {
+            ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+      return isCurrentlySelected ? prev.filter(gId => gId !== id) : [...prev, id];
+    });
   };
 
   const selectAllGroups = () => {
@@ -172,320 +191,309 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     alert(`Enviando ${selectedVagaIds.length} vaga(s) para ${selectedGroupIds.length} grupo(s)!`);
   };
 
-  const toggleDateSelection = (date: string) => {
-    setSelectedDates(prev =>
-      prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
-    );
-  };
-
   const handleScheduleSubmit = () => {
-    if (selectedDates.length === 0 || !scheduleTime || selectedVagaIds.length === 0 || selectedGroupIds.length === 0) {
-      alert("Selecione os dias, o horário, as vagas e os grupos.");
-      return;
-    }
-
-    const newSchedules = selectedDates.map(date => ({
-      id: Math.random().toString(36).substr(2, 9),
+    const newSchedule = {
+      id: `s${Date.now()}`,
       jobsCount: selectedVagaIds.length,
       groupsCount: selectedGroupIds.length,
-      date: date,
+      date: selectedDates.join(', '),
       time: scheduleTime,
       status: 'pending'
-    }));
-
-    setSchedules([...newSchedules, ...schedules]);
-    alert(`${newSchedules.length} agendamento(s) realizado(s) com sucesso!`);
+    };
+    setSchedules([...schedules, newSchedule]);
     setIsScheduling(false);
-    setSelectedVagaIds([]);
-    setSelectedGroupIds([]);
+    setView('schedules');
     setSelectedDates([]);
     setScheduleTime('');
+    setSelectedVagaIds([]);
+    setSelectedGroupIds([]);
   };
 
   const removeSchedule = (id: string) => {
-    if (confirm('Deseja cancelar este agendamento?')) {
-      setSchedules(prev => prev.filter(s => s.id !== id));
-    }
+    setSchedules(prev => prev.filter(s => s.id !== id));
   };
 
-  // Restricted to 7 days window
-  const nextDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const year = d.getFullYear();
-    const label = i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : d.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase();
-    return { value: `${day}/${month}/${year}`, label, isToday: i === 0 };
-  });
+  // Generate date slots (today + 14 days)
+  // Helper to generate next 7 days
+  const generateNext7Days = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      dates.push(`${day}/${month}`);
+    }
+    return dates;
+  };
 
-  // Hourly slots from 07:00 to 20:00
-  const timeSlots = Array.from({ length: 14 }, (_, i) => {
-    const hour = (7 + i).toString().padStart(2, '0');
-    return `${hour}:00`;
-  });
+  const dateSlots = useMemo(() => generateNext7Days(), []);
 
-  // UI Components
-  const TabButton = ({ id, label, icon: Icon }: { id: typeof view, label: string, icon: any }) => (
-    <button
-      onClick={() => setView(id)}
-      className={`flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm active:scale-95 whitespace-nowrap
-        ${view === id
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 hover:text-blue-500 dark:hover:bg-slate-800'}`}
-    >
-      <Icon size={18} />
-      {label}
-    </button>
-  );
+  // Generate time slots 24h, ordered starting from 07:00
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    // 07:00 to 23:00
+    for (let i = 7; i <= 23; i++) {
+      slots.push(`${String(i).padStart(2, '0')}:00`);
+    }
+    // 00:00 to 06:00
+    for (let i = 0; i < 7; i++) {
+      slots.push(`${String(i).padStart(2, '0')}:00`);
+    }
+    return slots;
+  }, []);
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-12">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 bg-yellow-400 rounded-[1.25rem] flex items-center justify-center text-blue-950 shadow-xl shadow-yellow-400/20 transform -rotate-3">
-            <Megaphone size={28} />
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-yellow-400/10 rounded-2xl flex items-center justify-center text-yellow-600 dark:text-yellow-400 border border-yellow-400/20">
+            <Megaphone size={24} />
           </div>
           <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-1">Marketing</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Broadcast & Gestão de Disparos</p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Broadcasting</h2>
+            <p className="text-sm text-slate-500 font-medium">Gerencie seus disparos e agendamentos.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded-[1.5rem] border border-slate-200/50 dark:border-slate-800/50">
-          <TabButton id="broadcast" label="Novo Envio" icon={Megaphone} />
-          <TabButton id="schedules" label="Agendamentos" icon={CalendarDays} />
-          <TabButton id="reports" label="Histórico" icon={History} />
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+          {[{ id: 'broadcast', label: 'Novo Envio', icon: Megaphone }, { id: 'schedules', label: 'Agendamentos', icon: CalendarDays }, { id: 'reports', label: 'Histórico', icon: History }].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setView(tab.id as any)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap
+                ${view === tab.id
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {view === 'broadcast' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Lado Esquerdo: Seleção e Preview */}
-          <div className="lg:col-span-12 xl:col-span-8 space-y-8">
-
-            {/* Step Indicators row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { step: 1, title: 'Selecionar Vagas', active: selectedVagaIds.length > 0 },
-                { step: 2, title: 'Prévia da Mensagem', active: selectedVagaIds.length > 0 },
-                { step: 3, title: 'Escolher Grupos', active: selectedGroupIds.length > 0 }
-              ].map((item) => (
-                <div key={item.step} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${item.active ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200/50 dark:border-blue-800/50' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-50'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-md ${item.active ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
-                    {item.step}
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{item.title}</span>
-                </div>
-              ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
+          {/* Left Column: Vagas & Preview */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 px-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${selectedVagaIds.length > 0 ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'}`}>1</div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Selecionar Vagas</span>
+              <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800" />
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${selectedGroupIds.length > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>2</div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Grupos</span>
+              <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800" />
+              <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-bold">3</div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* 1. Selecionar Vagas */}
-              <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none space-y-6 flex flex-col hover:scale-[1.01] transition-transform duration-300">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Vagas</h3>
-                  <div className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800">
-                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                      {selectedVagaIds.length}/10
-                    </span>
-                  </div>
-                </div>
-
-                <div className="relative flex-1" ref={jobDropdownRef}>
-                  <button
-                    onClick={() => setIsJobDropdownOpen(!isJobDropdownOpen)}
-                    className="w-full h-full min-h-[140px] flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl hover:border-blue-500 hover:bg-blue-50/10 transition-all p-6 group"
-                  >
-                    {selectedVagaIds.length === 0 ? (
-                      <>
-                        <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-300 group-hover:text-blue-500 shadow-sm transition-colors border border-slate-100 dark:border-slate-800">
-                          <Plus size={24} />
-                        </div>
-                        <p className="text-[10px] font-black text-slate-400 group-hover:text-blue-500 uppercase tracking-[0.2em]">Adicionar Vagas</p>
-                      </>
-                    ) : (
-                      <div className="w-full space-y-2">
-                        {selectedVagas.slice(0, 3).map(v => (
-                          <div key={v.id} className="w-full flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 truncate">{v.role}</span>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase">{v.jobCode}</span>
-                          </div>
-                        ))}
-                        {selectedVagaIds.length > 3 && (
-                          <p className="text-[10px] items-center text-center font-bold text-blue-500 uppercase tracking-widest mt-2">+ {selectedVagaIds.length - 3} outras vagas</p>
-                        )}
-                        {selectedVagaIds.length > 0 && (
-                          <div className="pt-2 flex justify-center">
-                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                              Clique para Editar <ChevronDown size={12} className={isJobDropdownOpen ? 'rotate-180' : ''} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-
-                  {isJobDropdownOpen && (
-                    <div className="absolute top-0 left-0 right-0 mt-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-30 max-h-[400px] overflow-hidden flex flex-col animate-scaleUp">
-                      <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                        <div className="relative group">
-                          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                          <input
-                            type="text"
-                            autoFocus
-                            value={vagaSearch}
-                            onChange={(e) => setVagaSearch(e.target.value)}
-                            placeholder="Buscar cargo ou código..."
-                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl pl-12 pr-4 py-3.5 text-xs font-bold outline-none focus:ring-4 ring-blue-500/10 focus:border-blue-500 transition-all"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-                        {filteredVagasList.length === 0 ? (
-                          <div className="text-center py-12">
-                            <Search size={32} className="mx-auto text-slate-200 mb-2" />
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhuma vaga</p>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-1">
-                            {filteredVagasList.map(vaga => (
-                              <button
-                                key={vaga.id}
-                                onClick={() => toggleVagaSelection(vaga.id)}
-                                className={`w-full flex items-center gap-4 p-4 rounded-[1.25rem] text-left transition-all relative overflow-hidden group/item ${selectedVagaIds.includes(vaga.id) ? 'bg-blue-600 shadow-lg shadow-blue-600/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                              >
-                                {selectedVagaIds.includes(vaga.id) && (
-                                  <div className="absolute top-0 left-0 w-1 h-full bg-yellow-400" />
-                                )}
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${selectedVagaIds.includes(vaga.id) ? 'bg-white/20 border-transparent' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-sm'}`}>
-                                  {selectedVagaIds.includes(vaga.id) ? <Check size={18} className="text-white" /> : <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-600 group-hover/item:scale-150 transition-transform" />}
-                                </div>
-                                <div className="flex-1">
-                                  <p className={`text-xs font-black uppercase tracking-tight ${selectedVagaIds.includes(vaga.id) ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{vaga.role}</p>
-                                  <div className="flex items-center gap-2 mt-0.5 opacity-60">
-                                    <span className={`text-[9px] font-bold ${selectedVagaIds.includes(vaga.id) ? 'text-white/80' : 'text-slate-500'}`}>{vaga.jobCode}</span>
-                                    <div className={`w-1 h-1 rounded-full ${selectedVagaIds.includes(vaga.id) ? 'bg-white/40' : 'bg-slate-300'}`} />
-                                    <span className={`text-[9px] font-bold ${selectedVagaIds.includes(vaga.id) ? 'text-white/80' : 'text-slate-500'}`}>{vaga.city}</span>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
-                        <button onClick={() => setSelectedVagaIds([])} className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] hover:opacity-70 transition-opacity">Limpar Seleção</button>
-                        <button onClick={() => setIsJobDropdownOpen(false)} className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg">Concluir</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* 2. Preview WhatsApp Style */}
-              <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none space-y-6 flex flex-col hover:scale-[1.01] transition-transform duration-300">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Preview</h3>
-                  {selectedVagas.length > 1 && (
-                    <div className="flex items-center gap-2">
-                      <button onClick={prevPreview} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-blue-600 hover:text-white transition-all transform active:scale-75"><ChevronLeft size={16} /></button>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{previewIndex + 1}/{selectedVagas.length}</span>
-                      <button onClick={nextPreview} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-blue-600 hover:text-white transition-all transform active:scale-75"><ChevronRight size={16} /></button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 bg-[#F0F2F5] dark:bg-[#0b141a] rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[300px] shadow-inner">
-                  {/* WhatsApp header look-alike */}
-                  <div className="absolute top-0 left-0 right-0 h-10 bg-[#075e54] dark:bg-[#202c33] flex items-center px-4 gap-3">
-                    <div className="w-6 h-6 rounded-full bg-slate-200" />
-                    <div className="flex-1 h-2 w-24 bg-white/20 rounded-full" />
-                  </div>
-
-                  <div className="mt-8 flex-1 flex flex-col justify-end">
-                    {selectedVagas.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center gap-4 opacity-20">
-                        <Smartphone size={48} className="text-slate-900 dark:text-white" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-center">Aguardando seleção...</p>
-                      </div>
-                    ) : (
-                      <div className="bg-white dark:bg-[#d9fdd3] dark:text-slate-900 self-start p-4 rounded-[1.25rem] rounded-tl-none shadow-sm max-w-[90%] relative group animate-scaleUp">
-                        {/* SVG Tail for speech bubble */}
-                        <div className="absolute top-0 left-[-10px] w-4 h-4 text-white dark:text-[#d9fdd3]">
-                          <svg viewBox="0 0 8 13" preserveAspectRatio="none" className="w-full h-full fill-current"><path d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path></svg>
-                        </div>
-                        <div className="font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
-                          {`*Agência Sync Contrata* 🟡🔴🔵  
------------------------------  
-Função: *${selectedVagas[previewIndex]?.role}*
-Cód. Vaga: *${selectedVagas[previewIndex]?.jobCode}*
------------------------------  
-*Empresa:* ${selectedVagas[previewIndex]?.companyName}
-*Cidade:* ${selectedVagas[previewIndex]?.city}
-
-*Interessados*
-Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
------------------------------ 
-
-*Mais informações:*
-🠖 Agência Sync
-🠖 5515996993021
-🠖 soroempregos.com.br`}
-                        </div>
-                        <div className="flex justify-end gap-1 mt-1 opacity-40">
-                          <span className="text-[8px] font-bold uppercase">14:20</span>
-                          <Check size={8} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/20 flex gap-4 items-center">
-                  <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-amber-500 shadow-sm border border-amber-100 dark:border-slate-800">
-                    <TagIcon size={20} />
-                  </div>
-                  <p className="text-[9px] font-bold text-amber-700 dark:text-amber-300 leading-tight uppercase tracking-widest">Padrão Visual Sorogrupos Ativado. As mensagens serão entregues com formatação otimizada.</p>
-                </div>
-              </section>
-            </div>
-          </div>
-
-          {/* Lado Direito: Grupos e Ações */}
-          <div className="lg:col-span-12 xl:col-span-4 flex flex-col gap-8 h-full">
-            <section className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none h-full flex flex-col space-y-6 hover:scale-[1.01] transition-transform duration-300">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Grupos</h3>
+            {/* Vaga Selection Card */}
+            <div className={`bg-white dark:bg-slate-900 rounded-[2rem] p-5 border transition-all duration-300 ${isJobDropdownOpen ? 'border-blue-500/50 shadow-lg shadow-blue-500/5' : 'border-slate-100 dark:border-slate-800 shadow-sm'}`}>
+              <div ref={jobDropdownRef} className="relative">
                 <button
-                  onClick={selectAllGroups}
-                  className="px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest transition-all shadow-sm border border-slate-100 dark:border-slate-700"
+                  onClick={() => {
+                    setIsJobDropdownOpen(!isJobDropdownOpen);
+                    // Autofocus search on open
+                    setTimeout(() => {
+                      const input = jobDropdownRef.current?.querySelector('input');
+                      if (input) (input as HTMLInputElement).focus();
+                    }, 100);
+                  }}
+                  className="w-full text-left"
                 >
-                  {selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0 ? 'Limpar Todos' : 'Selecionar Todos'}
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 ml-1">Conteúdo do Envio</label>
+                  <div className="flex items-center justify-between p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <div>
+                      {selectedVagaIds.length === 0 ? (
+                        <h3 className="text-lg font-bold text-slate-400">Selecione as Vagas</h3>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-bold text-slate-800 dark:text-white leading-none">{selectedVagaIds.length} Vagas Selecionadas</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isJobDropdownOpen ? 'bg-blue-100 text-blue-600 rotate-180' : 'bg-slate-100 text-slate-400'}`}>
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
                 </button>
+
+                {/* Dropdown Content */}
+                {isJobDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-4 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-scaleUp origin-top">
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+                      <div className="relative group">
+                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={vagaSearch}
+                          onChange={(e) => setVagaSearch(e.target.value)}
+                          placeholder="Buscar cargo ou código..."
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 pl-11 pr-4 py-3 rounded-xl border border-slate-100 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto custom-scrollbar p-2">
+                      {filteredVagasList.length > 0 ? (
+                        filteredVagasList.map(vaga => {
+                          const isSelected = selectedVagaIds.includes(vaga.id);
+                          if (!vagaItemRefs.current[vaga.id]) {
+                            vagaItemRefs.current[vaga.id] = createRef<HTMLDivElement>();
+                          }
+                          return (
+                            <div
+                              key={vaga.id}
+                              ref={vagaItemRefs.current[vaga.id]}
+                              onClick={() => toggleVagaSelection(vaga.id)}
+                              className={`p-3 rounded-2xl cursor-pointer mb-1 transition-all flex items-center justify-between group
+                                ${isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-900/20'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            >
+                              <div>
+                                <h4 className={`font-semibold text-xs ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{vaga.role}</h4>
+                                <p className="text-[10px] font-medium text-slate-400 mt-1 flex items-center gap-1.5">
+                                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">{vaga.jobCode}</span>
+                                  <span>{vaga.companyName}</span>
+                                </p>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all
+                                ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700 group-hover:border-blue-300'}`}>
+                                {isSelected && <Check size={10} className="text-white" />}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="py-8 text-center text-slate-400">
+                          <p className="text-xs font-bold">Nenhuma vaga encontrada</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <button onClick={() => setSelectedVagaIds([])} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 px-3 py-2 transition-colors uppercase tracking-widest">Limpar</button>
+                      <button onClick={() => setIsJobDropdownOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all">Pronto</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* WhatsApp Preview Card */}
+            <div className="bg-[#F0F2F5] dark:bg-[#0b141a] p-5 rounded-[2rem] shadow-inner relative overflow-hidden group">
+              {/* Pattern Background Overlay */}
+              <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+
+              {/* WhatsApp Header Mock */}
+              <div className="bg-[#008069] dark:bg-[#202c33] h-14 absolute top-0 left-0 right-0 px-4 flex items-center justify-between z-10 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <ChevronLeft className="text-white" size={24} />
+                  <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+                    <img src="https://ui-avatars.com/api/?name=Sorogrupos&background=random" alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-white font-semibold text-sm leading-tight">Grupo de Divulgação</span>
+                    <span className="text-white/80 text-[10px] truncate w-24 font-normal">Ana, Beto, Carla...</span>
+                  </div>
+                </div>
+                <div className="flex gap-4 text-white">
+                  <Smartphone size={20} />
+                  <div className="w-1 h-1 bg-white rounded-full"></div>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="relative group">
-                  <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                  <input
-                    type="text"
-                    value={groupSearch}
-                    onChange={e => setGroupSearch(e.target.value)}
-                    placeholder="Filtrar grupos..."
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-14 pr-6 py-4 text-sm font-bold outline-none focus:ring-4 ring-blue-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
-                  />
-                </div>
+              <div className="mt-16 relative z-0">
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+
+                {selectedVagaIds.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-400 opacity-60">
+                    <Smartphone size={48} className="mb-2" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-center">Prévia da Mensagem<br />Aparecerá aqui</p>
+                  </div>
+                ) : (
+                  <div className="flex justify-center animate-scaleUp">
+                    <div className="bg-white dark:bg-[#202c33] p-4 rounded-[1.25rem] rounded-tl-none shadow-sm max-w-[85%] relative w-full">
+                      {/* Triangle Tail */}
+                      <svg viewBox="0 0 8 13" height="13" width="8" className="absolute top-0 -left-2 text-white dark:text-[#202c33] fill-current"><path opacity="0.13" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
+
+                      {/* Message Content */}
+                      {selectedVagas.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="relative rounded-lg overflow-hidden aspect-video bg-slate-200">
+                            {/* Placeholder for Job Image */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-white">
+                              <span className="font-black text-2xl uppercase tracking-widest opacity-20">VAGA</span>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                              <p className="text-white text-xs font-bold truncate">{selectedVagas[previewIndex]?.role}</p>
+                            </div>
+
+                            {/* Carousel Controls */}
+                            {selectedVagas.length > 1 && (
+                              <>
+                                <button onClick={(e) => { e.stopPropagation(); prevPreview(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronLeft size={20} /></button>
+                                <button onClick={(e) => { e.stopPropagation(); nextPreview(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronRight size={20} /></button>
+
+                                <div className="absolute top-2 right-2 px-2.5 py-1 bg-black/50 text-white text-[10px] font-bold rounded-lg backdrop-blur-sm z-10 border border-white/10 shadow-sm">
+                                  {previewIndex + 1} / {selectedVagas.length}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug">
+                            <p className="font-bold mb-1">🔥 NOVA OPORTUNIDADE!</p>
+                            <p>Cargo: *{selectedVagas[previewIndex]?.role}*</p>
+                            <p>Cidade: {selectedVagas[previewIndex]?.city}</p>
+                            <p className="mt-2 text-xs opacity-80">Toque abaixo para ver mais detalhes e se candidatar 👇</p>
+                          </div>
+
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                            <button className="w-full py-2 bg-blue-50 text-blue-600 rounded text-xs font-bold text-center">Ver Vaga Completa</button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end mt-1 gap-1 items-center opacity-60">
+                        <span className="text-[10px] text-slate-500 font-medium">10:42</span>
+                        <Check size={14} className="text-blue-500" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+
+          </div>
+
+          {/* Right Column: Grupos & Scheduling */}
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm h-full flex flex-col relative overflow-hidden">
+              {/* Selection Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">Destinatários</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Selecione os grupos para disparo</p>
+                </div>
+                <div className="bg-blue-50/80 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-blue-100">
+                  {selectedGroupIds.length} Selecionados
+                </div>
+              </div>
+
+              {/* Tag Filters */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 -mx-2 px-2">
                   <button
                     onClick={() => setSelectedTag(null)}
-                    className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all border shadow-sm
+                    className={`px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border shadow-sm
                       ${selectedTag === null
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-blue-600/20'
-                        : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'}`}
+                        ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-800/20'
+                        : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-400 hover:text-blue-500'}`}
                   >
                     Todos
                   </button>
@@ -493,10 +501,10 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                     <button
                       key={tag}
                       onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                      className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all border shadow-sm
+                      className={`px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all border shadow-sm
                         ${selectedTag === tag
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-blue-600/20'
-                          : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'}`}
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20'
+                          : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-400 hover:text-blue-500'}`}
                     >
                       # {tag}
                     </button>
@@ -504,268 +512,268 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar max-h-[400px]">
-                {filteredGroups.length === 0 ? (
-                  <div className="text-center py-20 bg-slate-50/50 dark:bg-slate-800/20 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <Users size={40} className="mx-auto text-slate-200 mb-3" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum grupo aqui</p>
-                  </div>
-                ) : (
-                  filteredGroups.map(group => (
+              {/* Group List */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-6 min-h-[300px] max-h-[500px]">
+                {filteredGroups.map(group => {
+                  const isSelected = selectedGroupIds.includes(group.id);
+                  return (
                     <div
                       key={group.id}
                       onClick={() => toggleGroupSelection(group.id)}
-                      className={`flex items-center gap-4 p-5 rounded-[1.5rem] border transition-all cursor-pointer relative overflow-hidden group/card
-                        ${selectedGroupIds.includes(group.id)
-                          ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-500/50 shadow-md'
-                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                      className={`p-4 mb-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group
+                         ${isSelected
+                          ? 'border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-800'
+                          : 'border-slate-100 dark:border-slate-800 hover:border-blue-200 bg-white dark:bg-slate-800/30'}`}
                     >
-                      {selectedGroupIds.includes(group.id) && (
-                        <div className="absolute right-[-20px] top-[-20px] w-12 h-12 bg-blue-600 rotate-45 flex items-center justify-center pt-5 pr-5">
-                          <Check size={12} className="text-white transform -rotate-45" />
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          <Users size={18} />
+                        </div>
+                        <div>
+                          <h4 className={`font-semibold text-sm ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-slate-700 dark:text-slate-300'}`}>{group.name}</h4>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1"><Users size={10} /> {group.members} membros</span>
+                            <div className="flex gap-1">
+                              {group.tags.map(t => (
+                                <span key={t} className="text-[9px] px-1.5 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded text-slate-500 font-medium uppercase">{t}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700'}`}>
+                        {isSelected && <Check size={10} className="text-white" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Bar */}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
+                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 tracking-widest px-2">
+                  <button onClick={selectAllGroups} className="hover:text-blue-600 transition-colors">Selecionar Todos</button>
+                  <button onClick={() => setSelectedGroupIds([])} className="hover:text-rose-500 transition-colors">Limpar</button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <button
+                    onClick={() => setIsScheduling(!isScheduling)}
+                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
+                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
+                  >
+                    <CalendarDays size={18} /> Agendar
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
+                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95"
+                  >
+                    <Send size={18} /> Enviar Agora
+                  </button>
+                </div>
+              </div>
+
+              {/* Inline Scheduling Drawer */}
+              {isScheduling && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-slate-800 dark:text-white font-bold uppercase tracking-tight flex items-center gap-2 text-sm">
+                      <CalendarDays className="text-blue-600" size={18} /> Configurar Agendamento
+                    </h4>
+                    <button onClick={() => setIsScheduling(false)} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={16} /></button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Date Picker */}
+                    <div className="relative" ref={datePickerRef}>
+                      <button
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        className={`w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all
+                            ${selectedDates.length > 0 ? 'border-blue-500 text-slate-800 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CalendarIcon size={14} className={selectedDates.length > 0 ? 'text-blue-600' : 'text-slate-400'} />
+                          <span>{selectedDates.length > 0 ? `${selectedDates.length} datas selecionadas` : 'Escolha a Data'}</span>
+                        </div>
+                        <ChevronDown size={12} className={`transition-transform duration-300 ${showDatePicker ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {showDatePicker && (
+                        <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-3 animate-scaleUp">
+                          <div className="grid grid-cols-4 gap-2">
+                            {dateSlots.map(date => (
+                              <button
+                                key={date}
+                                onClick={() => {
+                                  setSelectedDates(prev => prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]);
+                                }}
+                                className={`p-2 rounded-lg text-[10px] font-bold transition-all border relative
+                                    ${selectedDates.includes(date)
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-400'}`}
+                              >
+                                {date}
+                                {selectedDates.includes(date) && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-white"></div>}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
-
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all ${selectedGroupIds.includes(group.id) ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 group-hover/card:border-blue-500'}`}>
-                        <Users size={20} />
-                      </div>
-
-                      <div className="flex-1">
-                        <p className={`text-xs font-black uppercase tracking-tight ${selectedGroupIds.includes(group.id) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-white'}`}>{group.name}</p>
-                        <div className="flex gap-2 mt-1">
-                          {group.tags.map(tag => (
-                            <span key={tag} className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">#{tag}</span>
-                          ))}
-                        </div>
-                      </div>
                     </div>
-                  ))
-                )}
-              </div>
 
-              <div className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
-                {selectedGroupIds.length > 0 && (
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alvos Selecionados</span>
-                    <span className="text-xs font-black text-slate-900 dark:text-white">{selectedGroupIds.length} Grupos</span>
-                  </div>
-                )}
+                    {/* Time Picker */}
+                    <div className="relative" ref={timePickerRef}>
+                      <button
+                        onClick={() => setShowTimePicker(!showTimePicker)}
+                        className={`w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all
+                            ${scheduleTime ? 'border-blue-500 text-slate-800 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Clock3 size={14} className={scheduleTime ? 'text-blue-600' : 'text-slate-400'} />
+                          <span>{scheduleTime || 'Escolha a Hora'}</span>
+                        </div>
+                        <ChevronDown size={12} className={`transition-transform duration-300 ${showTimePicker ? 'rotate-180' : ''}`} />
+                      </button>
 
-                <div className="flex flex-col gap-3">
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setIsScheduling(!isScheduling)}
-                      className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all border-2
-                        ${isScheduling
-                          ? 'bg-yellow-400 text-blue-950 border-yellow-400 shadow-[0_10px_30px_-10px_rgba(250,204,21,0.5)] scale-105'
-                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:bg-slate-50 active:scale-95'}`}
-                    >
-                      <CalendarIcon size={18} /> Agendar
-                    </button>
-                    <button
-                      disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
-                      onClick={handleSend}
-                      className="flex-[1.5] flex items-center justify-center gap-3 py-5 bg-slate-900 dark:bg-blue-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-slate-900/40 dark:shadow-blue-600/30 disabled:opacity-50 hover:bg-black dark:hover:bg-blue-700 transition-all hover:translate-y-[-2px] active:translate-y-[0px] active:scale-95"
-                    >
-                      <Send size={18} /> Enviar Agora
-                    </button>
-                  </div>
-                </div>
-
-                {isScheduling && (
-                  <div className="bg-slate-900 dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-800 space-y-6 animate-scaleUp shadow-2xl">
-                    <div className="space-y-4">
-                      <div className="space-y-3 relative" ref={datePickerRef}>
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Data do Disparo</label>
-                        <button
-                          onClick={() => setShowDatePicker(!showDatePicker)}
-                          className={`w-full flex items-center justify-between bg-slate-800/50 border-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all
-                            ${selectedDates.length > 0 ? 'border-yellow-400 text-white' : 'border-slate-700 text-slate-500'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <CalendarIcon size={16} className={selectedDates.length > 0 ? 'text-yellow-400' : 'text-slate-600'} />
-                            <span>{selectedDates.length === 0 ? 'Selecionar Dias' : `${selectedDates.length} Selecionados`}</span>
-                          </div>
-                          <ChevronDown size={14} className={`transition-transform duration-300 ${showDatePicker ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {showDatePicker && (
-                          <div className="absolute bottom-full mb-4 left-0 right-0 bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl z-40 p-3 animate-scaleUp">
-                            <div className="grid grid-cols-1 gap-2">
-                              {nextDays.map(d => (
-                                <button
-                                  key={d.value}
-                                  onClick={() => toggleDateSelection(d.value)}
-                                  className={`flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all border-2
-                                    ${selectedDates.includes(d.value)
-                                      ? 'bg-yellow-400 border-yellow-400 text-blue-950 scale-[1.02] shadow-lg shadow-yellow-400/20'
-                                      : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                                >
-                                  <div className="flex flex-col items-start leading-none">
-                                    <span className="text-[10px] font-black uppercase tracking-tight">{d.value}</span>
-                                    <span className="text-[8px] font-bold opacity-60 mt-1">{d.label}</span>
-                                  </div>
-                                  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center ${selectedDates.includes(d.value) ? 'bg-blue-950 border-blue-950' : 'border-slate-700'}`}>
-                                    {selectedDates.includes(d.value) && <Check size={12} className="text-white" />}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3 relative" ref={timePickerRef}>
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Horário Preferencial</label>
-                        <button
-                          onClick={() => setShowTimePicker(!showTimePicker)}
-                          className={`w-full flex items-center justify-between bg-slate-800/50 border-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all
-                            ${scheduleTime ? 'border-yellow-400 text-white' : 'border-slate-700 text-slate-500'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Clock3 size={16} className={scheduleTime ? 'text-yellow-400' : 'text-slate-600'} />
-                            <span>{scheduleTime || 'Escolha a Hora'}</span>
-                          </div>
-                          <ChevronDown size={14} className={`transition-transform duration-300 ${showTimePicker ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {showTimePicker && (
-                          <div className="absolute bottom-full mb-4 left-0 right-0 bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl z-40 p-4 animate-scaleUp">
-                            <div className="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
-                              {timeSlots.map(t => (
-                                <button
-                                  key={t}
-                                  onClick={() => { setScheduleTime(t); setShowTimePicker(false); }}
-                                  className={`py-3 rounded-xl text-[10px] font-black transition-all border-2
+                      {showTimePicker && (
+                        <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-3 animate-scaleUp">
+                          <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            {timeSlots.map(t => (
+                              <button
+                                key={t}
+                                onClick={() => { setScheduleTime(t); setShowTimePicker(false); }}
+                                className={`py-2 rounded-lg text-[10px] font-bold transition-all border
                                     ${scheduleTime === t
-                                      ? 'bg-yellow-400 border-yellow-400 text-blue-950 shadow-md'
-                                      : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-500'}`}
-                                >
-                                  {t}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleScheduleSubmit}
-                      disabled={selectedDates.length === 0 || !scheduleTime}
-                      className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-yellow-400 hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-30"
-                    >
-                      Confirmar {selectedDates.length} Disparos
-                    </button>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        </div>
-      )}
-
-      {view === 'schedules' && (
-        <div className="space-y-8 animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Envios Programados</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Fila de automação: {schedules.length} agendamentos</p>
-              </div>
-              <button
-                onClick={() => setView('broadcast')}
-                className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"
-              >
-                <Plus size={18} /> Novo Envio
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {schedules.map(item => (
-                <div key={item.id} className="flex flex-col p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-800 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:translate-y-[-4px]">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-blue-600 shadow-sm border border-slate-100 dark:border-slate-800">
-                        <span className="text-lg font-black leading-none">{item.date.split('/')[0]}</span>
-                        <span className="text-[8px] font-black uppercase tracking-widest opacity-40">{item.date.split('/')[1] === '05' ? 'MAI' : 'JUN'}</span>
-                      </div>
-                      <div>
-                        <div className="bg-blue-600/10 dark:bg-blue-400/10 px-3 py-1 rounded-full w-fit mb-1 border border-blue-600/20">
-                          <span className="text-[8px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest leading-none">Automático</span>
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-400'}`}
+                              >
+                                {t}
+                              </button>
+                            ))}</div>
                         </div>
-                        <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-sm">Disparo em Massa</h4>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Eye size={18} /></button>
-                      <button onClick={() => removeSchedule(item.id)} className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-rose-500 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Trash2 size={18} /></button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vagas</span>
-                        <span className="text-xs font-black text-slate-700 dark:text-slate-200">{item.jobsCount} ITENS</span>
-                      </div>
-                      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Canais</span>
-                        <span className="text-xs font-black text-slate-700 dark:text-slate-200">{item.groupsCount} GRUPOS</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Pronto para envio</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-900 dark:text-white">
-                        <Clock size={14} className="text-blue-500" />
-                        <span className="text-sm font-black">{item.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {schedules.length === 0 && (
-                <div className="col-span-1 md:col-span-2 text-center py-32 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem]">
-                  <CalendarDays size={64} className="mx-auto mb-6 text-slate-200" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Fila de agendamento vazia</p>
+                  <button
+                    onClick={handleScheduleSubmit}
+                    disabled={selectedDates.length === 0 || !scheduleTime}
+                    className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Confirmar {selectedDates.length > 0 ? selectedDates.length : ''} Agendamento{selectedDates.length > 1 ? 's' : ''}
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </div>
-      )}
+      )
+      }
+
+      {
+        view === 'schedules' && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Envios Programados</h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Fila de automação: {schedules.length} agendamentos</p>
+                </div>
+                <button
+                  onClick={() => setView('broadcast')}
+                  className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Plus size={18} /> Novo Envio
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {schedules.map(item => (
+                  <div key={item.id} className="flex flex-col p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-800 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:translate-y-[-4px]">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-blue-600 shadow-sm border border-slate-100 dark:border-slate-800">
+                          <span className="text-lg font-bold leading-none">{item.date.split('/')[0]}</span>
+                          <span className="text-[8px] font-bold uppercase tracking-widest opacity-40">{item.date.split('/')[1] === '05' ? 'MAI' : 'JUN'}</span>
+                        </div>
+                        <div>
+                          <div className="bg-blue-600/10 dark:bg-blue-400/10 px-3 py-1 rounded-full w-fit mb-1 border border-blue-600/20">
+                            <span className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest leading-none">Automático</span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 dark:text-white uppercase tracking-tight text-sm">Disparo em Massa</h4>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Eye size={18} /></button>
+                        <button onClick={() => removeSchedule(item.id)} className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-rose-500 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Trash2 size={18} /></button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vagas</span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{item.jobsCount} ITENS</span>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Canais</span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{item.groupsCount} GRUPOS</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Pronto para envio</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-900 dark:text-white">
+                          <Clock size={14} className="text-blue-500" />
+                          <span className="text-sm font-bold">{item.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {schedules.length === 0 && (
+                  <div className="col-span-1 md:col-span-2 text-center py-32 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem]">
+                    <CalendarDays size={64} className="mx-auto mb-6 text-slate-200" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Fila de agendamento vazia</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
       {view === 'reports' && (
         <div className="space-y-8 animate-fadeIn">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Histórico</h2>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
             </div>
             <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">Todos</button>
-              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Sucesso</button>
-              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Falhas</button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
+              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
+              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/20 dark:shadow-none flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
+              <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                     <CheckCircle2 size={32} />
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Mass Broadcast #{1020 + i}</h4>
-                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-black uppercase tracking-widest">Sucesso</span>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
                       <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
                       <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
                       <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
@@ -774,7 +782,7 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
-                  <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                  <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
                     <Eye size={18} /> Detalhes
                   </button>
                 </div>
@@ -782,7 +790,8 @@ Envie seu currículo pelo WhatsApp oficial do Sorogrupos.
             ))}
           </div>
         </div>
-      )}
+      )
+      }
     </div>
   );
 };
