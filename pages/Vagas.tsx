@@ -61,7 +61,13 @@ export const Vagas: React.FC = () => {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
   const [isMoveJobModalOpen, setIsMoveJobModalOpen] = useState(false);
-  const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview' | null>(null);
+  // Job Management State
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingJob, setViewingJob] = useState<Vaga | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview'>('selection');
 
   // Draft da Vaga sendo criada
   const [jobDraft, setJobDraft] = useState<Partial<Vaga>>({});
@@ -83,10 +89,29 @@ export const Vagas: React.FC = () => {
   const [savedContacts, setSavedContacts] = useState<SavedJobContact[]>([]);
   const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
 
+  // Custom Emojis
+  const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🔵');
+  const [isEmojiModalOpen, setIsEmojiModalOpen] = useState(false);
+  const [emojiInput, setEmojiInput] = useState('');
+
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);
   const currentDepth = !currentFolder ? 0 : currentFolder.level === 'company' ? 1 : 2;
   const filteredFolders = folders.filter(f => f.parentId === currentFolderId);
+
+  const filteredJobs = vagas.filter(vaga => {
+    const matchesFolder = currentFolderId ? vaga.folderId === currentFolderId : false;
+    const matchesSearch = searchTerm ? (
+      (vaga.role && vaga.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (vaga.jobCode && vaga.jobCode.toLowerCase().includes(searchTerm.toLowerCase()))
+    ) : true;
+
+    let matchesFilter = true;
+    if (filterStatus === 'active') matchesFilter = vaga.status === 'Ativa';
+    if (filterStatus === 'inactive') matchesFilter = vaga.status === 'Pausada';
+
+    return matchesFolder && matchesSearch && matchesFilter;
+  });
 
   // Carregar dados (Empresas, Setores, Vagas)
   const fetchData = async () => {
@@ -124,13 +149,13 @@ export const Vagas: React.FC = () => {
       // 3. Map Jobs
       const mappedJobs: Vaga[] = (jobsResponse.data || []).map(j => ({
         id: j.id,
-        folderId: j.sector_id, // Link to sector
+        folderId: j.sector_id || j.folder_company_id, // Link to sector OR company (if direct)
         companyId: j.folder_company_id,
         jobCode: j.code,
         title: j.title,
         role: j.title, // 'role' in UI seems to map to 'title'
         status: j.status === 'active' ? 'Ativa' : 'Pausada',
-        date: new Date(j.created_at).toLocaleDateString('pt-BR'),
+        date: new Date(j.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         type: j.job_type === 'text' ? 'scratch' : 'file',
         companyName: j.company_name,
         hideCompany: j.hide_company,
@@ -172,36 +197,67 @@ export const Vagas: React.FC = () => {
     if (data) setSavedContacts(data as SavedJobContact[]);
   };
 
+  const fetchUserEmojis = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('user_job_emojis')
+      .select('emojis')
+      .eq('user_id', user.id)
+      .single();
+
+    if (data) setPreviewEmojis(data.emojis);
+  };
+
   useEffect(() => {
     fetchData();
-    if (user) fetchSavedContacts();
+    if (user) {
+      fetchSavedContacts();
+      fetchUserEmojis();
+    }
   }, [user]);
 
-  // Filter jobs by folder AND search term
-  const filteredJobs = vagas.filter(v => {
-    const matchesFolder = v.folderId === currentFolderId;
-    const matchesSearch = searchTerm === '' ||
-      (v.role || v.title).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (v.companyName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (v.jobCode || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesFolder && matchesSearch;
-  });
+
+  const generateJobCode = () => Math.random().toString(36).substring(2, 7).toUpperCase();
 
   // Iniciar criação de vaga
   const startJobCreation = () => {
-    const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+    setEditingJobId(null);
     setJobDraft({
-      jobCode: code,
-      contacts: [],
-      bond: 'CLT ( Fixo )',
+      type: 'scratch',
+      role: '',
+      jobCode: generateJobCode(),
       hideCompany: false,
-      status: 'Ativa'
+      bond: 'CLT ( Fixo )',
+      contacts: []
     });
-    setAttachedFile(null);
-    setShowFooterInImage(false);
     setJobCreationStep('selection');
     setIsJobModalOpen(true);
+  };
+
+  const handleEditJob = (job: Vaga) => {
+    setEditingJobId(job.id);
+    setJobDraft({
+      type: job.type,
+      role: job.role || job.title,
+      jobCode: job.jobCode || generateJobCode(),
+      hideCompany: job.hideCompany,
+      companyName: job.companyName,
+      bond: job.bond ? (job.bond === 'CLT' ? 'CLT ( Fixo )' : job.bond === 'Jurídico' ? 'Pessoa Jurídica' : job.bond as any) : 'CLT ( Fixo )',
+      city: job.city,
+      region: job.region,
+      activities: job.activities,
+      requirements: job.requirements,
+      benefits: job.benefits,
+      contacts: job.contacts || []
+    });
+    setJobCreationStep(job.type === 'file' ? 'upload' : 'form');
+    setIsJobModalOpen(true);
+  };
+
+  const handleViewJob = (job: Vaga) => {
+    setViewingJob(job);
+    setIsViewModalOpen(true);
   };
 
   const handleAddContactField = (type: JobContact['type']) => {
@@ -256,8 +312,8 @@ export const Vagas: React.FC = () => {
       return `*Anúncio de Vaga (Imagem)*\nCargo: *${j.role || ''}*\nCód. Vaga: *${code}*\n\n*Rodapé de Contato:*\n${interessadosText}`;
     }
 
-    return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🔵  
------------------------------  
+    return `*${company?.name || 'Sua Empresa'} Contrata* ${previewEmojis}
+-----------------------------
 Função: *${j.role || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
@@ -282,14 +338,27 @@ Cód. Vaga: *${code}*
     if (!currentFolderId) return;
 
     // Determine IDs
-    // We are currently inside a SECTOR (Level 2).
-    const sectorId = currentFolderId;
-    const sector = folders.find(f => f.id === sectorId);
-    if (!sector || !sector.parentId) {
-      alert("Erro: Vaga deve ser criada dentro de um SETOR.");
+    // Check if we are in a Sector or Company
+    const currentFolder = folders.find(f => f.id === currentFolderId);
+    if (!currentFolder) return;
+
+    let sectorId = null;
+    let companyId = null;
+
+    if (currentFolder.level === 'company') {
+      // Direct in Company
+      companyId = currentFolder.id;
+      sectorId = null;
+    } else {
+      // In a Sector
+      sectorId = currentFolder.id;
+      companyId = currentFolder.parentId;
+    }
+
+    if (!companyId) {
+      alert("Erro: Empresa não identificada.");
       return;
     }
-    const companyId = sector.parentId;
 
     const user = await supabase.auth.getUser();
     if (!user.data.user) {
@@ -319,40 +388,68 @@ Cód. Vaga: *${code}*
         imageUrl = publicUrlData.publicUrl;
       }
 
-      // 2. Insert Job
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .insert({
-          sector_id: sectorId,
-          folder_company_id: companyId,
-          user_id: userId,
-          code: jobDraft.jobCode,
-          job_type: jobDraft.type === 'scratch' ? 'text' : 'image',
-          title: jobDraft.role,
-          status: 'active',
+      // 2. Insert or Update Job
+      const jobDataToSave = {
+        sector_id: sectorId,
+        folder_company_id: companyId,
+        user_id: userId,
+        code: jobDraft.jobCode,
+        job_type: jobDraft.type === 'scratch' ? 'text' : 'image',
+        title: jobDraft.role,
+        status: editingJobId ? undefined : 'active', // Don't reset status on edit
 
-          // Text fields
-          function: jobDraft.role, // Mapping intent from user spec 'function'
-          company_name: jobDraft.companyName,
-          hide_company: jobDraft.hideCompany,
-          employment_type: jobDraft.bond,
-          city: jobDraft.city,
-          region: jobDraft.region,
-          activities: jobDraft.activities,
-          requirements: jobDraft.requirements,
-          benefits: jobDraft.benefits,
+        // Text fields
+        function: jobDraft.role,
+        company_name: jobDraft.companyName,
+        hide_company: jobDraft.hideCompany,
+        employment_type: jobDraft.bond === 'CLT ( Fixo )' ? 'CLT' : jobDraft.bond === 'Pessoa Jurídica' ? 'PJ' : jobDraft.bond,
+        city: jobDraft.city,
+        region: jobDraft.region,
+        activities: jobDraft.activities,
+        requirements: jobDraft.requirements,
+        benefits: jobDraft.benefits,
 
-          // Image fields
-          image_url: imageUrl,
-          footer_enabled: showFooterInImage,
-        })
-        .select()
-        .single();
+        // Image fields
+        image_url: imageUrl,
+        footer_enabled: showFooterInImage,
+      };
 
-      if (jobError) throw jobError;
+      let jobData;
+      if (editingJobId) {
+        const { data, error } = await supabase
+          .from('jobs')
+          .update(jobDataToSave)
+          .eq('id', editingJobId)
+          .select()
+          .single();
+        if (error) throw error;
+        jobData = data;
+      } else {
+        const { data, error } = await supabase
+          .from('jobs')
+          .insert(jobDataToSave)
+          .select()
+          .single();
+        if (error) throw error;
+        jobData = data;
+      }
+
+      // Success
+      setIsJobModalOpen(false);
+      fetchData(); // Refresh list
+      setEditingJobId(null);
 
       // 3. Insert Contacts
       if (jobDraft.contacts && jobDraft.contacts.length > 0) {
+        // Delete existing contacts for this job if editing
+        if (editingJobId) {
+          const { error: deleteContactsError } = await supabase
+            .from('job_contacts')
+            .delete()
+            .eq('job_id', editingJobId);
+          if (deleteContactsError) throw deleteContactsError;
+        }
+
         const contactsToInsert = jobDraft.contacts.map(c => ({
           job_id: jobData.id,
           type: c.type.toLowerCase() === 'endereço' ? 'address' : c.type.toLowerCase(),
@@ -382,37 +479,42 @@ Cód. Vaga: *${code}*
     }
   };
 
-  const toggleJobStatus = async (id: string) => {
-    const job = vagas.find(v => v.id === id);
+  const toggleJobStatus = async (jobId: string) => {
+    const job = vagas.find(v => v.id === jobId);
     if (!job) return;
 
-    const newStatus = job.status === 'Ativa' ? 'inactive' : 'active';
+    const newStatus = job.status === 'Ativa' ? 'Pausada' : 'Ativa';
+
+    // Optimistic Update
+    setVagas(prev => prev.map(v => v.id === jobId ? { ...v, status: newStatus } : v));
+
     const { error } = await supabase
       .from('jobs')
-      .update({ status: newStatus })
-      .eq('id', id);
+      .update({ status: newStatus === 'Ativa' ? 'active' : 'inactive' })
+      .eq('id', jobId);
 
     if (error) {
-      alert('Erro ao atualizar status');
+      alert("Erro ao atualizar status");
       console.error(error);
-      return;
+      // Revert
+      setVagas(prev => prev.map(v => v.id === jobId ? { ...v, status: job.status } : v));
     }
-
-    // Optimistic update
-    setVagas(prev => prev.map(v => v.id === id ? { ...v, status: newStatus === 'active' ? 'Ativa' : 'Pausada' } : v));
   };
 
   const handleMoveJob = async (vagaId: string, targetFolderId: string) => {
-    // Only move if targetFolderId is a SECTOR (check level)
     const targetFolder = folders.find(f => f.id === targetFolderId);
-    if (!targetFolder || targetFolder.level !== 'sector') {
-      alert("Você só pode mover vagas para dentro de Setores, não Empresas.");
-      return;
+    if (!targetFolder) return;
+
+    let updates = {};
+    if (targetFolder.level === 'company') {
+      updates = { sector_id: null, folder_company_id: targetFolder.id };
+    } else {
+      updates = { sector_id: targetFolder.id, folder_company_id: targetFolder.parentId };
     }
 
     const { error } = await supabase
       .from('jobs')
-      .update({ sector_id: targetFolderId })
+      .update(updates)
       .eq('id', vagaId);
 
     if (error) {
@@ -624,7 +726,7 @@ Cód. Vaga: *${code}*
             </nav>
           </div>
           <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">
-            {!currentFolderId ? 'Minhas Empresas' : currentFolder?.name}
+            {!currentFolderId ? 'Minhas Empresas' : ''}
           </h2>
         </div>
 
@@ -681,37 +783,50 @@ Cód. Vaga: *${code}*
               <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest">Listagem de Vagas</h3>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64 group">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            {/* Search Input & Filtering */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              {/* Filter Select */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-500 outline-none focus:ring-2 ring-blue-500/20"
+              >
+                <option value="all">Todas</option>
+                <option value="active">Ativas</option>
+                <option value="inactive">Inativas</option>
+              </select>
+
+              <div className="relative w-full sm:w-64 group">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por cargo ou código..."
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por cargo ou código..."
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
-                >
-                  <X size={14} />
-                </button>
-              )}
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse table-fixed">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50">
-                  <th className="w-1/3 px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargo / Código</th>
-                  <th className="hidden sm:table-cell w-1/6 px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
-                  <th className="hidden md:table-cell w-1/6 px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                  <th className="w-1/4 sm:w-1/6 px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="w-1/6 px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                  <th className="w-1/3 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Cargo / Código</th>
+                  <th className="hidden sm:table-cell w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Tipo</th>
+                  <th className="hidden md:table-cell w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Data</th>
+                  <th className="w-1/4 sm:w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                  <th className="w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -729,9 +844,17 @@ Cód. Vaga: *${code}*
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${vaga.type === 'file' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
                             {vaga.type === 'file' ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
+
                           <div className="overflow-hidden">
-                            <span className="font-semibold text-sm text-slate-800 dark:text-white block truncate">{vaga.role || vaga.title}</span>
-                            <span className="text-[10px] font-bold text-slate-400">COD: {vaga.jobCode || '---'}</span>
+                            <span className="font-bold text-base text-slate-800 dark:text-white block truncate text-ellipsis max-w-[220px]" title={vaga.role || vaga.title}>{vaga.role || vaga.title}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">COD: {vaga.jobCode || '---'}</span>
+                              {(vaga.city || vaga.region) && (
+                                <span className="text-xs text-slate-500 truncate max-w-[180px] border-l border-slate-300 pl-2 ml-1" title={`${vaga.city || ''} ${vaga.region ? `- ${vaga.region}` : ''}`}>
+                                  {vaga.city}{vaga.region ? ` - ${vaga.region}` : ''}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -740,19 +863,19 @@ Cód. Vaga: *${code}*
                           {vaga.type === 'file' ? 'Imagem' : 'Texto'}
                         </span>
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 text-xs text-slate-400 whitespace-nowrap">{vaga.date}</td>
+                      <td className="hidden md:table-cell px-6 py-4 text-sm font-medium text-slate-600 whitespace-nowrap">{vaga.date}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => toggleJobStatus(vaga.id)} className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                            <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${vaga.status === 'Ativa' ? 'left-4.5' : 'left-0.5'}`} />
+                          <button onClick={(e) => { e.stopPropagation(); toggleJobStatus(vaga.id); }} className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                            <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${vaga.status === 'Ativa' ? 'left-[18px]' : 'left-0.5'}`} />
                           </button>
-                          <span className="hidden sm:inline text-[10px] font-bold uppercase whitespace-nowrap text-slate-400">{vaga.status}</span>
+                          <span className="hidden sm:inline text-[11px] font-bold uppercase whitespace-nowrap text-slate-500">{vaga.status}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Eye size={16} /></button>
-                          <button className="p-2 text-slate-400 hover:text-yellow-600 transition-colors"><Edit2 size={16} /></button>
+                          <button onClick={() => handleViewJob(vaga)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Eye size={16} /></button>
+                          <button onClick={() => handleEditJob(vaga)} className="p-2 text-slate-400 hover:text-yellow-600 transition-colors"><Edit2 size={16} /></button>
                           <button onClick={() => handleDeleteJob(vaga.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
                         </div>
                       </td>
@@ -805,282 +928,293 @@ Cód. Vaga: *${code}*
         </div>
       )}
 
+
       {/* MODAL: Criação de Vaga - Largura reduzida para max-w-2xl */}
-      {isJobModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
+      {
+        isJobModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
 
-            {/* Header seguindo padrão anexo */}
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                  {jobCreationStep === 'preview' ? <CheckCircle2 size={24} /> : <Plus size={24} />}
+              {/* Header seguindo padrão anexo */}
+              <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
+                    {jobCreationStep === 'preview' ? <CheckCircle2 size={24} /> : <Plus size={24} />}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      {jobCreationStep === 'selection' ? 'Novo Anúncio' :
+                        jobCreationStep === 'preview' ? 'Confirmar Publicação' : 'Detalhes da Vaga'}
+                    </h3>
+                    <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Cód: {jobDraft.jobCode}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold">
-                    {jobCreationStep === 'selection' ? 'Novo Anúncio' :
-                      jobCreationStep === 'preview' ? 'Confirmar Publicação' : 'Detalhes da Vaga'}
-                  </h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Cód: {jobDraft.jobCode}</p>
-                </div>
+                <button onClick={() => setIsJobModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
               </div>
-              <button onClick={() => setIsJobModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-              {jobCreationStep === 'selection' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full items-center py-4">
-                  <button onClick={() => { setJobDraft({ ...jobDraft, type: 'scratch' }); setJobCreationStep('form'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
-                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
-                      <FileText size={28} />
-                    </div>
-                    <span className="font-black text-slate-800 dark:text-white block text-lg uppercase tracking-tight">Criar por Texto</span>
-                    <p className="text-xs text-slate-500 mt-2 font-medium">Gera o template automático de text.</p>
-                  </button>
-                  <button onClick={() => { setJobDraft({ ...jobDraft, type: 'file' }); setJobCreationStep('upload'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
-                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
-                      <ImageIcon size={28} />
-                    </div>
-                    <span className="font-black text-slate-800 dark:text-white block text-lg uppercase tracking-tight">Já tenho a Vaga</span>
-                    <p className="text-xs text-slate-500 mt-2 font-medium">Anexa uma arte/imagem pronta.</p>
-                  </button>
-                </div>
-              )}
-
-              {jobCreationStep === 'form' && (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    {/* Row 1 */}
-                    <div className="md:col-span-6 space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
-                        <input type="text" value={jobDraft.role || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                {jobCreationStep === 'selection' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full items-center py-4">
+                    <button onClick={() => { setJobDraft({ ...jobDraft, type: 'scratch' }); setJobCreationStep('form'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
+                      <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
+                        <FileText size={28} />
                       </div>
-                    </div>
-                    <div className="md:col-span-6 space-y-1.5">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-semibold">Empresa</label>
-                        <button
-                          onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}
-                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                        >
-                          {jobDraft.hideCompany ? (
-                            <><Eye size={12} /> Mostrar Nome</>
-                          ) : (
-                            <><EyeOff size={12} /> Ocultar na Vaga</>
-                          )}
-                        </button>
+                      <span className="font-black text-slate-800 dark:text-white block text-lg uppercase tracking-tight">Criar por Texto</span>
+                      <p className="text-xs text-slate-500 mt-2 font-medium">Gera o template automático de text.</p>
+                    </button>
+                    <button onClick={() => { setJobDraft({ ...jobDraft, type: 'file' }); setJobCreationStep('upload'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
+                      <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
+                        <ImageIcon size={28} />
                       </div>
+                      <span className="font-black text-slate-800 dark:text-white block text-lg uppercase tracking-tight">Já tenho a Vaga</span>
+                      <p className="text-xs text-slate-500 mt-2 font-medium">Anexa uma arte/imagem pronta.</p>
+                    </button>
+                  </div>
+                )}
 
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                          <Building2 size={18} />
+                {jobCreationStep === 'form' && (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                      {/* Row 1 */}
+                      <div className="md:col-span-6 space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
+                          <input type="text" value={jobDraft.role || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                         </div>
-                        <input
-                          type="text"
-                          disabled={jobDraft.hideCompany}
-                          onFocus={scrollToCenter}
-                          value={jobDraft.companyName || ''}
-                          onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
-                          placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
-                          className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
+                      </div>
+                      <div className="md:col-span-6 space-y-1.5">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-semibold">Empresa</label>
+                          <button
+                            onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}
+                            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          >
+                            {jobDraft.hideCompany ? (
+                              <><Eye size={12} /> Mostrar Nome</>
+                            ) : (
+                              <><EyeOff size={12} /> Ocultar na Vaga</>
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                            <Building2 size={18} />
+                          </div>
+                          <input
+                            type="text"
+                            disabled={jobDraft.hideCompany}
+                            onFocus={scrollToCenter}
+                            value={jobDraft.companyName || ''}
+                            onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
+                            placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
+                            className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
                             ${jobDraft.hideCompany ? 'opacity-60 cursor-not-allowed select-none bg-slate-100 dark:bg-slate-900/50' : 'border-slate-100 dark:border-slate-800'}
                             `}
-                        />
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Row 2: Vínculo (30%), Cidade (30%), Região (40%) */}
-                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-10 gap-6">
-                      <div className="md:col-span-3 space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Vínculo</label>
-                        <div className="relative group">
-                          <select value={jobDraft.bond} onChange={e => setJobDraft({ ...jobDraft, bond: e.target.value as any })}
-                            className="w-full appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:ring-2 ring-blue-500 outline-none transition-all"
-                          >
-                            <option value="CLT ( Fixo )">CLT ( Fixo )</option>
-                            <option value="Pessoa Jurídica">Pessoa Jurídica</option>
-                            <option value="Freelance">Freelance</option>
-                            <option value="Temporário">Temporário</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
-                            <ChevronDown size={14} />
+                      {/* Row 2: Vínculo (30%), Cidade (30%), Região (40%) */}
+                      <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-10 gap-6">
+                        <div className="md:col-span-3 space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Vínculo</label>
+                          <div className="relative group">
+                            <select value={jobDraft.bond} onChange={e => setJobDraft({ ...jobDraft, bond: e.target.value as any })}
+                              className="w-full appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:ring-2 ring-blue-500 outline-none transition-all"
+                            >
+                              <option value="CLT ( Fixo )">CLT ( Fixo )</option>
+                              <option value="Pessoa Jurídica">Pessoa Jurídica</option>
+                              <option value="Freelance">Freelance</option>
+                              <option value="Temporário">Temporário</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                              <ChevronDown size={14} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-3 space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
+                          <div className="relative group">
+                            <input type="text" value={jobDraft.city || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
+                              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-4 space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
+                          <div className="relative group">
+                            <input type="text" value={jobDraft.region || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
+                              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                           </div>
                         </div>
                       </div>
 
-                      <div className="md:col-span-3 space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
-                        <div className="relative group">
-                          <input type="text" value={jobDraft.city || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                      {/* Detailed Fields Area */}
+                      <div className="md:col-span-12 space-y-4 pt-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">REQUISITOS</label>
+                          <textarea value={jobDraft.requirements || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, requirements: e.target.value })} rows={3} placeholder="O que o candidato precisa ter?"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                         </div>
-                      </div>
 
-                      <div className="md:col-span-4 space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
-                        <div className="relative group">
-                          <input type="text" value={jobDraft.region || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">BENEFÍCIOS</label>
+                          <textarea value={jobDraft.benefits || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, benefits: e.target.value })} rows={3} placeholder="O que a empresa oferece?"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ATIVIDADES</label>
+                          <textarea value={jobDraft.activities || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, activities: e.target.value })} rows={3} placeholder="O que o candidato irá fazer?"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Detailed Fields Area */}
-                    <div className="md:col-span-12 space-y-4 pt-4">
+                    {renderContactSection()}
+                  </div>
+                )}
+
+                {jobCreationStep === 'upload' && (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 gap-6">
+                      {/* Nome da Vaga Obrigatório */}
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">REQUISITOS</label>
-                        <textarea value={jobDraft.requirements || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, requirements: e.target.value })} rows={3} placeholder="O que o candidato precisa ter?"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome da Vaga <span className="text-red-500">*</span></label>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
+                          <input
+                            type="text"
+                            value={jobDraft.role || ''}
+                            onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
+                            placeholder="Ex: Auxiliar Administrativo"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">BENEFÍCIOS</label>
-                        <textarea value={jobDraft.benefits || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, benefits: e.target.value })} rows={3} placeholder="O que a empresa oferece?"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
-                      </div>
+                      <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
+                        <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
+                        {attachedFile ? (
+                          <div className="relative w-full h-full">
+                            <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center p-10">
+                            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                              <Upload size={32} />
+                            </div>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Carregar arte da vaga</p>
+                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Formatos suportados: JPG, PNG</p>
+                          </div>
+                        )}
+                      </label>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ATIVIDADES</label>
-                        <textarea value={jobDraft.activities || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, activities: e.target.value })} rows={3} placeholder="O que o candidato irá fazer?"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
+                          </div>
+                          <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
+                          </button>
+                        </div>
+                        {showFooterInImage && <div className="animate-fadeIn pt-2 border-t border-slate-100 dark:border-slate-800">{renderContactSection()}</div>}
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {renderContactSection()}
-                </div>
-              )}
-
-              {jobCreationStep === 'upload' && (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 gap-6">
-                    {/* Nome da Vaga Obrigatório */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome da Vaga <span className="text-red-500">*</span></label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
-                        <input
-                          type="text"
-                          value={jobDraft.role || ''}
-                          onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
-                          placeholder="Ex: Auxiliar Administrativo"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
-                        />
+                {jobCreationStep === 'preview' && (
+                  <div className="space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative">
+                      <div className="absolute top-6 right-8 flex items-center gap-3">
+                        <button
+                          onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm transition-all"
+                        >
+                          Alterar Emojis
+                        </button>
+                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</span>
                       </div>
-                    </div>
-
-                    <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
-                      <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
-                      {attachedFile ? (
-                        <div className="relative w-full h-full">
-                          <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-center p-10">
-                          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                            <Upload size={32} />
-                          </div>
-                          <p className="font-bold text-slate-700 dark:text-slate-300">Carregar arte da vaga</p>
-                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Formatos suportados: JPG, PNG</p>
+                      {jobDraft.type === 'file' && attachedFile && (
+                        <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
+                          <img src={URL.createObjectURL(attachedFile)} className="w-full h-auto" alt="Job Visual" />
                         </div>
                       )}
-                    </label>
-
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
-                        </div>
-                        <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                          <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
-                      {showFooterInImage && <div className="animate-fadeIn pt-2 border-t border-slate-100 dark:border-slate-800">{renderContactSection()}</div>}
+                      <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
+                        {generatePreviewText()}
+                      </pre>
                     </div>
+
+
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {jobCreationStep === 'preview' && (
-                <div className="space-y-6">
-                  <div className="bg-slate-50 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative">
-                    <div className="absolute top-6 right-8 text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</div>
-                    {jobDraft.type === 'file' && attachedFile && (
-                      <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
-                        <img src={URL.createObjectURL(attachedFile)} className="w-full h-auto" alt="Job Visual" />
-                      </div>
-                    )}
-                    <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
-                      {generatePreviewText()}
-                    </pre>
-                  </div>
-
-
-                </div>
-              )}
-            </div>
-
-            {/* Footer seguindo padrão anexo */}
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
-              <button
-                onClick={() => {
-                  if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
-                  else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
-                  else setIsJobModalOpen(false);
-                }}
-                className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
-              >
-                {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
-              </button>
-
-              {jobCreationStep !== 'selection' && (
+              {/* Footer seguindo padrão anexo */}
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
                 <button
                   onClick={() => {
-                    if (jobCreationStep === 'preview') handleSaveJob();
-                    else {
-                      // Validação: obrigar o nome da vaga
-                      if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
-                      if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
-                      if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
-                      if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
-                      if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
-                      if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
-                      if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
-
-                      if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
-                        alert("Por favor, selecione ao menos 1 contato.");
-                        return;
-                      }
-
-                      if (jobDraft.contacts.some(c => !c.value.trim())) {
-                        alert("Por favor, preencha as informações de todos os contatos selecionados.");
-                        return;
-                      }
-
-                      if (jobCreationStep === 'upload' && !attachedFile) {
-                        alert("Por favor, carregue a imagem da vaga.");
-                        return;
-                      }
-                      setJobCreationStep('preview');
-                    }
+                    if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
+                    else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
+                    else setIsJobModalOpen(false);
                   }}
-                  className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+                  className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
                 >
-                  {jobCreationStep === 'preview' ? 'Finalizar e Salvar' : 'Próximo Passo'}
+                  {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
                 </button>
-              )}
+
+                {jobCreationStep !== 'selection' && (
+                  <button
+                    onClick={() => {
+                      if (jobCreationStep === 'preview') handleSaveJob();
+                      else {
+                        // Validação: obrigar o nome da vaga
+                        if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
+                        if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
+                        if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
+                        if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
+                        if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
+                        if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
+                        if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
+
+                        if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
+                          alert("Por favor, selecione ao menos 1 contato.");
+                          return;
+                        }
+
+                        if (jobDraft.contacts.some(c => !c.value.trim())) {
+                          alert("Por favor, preencha as informações de todos os contatos selecionados.");
+                          return;
+                        }
+
+                        if (jobCreationStep === 'upload' && !attachedFile) {
+                          alert("Por favor, carregue a imagem da vaga.");
+                          return;
+                        }
+                        setJobCreationStep('preview');
+                      }
+                    }}
+                    className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+                  >
+                    {jobCreationStep === 'preview' ? 'Finalizar e Salvar' : 'Próximo Passo'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+
+        )}
 
       {/* Modal: Nova Pasta / Editar Pasta */}
       {(isFolderModalOpen || isEditFolderModalOpen) && (
@@ -1123,6 +1257,116 @@ Cód. Vaga: *${code}*
         savedContacts={savedContacts}
         onUpdate={fetchSavedContacts}
       />
+
+
+      {/* Modal de Visualização Rápida */}
+      {isViewModalOpen && viewingJob && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsViewModalOpen(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl p-8 animate-scaleUp max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{viewingJob.role || viewingJob.title}</h3>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-[10px] font-bold text-slate-400">COD: <span className="text-slate-600 dark:text-slate-300">{viewingJob.jobCode || viewingJob.code}</span></span>
+                  <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${viewingJob.status === 'Ativa' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                    {viewingJob.status}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setIsViewModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X size={20} /></button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Content Section */}
+              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400">
+                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
+                <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
+
+                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
+                <p className="mb-4">{viewingJob.requirements}</p>
+
+                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
+                <p className="mb-4">{viewingJob.benefits}</p>
+
+                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
+                <p className="mb-4">{viewingJob.activities}</p>
+
+                {/* Contacts Section - Integrated */}
+                {viewingJob.contacts && viewingJob.contacts.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <strong className="text-slate-800 dark:text-slate-200 block mb-2 text-xs uppercase tracking-wide">Contatos</strong>
+                    <div className="space-y-2">
+                      {viewingJob.contacts.map((contact, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <div className="w-6 h-6 rounded bg-white dark:bg-slate-800 flex items-center justify-center text-blue-500 shadow-sm border border-slate-100 dark:border-slate-700">
+                            {contact.type === 'WhatsApp' && <OfficialWhatsAppIcon size={12} />}
+                            {contact.type === 'Email' && <Mail size={12} />}
+                            {contact.type === 'Endereço' && <MapPin size={12} />}
+                            {contact.type === 'Link' && <LinkIcon size={12} />}
+                          </div>
+                          <span className="font-medium">{contact.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Emojis */}
+      {isEmojiModalOpen && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsEmojiModalOpen(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Personalizar Emojis</h3>
+              <button onClick={() => setIsEmojiModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seus Emojis (Máx 3)</label>
+                <input
+                  type="text"
+                  value={emojiInput}
+                  onChange={(e) => setEmojiInput(e.target.value)} // User logic validation if strict needed, but let's keep simple
+                  placeholder="Ex: 🟡🔴🔵"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-xl text-center outline-none focus:ring-2 ring-blue-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-2 text-center">Cole os emojis que deseja utilizar no título.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!user) return;
+                  // Basic validation
+                  /*if ([...emojiInput].length > 6) {
+                     alert("Por favor, use no máximo 3 emojis (aprox).");
+                     return;
+                  }*/
+
+                  const { error } = await supabase
+                    .from('user_job_emojis')
+                    .upsert({ user_id: user.id, emojis: emojiInput });
+
+                  if (error) {
+                    alert("Erro ao salvar emojis");
+                  } else {
+                    setPreviewEmojis(emojiInput);
+                    setIsEmojiModalOpen(false);
+                  }
+                }}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+              >
+                Salvar Preferência
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
