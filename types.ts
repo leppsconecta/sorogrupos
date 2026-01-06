@@ -15,6 +15,7 @@ export interface JobContact {
   value: string;
   date?: string;
   time?: string;
+  noDateTime?: boolean;
 }
 
 export interface SavedJobContact {

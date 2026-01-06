@@ -276,7 +276,7 @@ export const Vagas: React.FC = () => {
     });
   };
 
-  const updateContactValue = (index: number, value: string, field: 'value' | 'date' | 'time' = 'value') => {
+  const updateContactValue = (index: number, value: any, field: 'value' | 'date' | 'time' | 'noDateTime' = 'value') => {
     const updated = [...(jobDraft.contacts || [])];
     updated[index] = { ...updated[index], [field]: value };
     setJobDraft({ ...jobDraft, contacts: updated });
@@ -301,7 +301,13 @@ export const Vagas: React.FC = () => {
       if (c.type === 'WhatsApp') parts.push(`WhatsApp ${c.value}`);
       else if (c.type === 'Email') parts.push(`e-mail ${c.value} com o código da vaga ${code}`);
       else if (c.type === 'Link') parts.push(`pelo link ${c.value}`);
-      else if (c.type === 'Endereço') parts.push(`Compareça no ${c.value} no dia ${c.date || '__/__'} as ${c.time || '__:__'}`);
+      else if (c.type === 'Endereço') {
+        if (!c.noDateTime) {
+          parts.push(`Compareça no ${c.value} no dia ${c.date || '__/__'} às ${c.time || '__:__'}`);
+        } else {
+          parts.push(`Compareça em: ${c.value}`);
+        }
+      }
     });
 
     const interessadosText = parts.length > 0
@@ -692,9 +698,39 @@ Cód. Vaga: *${code}*
                 />
               </div>
               {c.type === 'Endereço' && (
-                <div className="flex gap-2 pl-8">
-                  <input type="date" value={c.date || ''} onChange={e => updateContactValue(i, e.target.value, 'date')} className="flex-1 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-sm outline-none" onFocus={scrollToCenter} />
-                  <input type="time" value={c.time || ''} onChange={e => updateContactValue(i, e.target.value, 'time')} className="w-24 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-sm outline-none" onFocus={scrollToCenter} />
+                <div className="pl-9 mt-2 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      O candidato deverá comparecer no dia ( data ) às ( hora )
+                    </span>
+                    <button
+                      onClick={() => updateContactValue(i, !c.noDateTime, 'noDateTime')}
+                      className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border transition-all ${c.noDateTime ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'}`}
+                    >
+                      {c.noDateTime ? 'Com Data/Hora' : 'Sem Data/Hora'}
+                    </button>
+                  </div>
+
+                  {!c.noDateTime && (
+                    <div className="flex gap-3 animate-fadeIn">
+                      <div className="relative flex-1 group">
+                        <input
+                          type="date"
+                          value={c.date || ''}
+                          onChange={e => updateContactValue(i, e.target.value, 'date')}
+                          className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
+                        />
+                      </div>
+                      <div className="relative w-32 group">
+                        <input
+                          type="time"
+                          value={c.time || ''}
+                          onChange={e => updateContactValue(i, e.target.value, 'time')}
+                          className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
