@@ -99,6 +99,8 @@ export const Vagas: React.FC = () => {
 
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
 
+  const [moveJobModalFolderId, setMoveJobModalFolderId] = useState<string | null>(null);
+
   // Estado Modal Confirmação Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteData, setDeleteData] = useState<{ type: 'folder' | 'job', item: any } | null>(null);
@@ -566,6 +568,8 @@ Cód. Vaga: *${code}*
 
     setVagas(prev => prev.map(v => v.id === vagaId ? { ...v, folderId: targetFolderId } : v));
     setIsMoveJobModalOpen(false);
+    setJobToMove(null);
+    setMoveJobModalFolderId(null);
   };
 
   const handleCreateFolder = async () => {
@@ -972,6 +976,7 @@ Cód. Vaga: *${code}*
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => { setJobToMove(vaga); setIsMoveJobModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Mover Vaga"><Move size={16} /></button>
                           <button onClick={() => handleViewJob(vaga)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Eye size={16} /></button>
                           <button onClick={() => handleEditJob(vaga)} className="p-2 text-slate-400 hover:text-yellow-600 transition-colors"><Edit2 size={16} /></button>
                           <button onClick={() => handleDeleteJob(vaga.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
@@ -1481,6 +1486,113 @@ Cód. Vaga: *${code}*
           </div>
         )
       }
+
+      {/* Modal de Movimentação de Vaga */}
+      {isMoveJobModalOpen && jobToMove && (
+        <div className="fixed inset-0 z-[170] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => { setIsMoveJobModalOpen(false); setMoveJobModalFolderId(null); }} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[80vh]">
+            <div className="p-6 bg-indigo-950 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white">
+                  <Move size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Mover Vaga</h3>
+                  <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-widest truncate max-w-[200px]">
+                    {jobToMove.role || jobToMove.title}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { setIsMoveJobModalOpen(false); setMoveJobModalFolderId(null); }} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 no-scrollbar space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  {moveJobModalFolderId ? 'Selecione o Setor' : 'Selecione a Empresa'}
+                </p>
+                {moveJobModalFolderId && (
+                  <button
+                    onClick={() => setMoveJobModalFolderId(null)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-2 py-1 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft size={12} />
+                    Voltar
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {/* Opção para Mover para cá (se estiver dentro de uma empresa) */}
+                {moveJobModalFolderId && (
+                  <button
+                    onClick={() => handleMoveJob(jobToMove.id, moveJobModalFolderId)}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 transition-all font-bold text-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={20} />
+                      <span>Mover para esta empresa</span>
+                    </div>
+                  </button>
+                )}
+
+                {folders
+                  .filter(f => f.parentId === moveJobModalFolderId)
+                  .map(folder => (
+                    <button
+                      key={folder.id}
+                      onClick={() => {
+                        if (folder.level === 'company') {
+                          setMoveJobModalFolderId(folder.id);
+                        } else {
+                          handleMoveJob(jobToMove.id, folder.id);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all hover:scale-[1.01] active:scale-95 text-left
+                        ${jobToMove.folderId === folder.id
+                          ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800'
+                          : 'bg-slate-50 border-slate-100 dark:bg-slate-800/50 dark:border-slate-800 hover:border-indigo-300'}
+                      `}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${folder.level === 'company' ? 'bg-blue-100 text-blue-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                          <FolderIcon size={20} />
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-white block">{folder.name}</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {folder.level === 'company' ? 'Empresa' : 'Setor'}
+                          </span>
+                        </div>
+                      </div>
+                      {folder.level === 'company' ? (
+                        <ChevronRight size={18} className="text-slate-300" />
+                      ) : (
+                        jobToMove.folderId === folder.id && (
+                          <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg">
+                            <Check size={14} />
+                          </div>
+                        )
+                      )}
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+              <button
+                onClick={() => { setIsMoveJobModalOpen(false); setMoveJobModalFolderId(null); }}
+                className="w-full py-3.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Emojis */}
       {
