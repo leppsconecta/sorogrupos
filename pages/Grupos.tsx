@@ -42,6 +42,7 @@ interface Group {
   contact?: string;
   description?: string;
   tags: string[];
+  status_create_group?: number;
 }
 
 interface GruposProps {
@@ -60,57 +61,14 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [editingTagValue, setEditingTagValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Group Details Modal State
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
+  const [imageDraft, setImageDraft] = useState('');
+  const [selectedFileDetails, setSelectedFileDetails] = useState<File | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const fileInputRefDetails = useRef<HTMLInputElement>(null);
 
-  // ... (Common Emojis array) commonEmojis remains here or is effectively unchanged if I don't replace it. 
-  // Wait, replace_file_content replaces the chunk. I need to include commonEmojis if I touch lines around it.
-
-  const commonEmojis = ['😀', '😂', '😍', '🔥', '👍', '🙏', '🤝', '💼', '🚀', '📢', '✅', '❌', '⚠️', '🎉', '👋', '🌟', '💡', '💰', '📅', '📍'];
-
-  // ...
-
-  const handleGroupClick = (group: Group) => {
-    setSelectedGroup(group);
-    setDescriptionDraft(group.description || '');
-    setNameDraft(group.name);
-    setShowEmojiPicker(false);
-  };
-
-  const handleSaveDetails = async () => {
-    if (!selectedGroup) return;
-
-    try {
-      const { error } = await supabase
-        .from('whatsapp_groups')
-        .update({
-          description: descriptionDraft,
-          name_group: nameDraft
-        })
-        .eq('id', selectedGroup.id);
-
-      if (error) throw error;
-
-      // Update local state
-      const updatedGroup = { ...selectedGroup, description: descriptionDraft, name: nameDraft };
-      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
-      setSelectedGroup(updatedGroup);
-      alert('Grupo atualizado com sucesso!');
-    } catch (error) {
-      console.error('Error updating group:', error);
-      alert('Erro ao atualizar grupo.');
-    }
-  };
-  const handleClearDescription = () => {
-    setDescriptionDraft('');
-  };
-
-  const addEmoji = (emoji: string) => {
-    setDescriptionDraft(prev => prev + emoji);
-  };
   const [joinValue, setJoinValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -122,14 +80,108 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [formImage, setFormImage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formContact, setFormContact] = useState('');
+  const [formFirstMember, setFormFirstMember] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formTagsInput, setFormTagsInput] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Global tags management
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
 
   const [groups, setGroups] = useState<Group[]>([]);
+
+  const handleClearDescription = () => {
+    setDescriptionDraft('');
+  };
+
+  const addEmoji = (emoji: string) => {
+    setDescriptionDraft(prev => prev + emoji);
+  };
+
+  // ...
+
+  const commonEmojis = ['😀', '😂', '😍', '🔥', '👍', '🙏', '🤝', '💼', '🚀', '📢', '✅', '❌', '⚠️', '🎉', '👋', '🌟', '💡', '💰', '📅', '📍'];
+
+  // ...
+
+  const handleGroupClick = (group: Group) => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para editar grupos.');
+      return;
+    }
+    setSelectedGroup(group);
+    setDescriptionDraft(group.description || '');
+    setNameDraft(group.name);
+    setImageDraft(group.image);
+    setSelectedFileDetails(null);
+    setShowEmojiPicker(false);
+  };
+
+  const handleImageUploadDetails = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFileDetails(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageDraft(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveDetails = async () => {
+    if (!selectedGroup) return;
+    if (!selectedGroup.isAdmin) {
+      alert("Você não tem permissão para editar este grupo.");
+      return;
+    }
+
+    try {
+      let imageUrl = selectedGroup.image;
+
+      if (selectedFileDetails && user) {
+        const fileExt = selectedFileDetails.name.split('.').pop();
+        const fileName = `${Date.now()}-updated.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('group-logos')
+          .upload(filePath, selectedFileDetails);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('group-logos')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('whatsapp_groups')
+        .update({
+          description: descriptionDraft,
+          name_group: nameDraft,
+          image: imageUrl
+        })
+        .eq('id', selectedGroup.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGroup = { ...selectedGroup, description: descriptionDraft, name: nameDraft, image: imageUrl };
+      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
+      setSelectedGroup(updatedGroup);
+      alert('Grupo atualizado com sucesso!');
+    } catch (error) {
+      console.error('Error updating group:', error);
+      alert('Erro ao atualizar grupo.');
+    }
+  };
+
+
+  // ... in return JSX ...
 
   useEffect(() => {
     if (externalTrigger && externalTrigger > 0) {
@@ -181,7 +233,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           link: g.link_invite || '',
           contact: '', // Database doesn't have contact/phone column separate from link/description
           description: g.description || '',
-          tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name)
+          tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name),
+          status_create_group: g.status_create_group
         }));
         setGroups(mappedGroups);
       }
@@ -204,12 +257,19 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   };
 
   const openCreateModal = () => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para criar grupos.');
+      return;
+    }
     setFormName('');
     setFormImage('');
     setSelectedFile(null);
+    setFormImage('');
+    setSelectedFile(null);
     setFormContact('');
+    setFormFirstMember('');
     setFormDescription('');
-    setFormTagsInput('');
+    setSelectedTags([]);
     setIsCreateModalOpen(true);
   };
 
@@ -225,8 +285,22 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (value.startsWith('0')) {
+      value = value.substring(1); // Remove leading zero
+    }
+    setFormFirstMember(value);
+  };
+
   const handleCreateGroup = async () => {
-    if (!formName.trim() || !formContact.trim() || !user) return;
+    if (isCreating) return;
+    if (!formName.trim() || !formFirstMember.trim() || !user) {
+      alert("Preencha todos os campos obrigatórios (Nome, Primeiro Integrante).");
+      return;
+    }
+
+    setIsCreating(true);
 
     try {
       let imageUrl = null;
@@ -250,17 +324,33 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         imageUrl = publicUrl;
       }
 
-      // 2. Create Group
+      // 2. Fetch Connected Number
+      let numberOwner = null;
+      const { data: connectionData } = await supabase
+        .from('whatsapp_conections')
+        .select('phone')
+        .eq('user_id', user.id)
+        .eq('status', 'connected') // Assuming 'connected' is the status for active connection
+        .single();
+
+      if (connectionData) {
+        numberOwner = connectionData.phone;
+      }
+
+      // 3. Create Group
       const { data: groupData, error: groupError } = await supabase
         .from('whatsapp_groups')
         .insert({
           user_id: user.id,
           name_group: formName,
-          link_invite: formContact,
+          link_invite: "", // Removed input, setting to empty/null manually later
           description: formDescription,
           admin: true, // User created it, so they are admin
           total: 1,
-          image: imageUrl
+          image: imageUrl,
+          number_owner: numberOwner, // Save the connected number
+          first_member: formFirstMember,
+          status_create_group: 0
         })
         .select()
         .single();
@@ -268,13 +358,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       if (groupError) throw groupError;
 
       // 3. Handle Tags
-      const tags = formTagsInput
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
-
-      if (tags.length > 0) {
-        for (const tagName of tags) {
+      if (selectedTags.length > 0) {
+        for (const tagName of selectedTags) {
           let tagId;
           const { data: existingTag } = await supabase
             .from('tags_group')
@@ -285,6 +370,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           if (existingTag) {
             tagId = existingTag.id;
           } else {
+            // Should theoretically not happen if selecting from available, but safe to keep
             const { data: newTag } = await supabase
               .from('tags_group')
               .insert({ user_id: user.id, name: tagName })
@@ -307,6 +393,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     } catch (error) {
       console.error('Error creating group:', error);
       alert('Erro ao criar grupo. Tente novamente.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -325,6 +413,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   // Tag Group Actions
   const toggleTagInGroup = async (group: Group, tag: string) => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para gerenciar tags.');
+      return;
+    }
     if (!user) return;
     const hasTag = group.tags.includes(tag);
 
@@ -373,6 +465,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   // Global Tag Manager Actions
   const addGlobalTag = async () => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para gerenciar tags.');
+      return;
+    }
     const trimmed = newTagInput.trim();
     if (trimmed && !availableTags.includes(trimmed) && user) {
       try {
@@ -389,6 +485,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   };
 
   const deleteGlobalTag = async (tag: string) => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para gerenciar tags.');
+      return;
+    }
     if (confirm(`Remover a tag "#${tag}" globalmente?`) && user) {
       try {
         const { data: tagRef } = await supabase
@@ -419,6 +519,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   };
 
   const saveEditedTag = async (oldTag: string) => {
+    if (!isWhatsAppConnected) {
+      alert('Conecte o WhatsApp para gerenciar tags.');
+      return;
+    }
     const newValue = editingTagValue.trim();
     if (newValue && newValue !== oldTag && user) {
       try {
@@ -552,13 +656,14 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative cursor-pointer hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900"
           >
             {/* Admin Badge - Top Left */}
-            {group.isAdmin && (
-              <div className="absolute top-4 left-4 z-10">
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
+              {/* Creation Badge Removed - Replaced by Overlay */}
+              {group.isAdmin && (
                 <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase tracking-widest border border-slate-200 dark:border-slate-700">
                   Admin
                 </span>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Tag Button Top Right */}
             <div className="absolute top-4 right-4 z-10">
@@ -628,9 +733,18 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                   ? 'bg-emerald-500 text-white shadow-emerald-500/20'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
             >
-              {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
               {copiedId === group.id ? 'Copiado!' : 'Copiar Link'}
             </button>
+
+            {/* Creation Overlay Mask */}
+            {group.status_create_group === 0 && (
+              <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
+                  <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -786,19 +900,44 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                   </div>
                 </div>
 
+                {/* Link Invite Field Removed */}
+
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Contato (WhatsApp ou Link) <span className="text-red-500">*</span></label>
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Primeiro Integrante (WhatsApp) <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Phone size={18} /></div>
-                    <input type="text" value={formContact} onChange={(e) => setFormContact(e.target.value)} placeholder="Ex: (15) 99999-9999 ou link" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                    <input type="text" value={formFirstMember} onChange={handlePhoneChange} placeholder="Ex: 5515999999999" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags Iniciais</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Hash size={18} /></div>
-                    <input type="text" value={formTagsInput} onChange={(e) => setFormTagsInput(e.target.value)} placeholder="Ex: Empregos, TI, Vendas" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags do Grupo</label>
+                  <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl min-h-[60px]">
+                    {availableTags.length === 0 ? (
+                      <span className="text-xs text-slate-400">Nenhuma tag disponível. Crie tags na tela principal.</span>
+                    ) : (
+                      availableTags.map(tag => {
+                        const isSelected = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedTags(selectedTags.filter(t => t !== tag));
+                              } else {
+                                setSelectedTags([...selectedTags, tag]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                              : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500'
+                              }`}
+                          >
+                            {tag}
+                          </button>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -814,7 +953,16 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white dark:bg-slate-900">
               <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-              <button onClick={handleCreateGroup} disabled={!formName.trim() || !formContact.trim()} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 transition-all">Criar Grupo</button>
+              <button onClick={handleCreateGroup} disabled={!formName.trim() || !formFirstMember.trim() || isCreating} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
+                {isCreating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar Grupo'
+                )}
+              </button>
             </div>
           </div>
         </div>
