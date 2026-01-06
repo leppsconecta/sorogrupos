@@ -73,24 +73,6 @@ interface VagasProps {
 export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) => {
   const { user, company } = useAuth();
 
-  // Effect to handle initialJobId deep link
-  useEffect(() => {
-    if (initialJobId && vagas.length > 0) {
-      const job = vagas.find(j => j.id === initialJobId);
-      if (job) {
-        setEditingJobId(job.id);
-        const folderId = job.folderId;
-        if (folderId) setCurrentFolderId(folderId); // Open folder if needed
-
-        // Open edit modal directly
-        setJobCreationStep('form');
-        setIsJobModalOpen(true);
-        setJobDraft(job);
-
-        if (onClearTargetJob) onClearTargetJob();
-      }
-    }
-  }, [initialJobId, vagas, onClearTargetJob]);
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -137,6 +119,25 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🔵');
   const [isEmojiModalOpen, setIsEmojiModalOpen] = useState(false);
   const [emojiInput, setEmojiInput] = useState('');
+
+  // Effect to handle initialJobId deep link
+  useEffect(() => {
+    if (initialJobId && vagas.length > 0) {
+      const job = vagas.find(j => j.id === initialJobId);
+      if (job) {
+        setEditingJobId(job.id);
+        const folderId = job.folderId;
+        if (folderId) setCurrentFolderId(folderId); // Open folder if needed
+
+        // Open edit modal directly
+        setJobCreationStep('form');
+        setIsJobModalOpen(true);
+        setJobDraft(job);
+
+        if (onClearTargetJob) onClearTargetJob();
+      }
+    }
+  }, [initialJobId, vagas, onClearTargetJob]);
 
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);

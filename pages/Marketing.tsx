@@ -28,10 +28,17 @@ import {
 import { supabase } from '../lib/supabase';
 
 // Helper for date formatting
-const formatDate = (dateString: string) => {
+// Helper for date formatting
+const formatDateTime = (dateString: string) => {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR');
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
 // Interfaces
@@ -79,9 +86,10 @@ interface MarketingProps {
   isWhatsAppConnected: boolean;
   onOpenConnect: () => void;
   setActiveTab?: (tab: string) => void;
+  setTargetJobId?: (id: string | null) => void;
 }
 
-export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect }) => {
+export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect, setActiveTab, setTargetJobId }) => {
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
 
   // Data States
@@ -135,6 +143,8 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      console.log('Jobs Data:', jobsData);
+
       // Fetch Groups with tags
       const { data: groupsData } = await supabase
         .from('whatsapp_groups')
@@ -165,7 +175,10 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
           type: j.job_type === 'text' ? 'scratch' : 'file',
           companyName: j.company_name,
           city: j.city,
-          status: j.status
+          status: j.status,
+          image: j.file_url,
+          content: j.description,
+          created_at: j.created_at
         }));
         setVagas(mappedVagas);
       }
@@ -429,11 +442,17 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                             >
                               <div>
-                                <h4 className={`font-semibold text-xs ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{vaga.role}</h4>
-                                <p className="text-[10px] font-medium text-slate-400 mt-1 flex items-center gap-1.5">
-                                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">{vaga.jobCode}</span>
-                                  <span>{vaga.companyName}</span>
-                                </p>
+                                <div className="flex flex-col gap-0.5 mb-1">
+                                  <h4 className={`font-semibold text-xs ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{vaga.role}</h4>
+                                  <span className="text-[10px] font-medium text-slate-500">{vaga.companyName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400 mt-1.5">
+                                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 font-bold tracking-wider">{vaga.jobCode}</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                                  <span>{vaga.type === 'file' ? 'Imagem' : 'Texto'}</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                                  <span>{formatDateTime(vaga.created_at)}</span>
+                                </div>
                               </div>
                               <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all
                                 ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700 group-hover:border-blue-300'}`}>
@@ -498,39 +517,82 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                       {/* Message Content */}
                       {selectedVagas.length > 0 && (
                         <div className="space-y-3">
-                          <div className="relative rounded-lg overflow-hidden aspect-video bg-slate-200">
-                            {/* Placeholder for Job Image */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-white">
-                              <span className="font-black text-2xl uppercase tracking-widest opacity-20">VAGA</span>
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                              <p className="text-white text-xs font-bold truncate">{selectedVagas[previewIndex]?.role}</p>
-                            </div>
+                          {selectedVagas[previewIndex]?.type === 'file' ? (
+                            <div className="relative rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                              {/* Full Image Display */}
+                              <div className="relative w-full flex items-center justify-center bg-slate-900 min-h-[200px]">
+                                {selectedVagas[previewIndex]?.image ? (
+                                  <img
+                                    src={selectedVagas[previewIndex].image}
+                                    alt="Vaga"
+                                    className="w-full h-auto max-h-[400px] object-contain"
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center py-10 opacity-50 text-white">
+                                    <ImageIcon size={48} />
+                                    <span className="text-xs font-bold mt-2 uppercase tracking-widest">Sem Imagem</span>
+                                  </div>
+                                )}
+                              </div>
 
-                            {/* Carousel Controls */}
-                            {selectedVagas.length > 1 && (
-                              <>
-                                <button onClick={(e) => { e.stopPropagation(); prevPreview(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronLeft size={20} /></button>
-                                <button onClick={(e) => { e.stopPropagation(); nextPreview(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronRight size={20} /></button>
+                              {/* Carousel Controls (Over Image) */}
+                              {selectedVagas.length > 1 && (
+                                <>
+                                  <button onClick={(e) => { e.stopPropagation(); prevPreview(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronLeft size={20} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); nextPreview(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-all z-10 hover:scale-110 active:scale-95"><ChevronRight size={20} /></button>
 
-                                <div className="absolute top-2 right-2 px-2.5 py-1 bg-black/50 text-white text-[10px] font-bold rounded-lg backdrop-blur-sm z-10 border border-white/10 shadow-sm">
-                                  {previewIndex + 1} / {selectedVagas.length}
+                                  <div className="absolute top-2 right-2 px-2.5 py-1 bg-black/50 text-white text-[10px] font-bold rounded-lg backdrop-blur-sm z-10 border border-white/10 shadow-sm">
+                                    {previewIndex + 1} / {selectedVagas.length}
+                                  </div>
+                                </>
+                              )}
+
+                              {/* Caption for Image */}
+                              <div className="p-3 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug">
+                                <p className="font-bold mb-1">🔥 NOVA OPORTUNIDADE!</p>
+                                <p>Cargo: *{selectedVagas[previewIndex]?.role}*</p>
+                                <p>Cidade: {selectedVagas[previewIndex]?.city || 'Não informada'}</p>
+                                <p className="mt-2 text-xs opacity-80">Toque abaixo para ver mais detalhes e se candidatar 👇</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="relative rounded-lg bg-white dark:bg-slate-800 p-3 shadow-sm border border-slate-100 dark:border-slate-800">
+                              {/* Text Job Display */}
+                              <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium leading-snug">
+                                {selectedVagas[previewIndex]?.content || (
+                                  <span className="italic text-slate-400">Sem conteúdo de texto...</span>
+                                )}
+                              </div>
+
+                              {/* Carousel Controls for Text */}
+                              {selectedVagas.length > 1 && (
+                                <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                  <button onClick={(e) => { e.stopPropagation(); prevPreview(); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"><ChevronLeft size={16} /></button>
+                                  <span className="text-[10px] font-bold text-slate-400">{previewIndex + 1} / {selectedVagas.length}</span>
+                                  <button onClick={(e) => { e.stopPropagation(); nextPreview(); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"><ChevronRight size={16} /></button>
                                 </div>
-                              </>
-                            )}
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Buttons (Outside Bubble) */}
+                          <div className="flex gap-2">
+                            <button className="flex-1 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold text-center hover:bg-blue-100 transition-colors">Ver Vaga Completa</button>
+                            <button
+                              onClick={() => {
+                                const jobId = selectedVagas[previewIndex]?.id;
+                                if (jobId && setTargetJobId && setActiveTab) {
+                                  setTargetJobId(jobId);
+                                  setActiveTab('vagas');
+                                }
+                              }}
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider flex items-center gap-2"
+                              title="Editar Vaga"
+                            >
+                              <Edit2 size={14} /> Editar
+                            </button>
                           </div>
 
-                          <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug">
-                            <p className="font-bold mb-1">🔥 NOVA OPORTUNIDADE!</p>
-                            <p>Cargo: *{selectedVagas[previewIndex]?.role}*</p>
-                            <p>Cidade: {selectedVagas[previewIndex]?.city}</p>
-                            <p className="mt-2 text-xs opacity-80">Toque abaixo para ver mais detalhes e se candidatar 👇</p>
-                          </div>
-
-
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-700/50">
-                            <button className="w-full py-2 bg-blue-50 text-blue-600 rounded text-xs font-bold text-center">Ver Vaga Completa</button>
-                          </div>
                         </div>
                       )}
 
@@ -825,53 +887,55 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
               </div>
             </div>
           </div>
-        )}
-
-      {view === 'reports' && (
-        <div className="space-y-8 animate-fadeIn">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
-            </div>
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
-              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
-              <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
-                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
-                      <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
-                      <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
-                      <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
-                  <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
-                    <Eye size={18} /> Detalhes
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
+        )
       }
-    </div>
+
+      {
+        view === 'reports' && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
+              </div>
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
+                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
+                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
+                        <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
+                        <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
+                        <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
+                    <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
+                      <Eye size={18} /> Detalhes
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
