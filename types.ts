@@ -48,6 +48,8 @@ export interface Vaga {
   activities?: string;
   jobCode?: string;
   contacts: JobContact[];
+  imageUrl?: string;
+  footerEnabled?: boolean;
   observation?: string;
   showObservation?: boolean;
 }

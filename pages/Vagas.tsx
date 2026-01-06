@@ -412,7 +412,7 @@ Cód. Vaga: *${code}*
       // 1. Upload Image if exists
       if (jobDraft.type === 'file' && attachedFile) {
         const fileExt = attachedFile.name.split('.').pop();
-        const fileName = `${userId}/${companyId}/${sectorId}/${jobDraft.jobCode}.${fileExt}`;
+        const fileName = `${userId}/${companyId}/${sectorId || 'root'}/${jobDraft.jobCode}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('job-images')
@@ -1438,17 +1438,45 @@ Cód. Vaga: *${code}*
               <div className="space-y-6">
                 {/* Content Section */}
                 <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400">
-                  <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
-                  <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
+                  {viewingJob.type === 'file' ? (
+                    <div className="space-y-4">
+                      {viewingJob.imageUrl ? (
+                        <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-inner">
+                          <img
+                            src={viewingJob.imageUrl}
+                            alt={viewingJob.role || viewingJob.title}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="aspect-video rounded-xl flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 text-slate-400">
+                          <ImageIcon size={40} className="mb-2 opacity-50" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Sem imagem vinculada</span>
+                        </div>
+                      )}
 
-                  <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
-                  <p className="mb-4">{viewingJob.requirements}</p>
+                      {viewingJob.showObservation && viewingJob.observation && (
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <strong className="text-slate-800 dark:text-slate-200 block mb-1">Observação:</strong>
+                          <p className="text-slate-500 dark:text-slate-400">{viewingJob.observation}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
+                      <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
 
-                  <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
-                  <p className="mb-4">{viewingJob.benefits}</p>
+                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
+                      <p className="mb-4">{viewingJob.requirements}</p>
 
-                  <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
-                  <p className="mb-4">{viewingJob.activities}</p>
+                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
+                      <p className="mb-4">{viewingJob.benefits}</p>
+
+                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
+                      <p className="mb-4">{viewingJob.activities}</p>
+                    </>
+                  )}
 
                   {/* Contacts Section - Integrated */}
                   {viewingJob.contacts && viewingJob.contacts.length > 0 && (
