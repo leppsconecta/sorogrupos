@@ -25,6 +25,8 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Group {
   id: string;
@@ -45,9 +47,9 @@ interface GruposProps {
 }
 
 export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConnected, onOpenConnect }) => {
+  const { user } = useAuth();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [taggingGroup, setTaggingGroup] = useState<Group | null>(null);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
@@ -58,6 +60,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [showMyGroups, setShowMyGroups] = useState(false);
 
   // Form for creation
   const [formName, setFormName] = useState('');
@@ -67,16 +70,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [formTagsInput, setFormTagsInput] = useState('');
 
   // Global tags management
-  const [availableTags, setAvailableTags] = useState<string[]>(['Empregos', 'Tecnologia', 'Vendas', 'Design', 'Marketing', 'Logística', 'Networking', 'Suporte']);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
 
-  const [groups, setGroups] = useState<Group[]>([
-    { id: '1', name: 'Vagas Sorocaba 1', image: 'https://picsum.photos/seed/group1/200/200', membersCount: 12450, isAdmin: true, link: 'https://chat.whatsapp.com/vagas1', tags: ['Empregos', 'Networking'] },
-    { id: '2', name: 'Devs Interior SP', image: 'https://picsum.photos/seed/group2/200/200', membersCount: 3200, isAdmin: false, link: 'https://chat.whatsapp.com/devs-sp', tags: ['Tecnologia', 'Design'] },
-    { id: '3', name: 'Vendas Diretas', image: 'https://picsum.photos/seed/group3/200/200', membersCount: 8900, isAdmin: true, link: 'https://chat.whatsapp.com/vendas-diretas', tags: ['Vendas', 'Marketing'] },
-    { id: '4', name: 'Freelas Design', image: 'https://picsum.photos/seed/group4/200/200', membersCount: 1500, isAdmin: false, link: 'https://chat.whatsapp.com/freelas-design', tags: ['Design', 'Tecnologia'] },
-    { id: '5', name: 'Marketing Digital', image: 'https://picsum.photos/seed/group5/200/200', membersCount: 5600, isAdmin: false, link: 'https://chat.whatsapp.com/mkt-dig', tags: ['Marketing'] },
-  ]);
+  const [groups, setGroups] = useState<Group[]>([]);
 
   useEffect(() => {
     if (externalTrigger && externalTrigger > 0) {
@@ -84,19 +81,70 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   }, [externalTrigger]);
 
+  useEffect(() => {
+    fetchData();
+  }, [user]);
+
+  const fetchData = async () => {
+    // We allow fetching even if not logged in (public read), but user check is good practice if intended for private. 
+    // RLS allows public read for authenticated users.
+    setIsSyncing(true);
+    try {
+      // Fetch Tags
+      const { data: tagsData } = await supabase
+        .from('tags_group')
+        .select('name')
+        .order('name');
+
+      if (tagsData) {
+        setAvailableTags(tagsData.map(t => t.name));
+      }
+
+      // Fetch Groups with Tags
+      const { data: groupsData, error } = await supabase
+        .from('whatsapp_groups')
+        .select(`
+          *,
+          whatsapp_groups_tags (
+            tags_group (
+              name
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (groupsData) {
+        const mappedGroups: Group[] = groupsData.map((g: any) => ({
+          id: g.id,
+          name: g.name_group,
+          image: `https://picsum.photos/seed/${g.id}/200/200`, // Placeholder as DB has no image
+          membersCount: g.total || 0,
+          isAdmin: g.admin || false,
+          link: g.link_invite || '',
+          contact: '', // Database doesn't have contact/phone column separate from link/description
+          description: g.description || '',
+          tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name)
+        }));
+        setGroups(mappedGroups);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredGroups = groups.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
-    return matchesSearch && matchesTag;
+    const matchesMyGroups = showMyGroups ? g.isAdmin : true;
+    return matchesSearch && matchesTag && matchesMyGroups;
   });
 
   const handleSyncGroups = () => {
-    setIsSyncing(true);
-    // Simulating API call to fetch new groups
-    setTimeout(() => {
-      setIsSyncing(false);
-      alert('Lista de grupos atualizada com sucesso!');
-    }, 1500);
+    fetchData();
   };
 
   const openCreateModal = () => {
@@ -119,28 +167,67 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   };
 
-  const handleCreateGroup = () => {
-    if (!formName.trim() || !formContact.trim()) return;
+  const handleCreateGroup = async () => {
+    if (!formName.trim() || !formContact.trim() || !user) return;
 
-    const tags = formTagsInput
-      .split(',')
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+    try {
+      // 1. Create Group
+      const { data: groupData, error: groupError } = await supabase
+        .from('whatsapp_groups')
+        .insert({
+          user_id: user.id,
+          name_group: formName,
+          link_invite: formContact,
+          description: formDescription,
+          admin: true, // User created it, so they are admin
+          total: 1
+        })
+        .select()
+        .single();
 
-    const newGroup: Group = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formName,
-      image: formImage || `https://picsum.photos/seed/${formName}/200/200`,
-      membersCount: 1,
-      isAdmin: true,
-      link: `https://chat.whatsapp.com/new-${Math.random().toString(36).substr(2, 5)}`,
-      contact: formContact,
-      description: formDescription,
-      tags: tags
-    };
+      if (groupError) throw groupError;
 
-    setGroups([newGroup, ...groups]);
-    setIsCreateModalOpen(false);
+      // 2. Handle Tags
+      const tags = formTagsInput
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      if (tags.length > 0) {
+        for (const tagName of tags) {
+          let tagId;
+          const { data: existingTag } = await supabase
+            .from('tags_group')
+            .select('id')
+            .eq('name', tagName)
+            .single();
+
+          if (existingTag) {
+            tagId = existingTag.id;
+          } else {
+            const { data: newTag } = await supabase
+              .from('tags_group')
+              .insert({ user_id: user.id, name: tagName })
+              .select('id')
+              .single();
+            tagId = newTag?.id;
+          }
+
+          if (tagId) {
+            await supabase
+              .from('whatsapp_groups_tags')
+              .insert({ group_id: groupData.id, tag_id: tagId });
+          }
+        }
+      }
+
+      await fetchData();
+      setIsCreateModalOpen(false);
+
+    } catch (error) {
+      console.error('Error creating group:', error);
+      alert('Erro ao criar grupo. Tente novamente.');
+    }
   };
 
   const handleJoinGroup = () => {
@@ -157,29 +244,92 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   };
 
   // Tag Group Actions
-  const toggleTagInGroup = (group: Group, tag: string) => {
+  const toggleTagInGroup = async (group: Group, tag: string) => {
+    if (!user) return;
     const hasTag = group.tags.includes(tag);
-    const updatedTags = hasTag
-      ? group.tags.filter(t => t !== tag)
-      : [...group.tags, tag];
 
-    setGroups(groups.map(g => g.id === group.id ? { ...g, tags: updatedTags } : g));
-  };
+    try {
+      // Get Tag ID
+      const { data: tagRef } = await supabase
+        .from('tags_group')
+        .select('id')
+        .eq('name', tag)
+        .single();
 
-  // Global Tag Manager Actions
-  const addGlobalTag = () => {
-    const trimmed = newTagInput.trim();
-    if (trimmed && !availableTags.includes(trimmed)) {
-      setAvailableTags([...availableTags, trimmed]);
-      setNewTagInput('');
+      if (!tagRef) return;
+
+      if (hasTag) {
+        // Remove
+        await supabase
+          .from('whatsapp_groups_tags')
+          .delete()
+          .eq('group_id', group.id)
+          .eq('tag_id', tagRef.id);
+      } else {
+        // Add
+        await supabase
+          .from('whatsapp_groups_tags')
+          .insert({ group_id: group.id, tag_id: tagRef.id });
+      }
+
+      // Optimistic update
+      const updatedTags = hasTag
+        ? group.tags.filter(t => t !== tag)
+        : [...group.tags, tag];
+
+      const updatedGroup = { ...group, tags: updatedTags };
+
+      setGroups(groups.map(g => g.id === group.id ? updatedGroup : g));
+
+      if (taggingGroup && taggingGroup.id === group.id) {
+        setTaggingGroup(updatedGroup);
+      }
+
+    } catch (error) {
+      console.error('Error toggling tag:', error);
+      fetchData(); // Revert on error
     }
   };
 
-  const deleteGlobalTag = (tag: string) => {
-    if (confirm(`Remover a tag "#${tag}" globalmente?`)) {
-      setAvailableTags(availableTags.filter(t => t !== tag));
-      setGroups(groups.map(g => ({ ...g, tags: g.tags.filter(t => t !== tag) })));
-      if (selectedTag === tag) setSelectedTag(null);
+  // Global Tag Manager Actions
+  const addGlobalTag = async () => {
+    const trimmed = newTagInput.trim();
+    if (trimmed && !availableTags.includes(trimmed) && user) {
+      try {
+        await supabase
+          .from('tags_group')
+          .insert({ user_id: user.id, name: trimmed });
+
+        setAvailableTags([...availableTags, trimmed]);
+        setNewTagInput('');
+      } catch (error) {
+        console.error('Error adding tag:', error);
+      }
+    }
+  };
+
+  const deleteGlobalTag = async (tag: string) => {
+    if (confirm(`Remover a tag "#${tag}" globalmente?`) && user) {
+      try {
+        const { data: tagRef } = await supabase
+          .from('tags_group')
+          .select('id')
+          .eq('name', tag)
+          .single();
+
+        if (tagRef) {
+          await supabase
+            .from('tags_group')
+            .delete()
+            .eq('id', tagRef.id);
+
+          setAvailableTags(availableTags.filter(t => t !== tag));
+          setGroups(groups.map(g => ({ ...g, tags: g.tags.filter(t => t !== tag) })));
+          if (selectedTag === tag) setSelectedTag(null);
+        }
+      } catch (error) {
+        console.error('Error deleting tag:', error);
+      }
     }
   };
 
@@ -188,29 +338,43 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     setEditingTagValue(value);
   };
 
-  const saveEditedTag = (oldTag: string) => {
+  const saveEditedTag = async (oldTag: string) => {
     const newValue = editingTagValue.trim();
-    if (newValue && newValue !== oldTag) {
-      const updatedList = [...availableTags];
-      updatedList[editingTagIndex!] = newValue;
-      setAvailableTags(updatedList);
+    if (newValue && newValue !== oldTag && user) {
+      try {
+        const { data: tagRef } = await supabase
+          .from('tags_group')
+          .select('id')
+          .eq('name', oldTag)
+          .single();
 
-      setGroups(groups.map(g => ({
-        ...g,
-        tags: g.tags.map(t => t === oldTag ? newValue : t)
-      })));
+        if (tagRef) {
+          await supabase
+            .from('tags_group')
+            .update({ name: newValue })
+            .eq('id', tagRef.id);
 
-      if (selectedTag === oldTag) setSelectedTag(newValue);
+          const updatedList = [...availableTags];
+          updatedList[editingTagIndex!] = newValue;
+          setAvailableTags(updatedList);
+
+          setGroups(groups.map(g => ({
+            ...g,
+            tags: g.tags.map(t => t === oldTag ? newValue : t)
+          })));
+
+          if (selectedTag === oldTag) setSelectedTag(newValue);
+        }
+      } catch (error) {
+        console.error('Error updating tag:', error);
+      }
     }
     setEditingTagIndex(null);
   };
 
   return (
     <div className="space-y-8 animate-fadeIn">
-
-
-
-      {/* Search and Action Bar - All on the same line */}
+      {/* Search and Action Bar */}
       <div className="flex flex-col lg:flex-row items-center gap-4">
         {/* Search Input - Expanding */}
         <div className="relative flex-1 w-full group">
@@ -222,7 +386,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar comunidades pelo nome..."
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] pl-14 pr-6 py-4 text-sm font-medium outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
           />
         </div>
 
@@ -231,36 +395,29 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           <button
             onClick={handleSyncGroups}
             disabled={isSyncing}
-            className={`flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:text-blue-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Atualizar Grupos"
           >
             <RotateCw size={18} className={isSyncing ? 'animate-spin text-blue-600' : ''} />
-            <span className="hidden sm:inline">{isSyncing ? 'Atualizando...' : 'Atualizar Grupos'}</span>
+            <span className="hidden sm:inline">{isSyncing ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
 
-          <button
-            onClick={() => setIsTagsModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:text-blue-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
-            title="Gerenciar Tags"
-          >
-            <Settings2 size={18} />
-            <span className="hidden sm:inline">Tags</span>
-          </button>
+
 
           <button
             onClick={() => setIsJoinModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             <LinkIcon size={18} />
-            <span className="hidden sm:inline">Entrar no Grupo</span>
+            <span className="hidden sm:inline">Entrar</span>
           </button>
 
           <button
             onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
           >
             <Plus size={18} />
-            <span>Criar Grupo</span>
+            <span>Criar</span>
           </button>
         </div>
       </div>
@@ -268,28 +425,39 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       {/* Tag Filter Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
         <button
-          onClick={() => setSelectedTag(null)}
-          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-            ${selectedTag === null
+          onClick={() => { setSelectedTag(null); setShowMyGroups(false); }}
+          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
+            ${selectedTag === null && !showMyGroups
               ? 'bg-blue-600 text-white border-blue-600 shadow-md'
               : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
             }`}
         >
           Todos
+          <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedTag === null && !showMyGroups ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+            {groups.length}
+          </span>
         </button>
-        {availableTags.map(tag => (
-          <button
-            key={tag}
-            onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border
-              ${selectedTag === tag
-                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
-              }`}
-          >
-            # {tag}
-          </button>
-        ))}
+        {/* Removed redundant "Meus Grupos" button as RLS now enforces ownership for all visible groups */}
+
+        {availableTags.map(tag => {
+          const count = groups.filter(g => g.tags.includes(tag)).length;
+          return (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
+                ${selectedTag === tag
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                  : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
+                }`}
+            >
+              # {tag}
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedTag === tag ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Groups Grid */}
@@ -297,9 +465,18 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         {filteredGroups.map((group) => (
           <div
             key={group.id}
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative"
+            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative"
           >
-            {/* Tag Button Top Right - Fixed to always show per request */}
+            {/* Admin Badge - Top Left */}
+            {group.isAdmin && (
+              <div className="absolute top-4 left-4 z-10">
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                  Admin
+                </span>
+              </div>
+            )}
+
+            {/* Tag Button Top Right */}
             <div className="absolute top-4 right-4 z-10">
               <button
                 onClick={() => setTaggingGroup(group)}
@@ -311,7 +488,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             </div>
 
             {/* Group Thumbnail (Circular) */}
-            <div className="relative mb-4">
+            <div className="relative mb-4 mt-2">
               <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors">
                 <img
                   src={group.image}
@@ -319,29 +496,35 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                   className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
                 />
               </div>
-
-              {group.isAdmin && (
-                <div className="absolute -top-1 -right-1 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-blue-950 shadow-lg border-2 border-white dark:border-slate-900">
-                  <Crown size={14} />
-                </div>
-              )}
             </div>
 
             {/* Content */}
-            <div className="flex-1 w-full space-y-2">
+            <div className="flex-1 w-full space-y-3">
               <h4 className="text-lg font-bold text-slate-800 dark:text-white truncate px-2 leading-tight">
                 {group.name}
               </h4>
-              <div className="flex items-center justify-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+              <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider">
                 <Users size={12} className="text-blue-500" />
                 <span>{group.membersCount.toLocaleString()} participantes</span>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-1.5 mt-3 min-h-[20px]">
+              <div className="flex flex-wrap justify-center gap-2 mt-4 min-h-[24px]">
                 {group.tags.map(tag => (
-                  <span key={tag} className="bg-slate-50 dark:bg-slate-800 text-slate-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-700">
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      if (confirm(`Remover a tag "${tag}" deste grupo?`)) {
+                        toggleTagInGroup(group, tag);
+                      }
+                    }}
+                    className="group/tag relative bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-rose-500 hover:pr-6 transition-all"
+                    title="Clique para remover"
+                  >
                     {tag}
-                  </span>
+                    <span className="absolute right-1.5 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+                      <X size={10} />
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -406,42 +589,42 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Grupo <span className="text-rose-500">*</span></label>
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome do Grupo <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><MessageSquare size={18} /></div>
-                    <input autoFocus type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Empregos Sorocaba e Região" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium outline-none focus:ring-2 ring-blue-500 transition-all" />
+                    <input autoFocus type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Empregos Sorocaba e Região" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contato (WhatsApp ou Link) <span className="text-rose-500">*</span></label>
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Contato (WhatsApp ou Link) <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Phone size={18} /></div>
-                    <input type="text" value={formContact} onChange={(e) => setFormContact(e.target.value)} placeholder="Ex: (15) 99999-9999 ou link" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium outline-none focus:ring-2 ring-blue-500 transition-all" />
+                    <input type="text" value={formContact} onChange={(e) => setFormContact(e.target.value)} placeholder="Ex: (15) 99999-9999 ou link" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tags Iniciais</label>
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags Iniciais</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Hash size={18} /></div>
-                    <input type="text" value={formTagsInput} onChange={(e) => setFormTagsInput(e.target.value)} placeholder="Ex: Empregos, TI, Vendas" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium outline-none focus:ring-2 ring-blue-500 transition-all" />
+                    <input type="text" value={formTagsInput} onChange={(e) => setFormTagsInput(e.target.value)} placeholder="Ex: Empregos, TI, Vendas" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Descrição</label>
                   <div className="relative">
                     <div className="absolute top-3.5 left-4 text-slate-400"><AlignLeft size={18} /></div>
-                    <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Informações do grupo..." className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium outline-none focus:ring-2 ring-blue-500 transition-all resize-none" />
+                    <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Informações do grupo..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white dark:bg-slate-900">
-              <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-bold text-sm">Cancelar</button>
-              <button onClick={handleCreateGroup} disabled={!formName.trim() || !formContact.trim()} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 transition-all">Criar Grupo</button>
+              <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+              <button onClick={handleCreateGroup} disabled={!formName.trim() || !formContact.trim()} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 transition-all">Criar Grupo</button>
             </div>
           </div>
         </div>
@@ -470,12 +653,12 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               <p className="text-sm text-slate-500 mb-6">Informe o Link de convite ou ID numérico do grupo para ingressar.</p>
               <div className="space-y-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID ou Link do Grupo</label>
-                  <input autoFocus type="text" value={joinValue} onChange={(e) => setJoinValue(e.target.value)} placeholder="Ex: chat.whatsapp.com/..." className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 ring-blue-500 transition-all" />
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ID ou Link do Grupo</label>
+                  <input autoFocus type="text" value={joinValue} onChange={(e) => setJoinValue(e.target.value)} placeholder="Ex: chat.whatsapp.com/..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => setIsJoinModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-bold text-sm">Cancelar</button>
-                  <button onClick={handleJoinGroup} className="flex-1 bg-blue-600 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Confirmar</button>
+                  <button onClick={() => setIsJoinModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                  <button onClick={handleJoinGroup} className="flex-1 bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Confirmar</button>
                 </div>
               </div>
             </div>
@@ -483,11 +666,11 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         </div>
       )}
 
-      {/* Modal: Add Tag to Group */}
+      {/* Modal: Categorize / Manage Tags */}
       {taggingGroup && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setTaggingGroup(null)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[85vh]">
             {/* Dark Header */}
             <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-4">
@@ -495,95 +678,87 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                   <TagIcon size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold">Categorizar</h3>
+                  <h3 className="text-lg font-bold">Tags</h3>
                   <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest truncate max-w-[120px]">{taggingGroup.name}</p>
                 </div>
               </div>
               <button onClick={() => setTaggingGroup(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
             </div>
 
-            <div className="p-8">
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">Tags Disponíveis</p>
-              <div className="flex flex-wrap gap-2 mb-8">
-                {availableTags.map(tag => {
-                  const isSelected = taggingGroup.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTagInGroup(taggingGroup, tag)}
-                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border
-                        ${isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-500'
-                        }`}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
+            <div className="p-6 flex-1 overflow-hidden flex flex-col">
+              {/* Create New Tag */}
+              <div className="flex gap-2 mb-6 flex-shrink-0">
+                <input
+                  type="text"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()}
+                  placeholder="Nova tag..."
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-blue-500 placeholder:text-slate-400"
+                />
+                <button
+                  onClick={addGlobalTag}
+                  disabled={!newTagInput.trim()}
+                  className="p-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={20} />
+                </button>
               </div>
 
-              <button onClick={() => setTaggingGroup(null)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg">Finalizar e Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex-shrink-0">Selecione para Adicionar</p>
 
-      {/* Modal: Global Tag Manager */}
-      {isTagsModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsTagsModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
-            {/* Dark Header */}
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                  <Hash size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Gerenciar Tags</h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Banco Global</p>
-                </div>
-              </div>
-              <button onClick={() => setIsTagsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-            </div>
-
-            <div className="p-8">
-              <div className="flex gap-2 mb-6">
-                <input type="text" value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()} placeholder="Nome da nova tag..." className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" />
-                <button onClick={addGlobalTag} className="p-3.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all"><Plus size={20} /></button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                {availableTags.map((tag, idx) => (
-                  <div key={tag} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl group border border-slate-100 dark:border-slate-800">
-                    {editingTagIndex === idx ? (
-                      <div className="flex-1 flex gap-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={editingTagValue}
-                          onChange={(e) => setEditingTagValue(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
-                          className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-3 py-1.5 text-sm outline-none ring-1 ring-blue-500 shadow-inner"
-                        />
-                        <button onClick={() => saveEditedTag(tag)} className="text-blue-600 hover:text-blue-700 transition-colors"><Check size={18} /></button>
-                        <button onClick={() => setEditingTagIndex(null)} className="text-slate-400"><X size={18} /></button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200"># {tag}</span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => startEditingTag(idx, tag)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit3 size={16} /></button>
-                          <button onClick={() => deleteGlobalTag(tag)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                        </div>
-                      </>
-                    )}
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                {availableTags.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-sm">
+                    Nenhuma tag criada.
                   </div>
-                ))}
-              </div>
+                ) : (
+                  availableTags.map((tag, idx) => {
+                    const isSelected = taggingGroup.tags.includes(tag);
+                    const isEditing = editingTagIndex === idx;
 
-              <button onClick={() => setIsTagsModalOpen(false)} className="w-full mt-8 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-3.5 rounded-2xl font-bold text-sm transition-all hover:bg-slate-200">Fechar Gerenciador</button>
+                    return (
+                      <div key={tag} className={`group flex items-center justify-between p-2 rounded-xl border transition-all ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                        {isEditing ? (
+                          <div className="flex-1 flex gap-2">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editingTagValue}
+                              onChange={(e) => setEditingTagValue(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
+                              className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-2 py-1 text-sm outline-none ring-1 ring-blue-500"
+                            />
+                            <button onClick={() => saveEditedTag(tag)} className="text-blue-600 p-1"><Check size={16} /></button>
+                            <button onClick={() => setEditingTagIndex(null)} className="text-slate-400 p-1"><X size={16} /></button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => toggleTagInGroup(taggingGroup, tag)}
+                              className="flex-1 text-left flex items-center gap-3"
+                            >
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                                {isSelected && <Check size={12} className="text-white" />}
+                              </div>
+                              <span className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{tag}</span>
+                            </button>
+
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => startEditingTag(idx, tag)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"><Edit3 size={14} /></button>
+                              <button onClick={() => deleteGlobalTag(tag)} className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors"><Trash2 size={14} /></button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+              <button onClick={() => setTaggingGroup(null)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg">Concluir</button>
             </div>
           </div>
         </div>

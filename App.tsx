@@ -12,7 +12,7 @@ import { Suporte } from './pages/Suporte';
 import { Plano } from './pages/Plano';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
-import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2, LogOut } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { FeedbackProvider, useFeedback } from './contexts/FeedbackContext';
 import { supabase } from './lib/supabase';
@@ -28,6 +28,7 @@ const AppContent: React.FC = () => {
   // WhatsApp Global State
   const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
 
   // Connection Flow State
   const [connectionStep, setConnectionStep] = useState<'phone' | 'result'>('phone');
@@ -35,6 +36,7 @@ const AppContent: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('+55'); // Default +55
   const [isProcessing, setIsProcessing] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
 
   // Webhook Response Data
   const [connectionData, setConnectionData] = useState<{
@@ -51,69 +53,121 @@ const AppContent: React.FC = () => {
     }
   }, [theme]);
 
-  // Realtime Connection Status Monitoring
+  // Realtime Connection Status Monitoring + Polling Fallback
   useEffect(() => {
     if (!user) return;
 
-    // Initial check
+    // Function to check status
     const checkStatus = async () => {
-      const { data } = await supabase
-        .from('whatsapp_connections')
-        .select('status, id')
-        .eq('user_id', user.id)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('whatsapp_conections')
+          .select('status, id, phone') // Select phone
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }) // Get latest
+          .limit(1)
+          .maybeSingle();
 
-      if (data) {
-        setConnectionId(data.id);
-        if (data.status === 'connected') {
-          setIsWhatsAppConnected(true);
-        } else {
-          setIsWhatsAppConnected(false);
+        if (error) {
+          console.error('Error fetching connection status:', error);
+          return;
         }
+
+        if (data) {
+          setConnectionId(data.id);
+          setConnectedPhone(data.phone); // Set phone
+          const currentStatus = data.status?.toLowerCase();
+          console.log('Fetched status:', currentStatus, 'Phone:', data.phone); // Debug log
+
+          if (currentStatus === 'connected' || currentStatus === 'conectado') {
+            setIsWhatsAppConnected(true);
+            // If modal is open and we just connected, close it and reload
+            if (isConnectModalOpen) {
+              setIsConnectModalOpen(false);
+              showToast('WhatsApp conectado com sucesso!', 'success');
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
+            }
+          } else {
+            setIsWhatsAppConnected(false);
+          }
+        }
+      } catch (err) {
+        console.error('Unexpected error checking status:', err);
       }
     };
 
+    // Initial check
     checkStatus();
 
-    // Subscribe to changes
+    // Polling fallback (every 5 seconds)
+    const pollInterval = setInterval(checkStatus, 5000);
+
+    // Realtime subscription
     const channel = supabase
-      .channel('whatsapp_status_changes')
+      .channel(`whatsapp_status_${user.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'whatsapp_connections',
+          table: 'whatsapp_conections',
           filter: `user_id=eq.${user.id}`,
         },
         (payload: any) => {
-          const newStatus = payload.new?.status;
-          if (payload.new?.id) {
-            setConnectionId(payload.new.id);
-          }
-
-          if (newStatus === 'connected') {
-            setIsWhatsAppConnected(true);
-            setIsConnectModalOpen(false);
-            showToast('WhatsApp conectado com sucesso!', 'success');
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000); // Wait 1s for toast then reload
-          } else if (newStatus === 'disconnected') {
-            setIsWhatsAppConnected(false);
-          }
+          console.log('Realtime update received:', payload);
+          // Trigger immediate check on any change
+          checkStatus();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [user, showToast]);
+  }, [user, showToast, isConnectModalOpen]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
+
+  const [timeLeft, setTimeLeft] = useState(90); // Changed from 30 to 90
+
+  // ... (existing state)
+
+  // QR Code Scan Timeout (90s) & Timer
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (connectionStep === 'result' && connectionData?.type === 'qrcode') {
+      setTimeLeft(90); // Reset timer, changed from 30 to 90
+
+      intervalId = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalId);
+            setConnectionData(prevData =>
+              prevData ? { ...prevData, type: 'error', message: 'Tempo limite excedido. Tente novamente.' } : null
+            );
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [connectionStep, connectionData?.type]);
+
+
+
+
 
   const handleLogout = async () => {
     await signOut();
@@ -145,7 +199,7 @@ const AppContent: React.FC = () => {
       let currentConnectionId = connectionId;
       if (!currentConnectionId && user) {
         const { data } = await supabase
-          .from('whatsapp_connections')
+          .from('whatsapp_conections')
           .select('id')
           .eq('user_id', user.id)
           .single();
@@ -173,7 +227,7 @@ const AppContent: React.FC = () => {
       const data = await response.json();
 
       if (data.success && data.data?.base64) {
-        // Handle new response format: { success: true, data: { base64: "..." } }
+        // Handle new response format: {success: true, data: {base64: "..." } }
         const base64Image = `data:image/png;base64,${data.data.base64}`;
         setConnectionData({
           type: 'qrcode',
@@ -198,16 +252,46 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleConnectSuccess = () => {
-    setIsWhatsAppConnected(true);
-    setIsConnectModalOpen(false);
-    resetModal();
+  const handleDisconnect = async () => {
+    if (!user) return;
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('https://webhook.leppsconecta.com.br/webhook/405917eb-1478-45e1-800d-f7e67569575b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          solicitacao: 'desconectar',
+          id_user: user.id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.status === true) {
+        setIsWhatsAppConnected(false);
+        setConnectedPhone(null);
+        setIsDisconnectModalOpen(false);
+        showToast('Desconectado com sucesso!', 'success');
+        // Optional: reload to ensure clean state
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast('Erro ao desconectar. Tente novamente.', 'error');
+      }
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      showToast('Erro ao desconectar.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetModal = () => {
     setIsConnectModalOpen(false);
     setConnectionStep('phone');
-    // setConnectionMethod('qrcode'); // Removed
     setPhoneNumber('+55');
     setConnectionData(null);
   };
@@ -248,9 +332,7 @@ const AppContent: React.FC = () => {
   }, [isLoggedIn, onboardingCompleted, activeTab]);
 
   if (!isLoggedIn) {
-    if (!isLoggedIn) {
-      return <LandingPage />;
-    }
+    return <LandingPage />;
   }
 
   return (
@@ -268,10 +350,12 @@ const AppContent: React.FC = () => {
           activeTab={activeTab}
           onLogout={handleLogout}
           isWhatsAppConnected={isWhatsAppConnected}
+          connectedPhone={connectedPhone}
           onOpenConnect={() => {
             setConnectionStep('phone');
             setIsConnectModalOpen(true);
           }}
+          onOpenDisconnect={() => setIsDisconnectModalOpen(true)}
         />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 custom-scrollbar">
@@ -368,19 +452,25 @@ const AppContent: React.FC = () => {
               {/* STEP 2: Result */}
               {connectionStep === 'result' && connectionData && (
                 <div className="animate-fadeIn">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center justify-between mb-4">
                     <button
-                      onClick={() => setConnectionStep('phone')}
-                      className="w-8 h-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 hover:text-blue-600 hover:shadow-sm transition-all shadow-sm border border-slate-100 dark:border-slate-700"
+                      onClick={() => {
+                        setConnectionStep('phone');
+                        setConnectionData(null);
+                      }}
+                      className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm"
                     >
                       <ArrowLeft size={16} />
+                      Trocar número
                     </button>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">
-                        {connectionData.type === 'error' ? 'Erro' : 'Escaneie o QR Code'}
-                      </h4>
-                      <p className="text-[10px] text-slate-500 font-medium">{connectionData.message}</p>
-                    </div>
+
+                  </div>
+
+                  <div className="text-center mb-4">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">
+                      {connectionData.type === 'error' ? 'Erro' : 'Escaneie o QR Code'}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-medium">{connectionData.message}</p>
                   </div>
 
                   <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center space-y-5">
@@ -391,16 +481,28 @@ const AppContent: React.FC = () => {
                     )}
 
                     {connectionData.type === 'error' && (
-                      <div className="py-4 text-rose-500 text-sm font-semibold">
-                        {connectionData.message}
+                      <div className="py-4 space-y-4">
+                        <div className="text-rose-500 text-sm font-semibold">
+                          {connectionData.message}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setConnectionStep('phone');
+                            setConnectionData(null);
+                          }}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                        >
+                          Gerar Novo Código
+                        </button>
                       </div>
                     )}
 
-
-
-                    <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium">
-                      <RefreshCw size={10} className="animate-spin" /> Aguardando conexão do dispositivo...
-                    </div>
+                    {connectionData.type !== 'error' && (
+                      <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium">
+                        <RefreshCw size={10} className="animate-spin" />
+                        Aguardando conexão... {timeLeft}s
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -417,6 +519,72 @@ const AppContent: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Disconnect Modal */}
+      {isDisconnectModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDisconnectModalOpen(false)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl overflow-hidden animate-scaleUp">
+
+            <div className="bg-rose-600 p-5 flex items-center justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <LogOut size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white leading-tight">Desconectar WhatsApp</h3>
+                  <p className="text-[10px] text-white/80 font-medium tracking-wide">Encerrar sessão atual</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsDisconnectModalOpen(false)}
+                className="text-white/70 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg z-10"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/50 space-y-4">
+              <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 text-center space-y-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Número Conectado</p>
+                <p className="text-xl font-black text-slate-800 dark:text-white">{connectedPhone || 'Desconhecido'}</p>
+              </div>
+
+              <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                Tem certeza que deseja desconectar? O sistema deixará de enviar mensagens automáticas.
+              </p>
+
+              <button
+                onClick={handleDisconnect}
+                disabled={isProcessing}
+                className="w-full bg-rose-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <>
+                    Desconectando...
+                  </>
+                ) : (
+                  <>
+                    <LogOut size={16} /> Confirmar Desconexão
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setIsDisconnectModalOpen(false)}
+                className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}

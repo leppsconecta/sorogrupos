@@ -10,6 +10,8 @@ interface HeaderProps {
   onLogout?: () => void;
   isWhatsAppConnected?: boolean;
   onOpenConnect?: () => void;
+  onOpenDisconnect?: () => void;
+  connectedPhone?: string | null;
 }
 
 const OfficialWhatsAppIcon = ({ size = 20, color = "#25D366" }: { size?: number, color?: string }) => (
@@ -28,7 +30,7 @@ const OfficialWhatsAppIcon = ({ size = 20, color = "#25D366" }: { size?: number,
   </svg>
 );
 
-export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, onLogout, isWhatsAppConnected, onOpenConnect }) => {
+export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, onLogout, isWhatsAppConnected, onOpenConnect, onOpenDisconnect, connectedPhone }) => {
   const getTabTitle = () => {
     const titles: Record<string, string> = {
       painel: 'Visão Geral',
@@ -59,13 +61,19 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, o
       <div className="flex items-center gap-3">
         {/* WhatsApp Indicator */}
         {isWhatsAppConnected ? (
-          <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mr-2">
+          <button
+            onClick={onOpenDisconnect}
+            className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mr-2 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+            title={connectedPhone ? `Conectado: ${connectedPhone}` : 'WhatsApp Conectado'}
+          >
             <OfficialWhatsAppIcon size={16} />
             <div className="hidden sm:flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Conectado</span>
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">
+                {connectedPhone ? connectedPhone : 'Conectado'}
+              </span>
               <CheckCircle2 size={12} className="text-emerald-500" />
             </div>
-          </div>
+          </button>
         ) : (
           <button
             onClick={onOpenConnect}
