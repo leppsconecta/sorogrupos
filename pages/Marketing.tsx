@@ -25,9 +25,10 @@ import {
   Edit2,
   Image as ImageIcon
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { JobEditModal } from '../components/JobEditModal';
 
-// Helper for date formatting
 // Helper for date formatting
 const formatDateTime = (dateString: string) => {
   if (!dateString) return '';
@@ -50,6 +51,30 @@ interface Job {
   company_name: string;
   job_type: 'text' | 'image';
   status: string;
+  created_at: string;
+  // New fields for text generation
+  description?: string; // fallback
+  role: string;
+  jobCode: string; // mapped from code
+  hideCompany?: boolean;
+  bond?: string;
+  region?: string;
+  activities?: string;
+  requirements?: string;
+  benefits?: string;
+  imageUrl?: string;
+  footerEnabled?: boolean;
+  observation?: string;
+  showObservation?: boolean;
+  contacts: JobContact[];
+}
+
+interface JobContact {
+  type: string;
+  value: string;
+  date?: string;
+  time?: string;
+  noDateTime?: boolean;
 }
 
 interface GroupTag {
@@ -90,6 +115,7 @@ interface MarketingProps {
 }
 
 export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect, setActiveTab, setTargetJobId }) => {
+  const { company } = useAuth();
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
 
   // Data States
@@ -117,6 +143,10 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Schedules state
   const [schedules, setSchedules] = useState(INITIAL_SCHEDULES);
 
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<any>(null);
+
   // Dropdown states & Refs for Click Outside
   const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
   const jobDropdownRef = useRef<HTMLDivElement>(null);
@@ -139,7 +169,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
       // Fetch Jobs
       const { data: jobsData } = await supabase
         .from('jobs')
-        .select('*')
+        .select('*, job_contacts(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -176,9 +206,29 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
           companyName: j.company_name,
           city: j.city,
           status: j.status,
-          image: j.file_url,
+          image: j.file_url || j.image_url, // For display
           content: j.description,
-          created_at: j.created_at
+          created_at: j.created_at,
+          // Mapped fields
+          hideCompany: j.hide_company,
+          bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type,
+          region: j.region,
+          activities: j.activities,
+          requirements: j.requirements,
+          benefits: j.benefits,
+          imageUrl: j.image_url || j.file_url, // Raw url
+          footerEnabled: j.footer_enabled,
+          observation: j.observation,
+          showObservation: j.show_observation,
+          contacts: (j.job_contacts || []).map((c: any) => ({
+            type: c.type === 'whatsapp' ? 'WhatsApp' :
+              c.type === 'email' ? 'Email' :
+                c.type === 'address' ? 'Endereço' : 'Link',
+            value: c.value,
+            date: c.date,
+            time: c.time,
+            noDateTime: c.no_date_time
+          }))
         }));
         setVagas(mappedVagas);
       }
@@ -300,6 +350,78 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     setPreviewIndex(prev => (prev - 1 + selectedVagas.length) % selectedVagas.length);
   };
 
+  const generateJobText = (job: any) => {
+    if (!job) return '';
+    const code = job.jobCode || '---';
+    const cvParts: string[] = [];
+    const addressParts: string[] = [];
+    const linkParts: string[] = [];
+
+    job.contacts?.forEach((c: any) => {
+      if (c.type === 'WhatsApp') cvParts.push(`WhatsApp ${c.value}`);
+      else if (c.type === 'Email') cvParts.push(`e-mail ${c.value}`);
+      else if (c.type === 'Link') linkParts.push(`Link ${c.value}`);
+      else if (c.type === 'Endereço') {
+        const addressBase = `${c.value}`;
+        // Simple date format if needed, defaulting to string as we don't have full date formatter here unless reused
+        if (!c.noDateTime) {
+          const dateStr = c.date ? new Date(c.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
+          addressParts.push(`${addressBase} no dia ${dateStr} às ${c.time || '__:__'}`);
+        } else {
+          addressParts.push(addressBase);
+        }
+      }
+    });
+
+    const joinList = (list: string[]) => {
+      if (list.length === 0) return '';
+      if (list.length === 1) return list[0];
+      const last = list.pop();
+      return `${list.join(', ')} ou ${last}`;
+    };
+
+    const cvText = cvParts.length > 0 ? `Enviar curriculo com o nome da vaga/codigo para: ${joinList(cvParts)}` : '';
+    const addressText = addressParts.length > 0 ? `Compareça no endereço: ${joinList(addressParts)}` : '';
+    const linkText = linkParts.length > 0 ? `Acesse: ${joinList(linkParts)}` : '';
+
+    const finalParts = [cvText, addressText, linkText].filter(Boolean);
+    const interessadosText = finalParts.length > 0 ? joinList(finalParts) : 'Entre em contato pelos canais oficiais.';
+
+    // Image Job Text Structure (Simpler)
+    if (job.type === 'file') {
+      const observationText = job.showObservation && job.observation ? `\nObs: ${job.observation}\n` : '';
+      return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🤣
+-----------------------------
+Função: *${job.role || ''}*
+Cód. Vaga: *${code}*
+-----------------------------${observationText}
+*Interessados*
+ ${interessadosText}`;
+    }
+
+    // Text Job Structure (Full)
+    return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🤣
+-----------------------------
+Função: *${job.role || ''}*
+Cód. Vaga: *${code}*
+-----------------------------  
+*Vínculo:* ${job.bond || 'CLT'}
+*Empresa:* ${job.hideCompany ? '(Oculto)' : job.companyName || ''}
+*Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}
+*Requisitos:* ${job.requirements || ''}
+*Benefícios:* ${job.benefits || ''}
+*Atividades:* ${job.activities || ''}
+
+*Interessados*
+ ${interessadosText}
+----------------------------- 
+
+*Mais informações:*
+➞ ${company?.name || 'Lepps |Conecta'}
+➞ ${company?.whatsapp || '11946610753'}
+➞ ${company?.website || 'leppsconecta.com.br'}`;
+  };
+
   const handleSend = () => {
     if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0) return;
     alert(`Enviando ${selectedVagaIds.length} vaga(s) para ${selectedGroupIds.length} grupo(s)!`);
@@ -409,7 +531,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
 
                 {/* Dropdown Content */}
                 {isJobDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-4 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-scaleUp origin-top">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 rounded-b-[2rem] rounded-t-lg border-x border-b border-slate-100 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-scaleUp origin-top">
                     <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
                       <div className="relative group">
                         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
@@ -547,21 +669,38 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                                 </>
                               )}
 
-                              {/* Caption for Image */}
-                              <div className="p-3 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug">
-                                <p className="font-bold mb-1">🔥 NOVA OPORTUNIDADE!</p>
-                                <p>Cargo: *{selectedVagas[previewIndex]?.role}*</p>
-                                <p>Cidade: {selectedVagas[previewIndex]?.city || 'Não informada'}</p>
-                                <p className="mt-2 text-xs opacity-80">Toque abaixo para ver mais detalhes e se candidatar 👇</p>
+                              {/* Caption for Image - Text displayed below image */}
+                              <div className="p-3 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug whitespace-pre-wrap">
+                                {generateJobText(selectedVagas[previewIndex]).split('\n').map((line, i) => (
+                                  <React.Fragment key={i}>
+                                    {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                                      part.startsWith('*') && part.endsWith('*') ? (
+                                        <strong key={j}>{part.slice(1, -1)}</strong>
+                                      ) : (
+                                        <span key={j}>{part}</span>
+                                      )
+                                    ))}
+                                    <br />
+                                  </React.Fragment>
+                                ))}
                               </div>
                             </div>
                           ) : (
                             <div className="relative rounded-lg bg-white dark:bg-slate-800 p-3 shadow-sm border border-slate-100 dark:border-slate-800">
                               {/* Text Job Display */}
                               <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium leading-snug">
-                                {selectedVagas[previewIndex]?.content || (
-                                  <span className="italic text-slate-400">Sem conteúdo de texto...</span>
-                                )}
+                                {generateJobText(selectedVagas[previewIndex]).split('\n').map((line, i) => (
+                                  <React.Fragment key={i}>
+                                    {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                                      part.startsWith('*') && part.endsWith('*') ? (
+                                        <strong key={j}>{part.slice(1, -1)}</strong>
+                                      ) : (
+                                        <span key={j}>{part}</span>
+                                      )
+                                    ))}
+                                    <br />
+                                  </React.Fragment>
+                                ))}
                               </div>
 
                               {/* Carousel Controls for Text */}
@@ -576,15 +715,11 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                           )}
 
                           {/* Action Buttons (Outside Bubble) */}
-                          <div className="flex gap-2">
-                            <button className="flex-1 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold text-center hover:bg-blue-100 transition-colors">Ver Vaga Completa</button>
+                          <div className="flex justify-end mt-2">
                             <button
                               onClick={() => {
-                                const jobId = selectedVagas[previewIndex]?.id;
-                                if (jobId && setTargetJobId && setActiveTab) {
-                                  setTargetJobId(jobId);
-                                  setActiveTab('vagas');
-                                }
+                                setEditingJob(selectedVagas[previewIndex]);
+                                setIsEditModalOpen(true);
                               }}
                               className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 font-bold text-xs uppercase tracking-wider flex items-center gap-2"
                               title="Editar Vaga"
@@ -936,6 +1071,18 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
           </div>
         )
       }
+
+      {/* Edit Modal */}
+      <JobEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => { setIsEditModalOpen(false); setEditingJob(null); }}
+        jobToEdit={editingJob}
+        onSave={() => {
+          fetchData();
+          setIsEditModalOpen(false);
+          setEditingJob(null);
+        }}
+      />
     </div >
   );
 };
