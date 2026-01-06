@@ -274,8 +274,13 @@ export const Vagas: React.FC = () => {
       activities: job.activities,
       requirements: job.requirements,
       benefits: job.benefits,
-      contacts: job.contacts || []
+      contacts: job.contacts || [],
+      imageUrl: job.imageUrl,
+      observation: job.observation,
+      showObservation: job.showObservation
     });
+    setShowFooterInImage(job.footerEnabled || false);
+    setAttachedFile(null); // Limpar qualquer arquivo anterior
     setJobCreationStep(job.type === 'file' ? 'upload' : 'form');
     setIsJobModalOpen(true);
   };
@@ -320,24 +325,46 @@ export const Vagas: React.FC = () => {
   const generatePreviewText = () => {
     const j = jobDraft;
     const code = j.jobCode || '---';
-    const parts: string[] = [];
+    const cvParts: string[] = [];
+    const addressParts: string[] = [];
+    const linkParts: string[] = [];
 
     j.contacts?.forEach(c => {
-      if (c.type === 'WhatsApp') parts.push(`Envie seu curriculo ou entre em contato com ${c.value}`);
-      else if (c.type === 'Email') parts.push(`Envie seu curriculo com nome da vaga ou codigo para o email ${c.value}`);
-      else if (c.type === 'Link') parts.push(`Clique no link para saber mais ${c.value}`);
+      if (c.type === 'WhatsApp') cvParts.push(`WhatsApp ${c.value}`);
+      else if (c.type === 'Email') cvParts.push(`e-mail ${c.value}`);
+      else if (c.type === 'Link') linkParts.push(`Link ${c.value}`);
       else if (c.type === 'Endereço') {
-        const addressBase = `Compareça com o curriculo no endereço ${c.value}`;
+        const addressBase = `${c.value}`;
         if (!c.noDateTime) {
-          parts.push(`${addressBase} no dia ${formatPreviewDate(c.date || '')} às ${c.time || '__:__'}`);
+          addressParts.push(`${addressBase} no dia ${formatPreviewDate(c.date || '')} às ${c.time || '__:__'}`);
         } else {
-          parts.push(addressBase);
+          addressParts.push(addressBase);
         }
       }
     });
 
-    const interessadosText = parts.length > 0
-      ? parts.join(' ou ')
+    const joinList = (list: string[]) => {
+      if (list.length === 0) return '';
+      if (list.length === 1) return list[0];
+      const last = list.pop();
+      return `${list.join(', ')} ou ${last}`;
+    };
+
+    const cvText = cvParts.length > 0
+      ? `Enviar curriculo com o nome da vaga/codigo para: ${joinList(cvParts)}`
+      : '';
+
+    const addressText = addressParts.length > 0
+      ? `Compareça no endereço: ${joinList(addressParts)}`
+      : '';
+
+    const linkText = linkParts.length > 0
+      ? `Acesse: ${joinList(linkParts)}`
+      : '';
+
+    const finalParts = [cvText, addressText, linkText].filter(Boolean);
+    const interessadosText = finalParts.length > 0
+      ? joinList(finalParts)
       : 'Entre em contato pelos canais oficiais.';
 
     if (j.type === 'file') {
@@ -407,12 +434,12 @@ Cód. Vaga: *${code}*
     const userId = user.data.user.id;
 
     try {
-      let imageUrl = '';
+      let imageUrl = jobDraft.imageUrl || '';
 
-      // 1. Upload Image if exists
+      // 1. Upload Image if a NEW file is selected
       if (jobDraft.type === 'file' && attachedFile) {
         const fileExt = attachedFile.name.split('.').pop();
-        const fileName = `${userId}/${companyId}/${sectorId || 'root'}/${jobDraft.jobCode}.${fileExt}`;
+        const fileName = `${userId}/${companyId}/${sectorId || 'root'}/${jobDraft.jobCode}_${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('job-images')
@@ -888,15 +915,26 @@ Cód. Vaga: *${code}*
             {/* Search Input & Filtering */}
             <div className="flex gap-2 w-full sm:w-auto">
               {/* Filter Select */}
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-500 outline-none focus:ring-2 ring-blue-500/20"
-              >
-                <option value="all">Todas</option>
-                <option value="active">Ativas</option>
-                <option value="inactive">Inativas</option>
-              </select>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
+                <button
+                  onClick={() => setFilterStatus('all')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={() => setFilterStatus('active')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'active' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-emerald-600'}`}
+                >
+                  Ativas
+                </button>
+                <button
+                  onClick={() => setFilterStatus('inactive')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'inactive' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-500 hover:text-rose-600'}`}
+                >
+                  Inativas
+                </button>
+              </div>
 
               <div className="relative w-full sm:w-64 group">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -940,7 +978,18 @@ Cód. Vaga: *${code}*
                   </tr>
                 ) : (
                   filteredJobs.map(vaga => (
-                    <tr key={vaga.id} draggable onDragStart={(e) => e.dataTransfer.setData('jobId', vaga.id)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-grab active:cursor-grabbing">
+                    <tr
+                      key={vaga.id}
+                      draggable={currentDepth === 1 && filteredFolders.length > 0}
+                      onDragStart={(e) => {
+                        if (currentDepth === 1 && filteredFolders.length > 0) {
+                          e.dataTransfer.setData('jobId', vaga.id);
+                        } else {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group ${(currentDepth === 1 && filteredFolders.length > 0) ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${vaga.type === 'file' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
@@ -1205,9 +1254,9 @@ Cód. Vaga: *${code}*
 
                       <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
                         <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
-                        {attachedFile ? (
+                        {attachedFile || jobDraft.imageUrl ? (
                           <div className="relative w-full h-full">
-                            <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
+                            <img src={attachedFile ? URL.createObjectURL(attachedFile) : jobDraft.imageUrl} className="w-full h-full object-contain" alt="Preview" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                               <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
                             </div>
@@ -1284,17 +1333,15 @@ Cód. Vaga: *${code}*
                         </button>
                         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</span>
                       </div>
-                      {jobDraft.type === 'file' && attachedFile && (
+                      {(attachedFile || jobDraft.imageUrl) && (
                         <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
-                          <img src={URL.createObjectURL(attachedFile)} className="w-full h-auto" alt="Job Visual" />
+                          <img src={attachedFile ? URL.createObjectURL(attachedFile) : jobDraft.imageUrl} className="w-full h-auto" alt="Job Visual" />
                         </div>
                       )}
                       <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
                         {generatePreviewText()}
                       </pre>
                     </div>
-
-
                   </div>
                 )}
               </div>
@@ -1352,9 +1399,11 @@ Cód. Vaga: *${code}*
                           }
                         }
 
-                        if (jobCreationStep === 'upload' && !attachedFile) {
-                          alert("Por favor, carregue a imagem da vaga.");
-                          return;
+                        if (jobDraft.type === 'file') {
+                          if (!attachedFile && !jobDraft.imageUrl) {
+                            alert("Por favor, carregue a imagem da vaga.");
+                            return;
+                          }
                         }
                         setJobCreationStep('preview');
                       }
