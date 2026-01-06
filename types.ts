@@ -47,7 +47,9 @@ export interface Vaga {
   requirements?: string;
   activities?: string;
   jobCode?: string;
-  contacts?: JobContact[];
+  contacts: JobContact[];
+  observation?: string;
+  showObservation?: boolean;
 }
 
 export interface NavItem {

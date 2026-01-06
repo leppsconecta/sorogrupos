@@ -172,6 +172,9 @@ export const Vagas: React.FC = () => {
             c.type === 'email' ? 'Email' :
               c.type === 'address' ? 'Endereço' : 'Link',
           value: c.value,
+          date: c.date,
+          time: c.time,
+          noDateTime: c.no_date_time
         }))
       }));
 
@@ -261,9 +264,9 @@ export const Vagas: React.FC = () => {
   };
 
   const handleAddContactField = (type: JobContact['type']) => {
+    // Check if contact already exists
     const existing = jobDraft.contacts || [];
     if (existing.some(c => c.type === type)) {
-      alert(`O canal ${type} já foi adicionado.`);
       return;
     }
 
@@ -315,7 +318,14 @@ export const Vagas: React.FC = () => {
       : 'Entre em contato pelos canais oficiais.';
 
     if (j.type === 'file') {
-      return `*Anúncio de Vaga (Imagem)*\nCargo: *${j.role || ''}*\nCód. Vaga: *${code}*\n\n*Rodapé de Contato:*\n${interessadosText}`;
+      const observationText = j.showObservation && j.observation ? `\nObs: ${j.observation}\n` : '';
+      return `*${company?.name || 'Sua Empresa'} Contrata* ${previewEmojis}
+-----------------------------
+Função: *${j.role || ''}*
+Cód. Vaga: *${code}*
+-----------------------------${observationText}
+*Interessados*
+ ${interessadosText}`;
     }
 
     return `*${company?.name || 'Sua Empresa'} Contrata* ${previewEmojis}
@@ -459,7 +469,10 @@ Cód. Vaga: *${code}*
         const contactsToInsert = jobDraft.contacts.map(c => ({
           job_id: jobData.id,
           type: c.type.toLowerCase() === 'endereço' ? 'address' : c.type.toLowerCase(),
-          value: c.value
+          value: c.value,
+          date: c.date,
+          time: c.time,
+          no_date_time: c.noDateTime
         }));
 
         const { error: contactsError } = await supabase
@@ -639,10 +652,10 @@ Cód. Vaga: *${code}*
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">CANAIS DE CONTATO</h4>
+          <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest ml-1">Canais de Contato</h4>
           <button
             onClick={() => setIsContactsModalOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-600 transition-all"
           >
             <Settings size={12} />
             Configurar
@@ -680,57 +693,83 @@ Cód. Vaga: *${code}*
               <X size={10} />
             </button>
 
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-white dark:bg-slate-700 rounded-lg text-slate-500">
-                  {c.type === 'WhatsApp' && <OfficialWhatsAppIcon size={14} />}
-                  {c.type === 'Email' && <Mail size={14} />}
-                  {c.type === 'Endereço' && <MapPin size={14} />}
-                  {c.type === 'Link' && <LinkIcon size={14} />}
-                </div>
-                <input
-                  type="text"
-                  value={c.value}
-                  onChange={e => updateContactValue(i, e.target.value)}
-                  placeholder={`Informe o ${c.type}...`}
-                  className="flex-1 bg-transparent border-none px-2 py-1 text-base font-medium outline-none"
-                  onFocus={scrollToCenter}
-                />
-              </div>
-              {c.type === 'Endereço' && (
-                <div className="pl-9 mt-2 space-y-3">
+            <div className="flex flex-col gap-3">
+              {c.type === 'Endereço' ? (
+                // Custom Layout for Address
+                <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      O candidato deverá comparecer no dia ( data ) às ( hora )
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      O interessado deve comparecer no endereço
                     </span>
-                    <button
-                      onClick={() => updateContactValue(i, !c.noDateTime, 'noDateTime')}
-                      className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border transition-all ${c.noDateTime ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'}`}
-                    >
-                      {c.noDateTime ? 'Com Data/Hora' : 'Sem Data/Hora'}
-                    </button>
                   </div>
 
-                  {!c.noDateTime && (
-                    <div className="flex gap-3 animate-fadeIn">
-                      <div className="relative flex-1 group">
-                        <input
-                          type="date"
-                          value={c.date || ''}
-                          onChange={e => updateContactValue(i, e.target.value, 'date')}
-                          className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
-                        />
-                      </div>
-                      <div className="relative w-32 group">
-                        <input
-                          type="time"
-                          value={c.time || ''}
-                          onChange={e => updateContactValue(i, e.target.value, 'time')}
-                          className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
-                        />
-                      </div>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      value={c.value}
+                      onChange={e => updateContactValue(i, e.target.value)}
+                      placeholder="Endereço completo..."
+                      className="w-full bg-white dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-full px-5 py-2.5 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500/20 transition-all"
+                      onFocus={scrollToCenter}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">no dia</span>
+                    {!c.noDateTime ? (
+                      <>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            value={c.date || ''}
+                            onChange={e => updateContactValue(i, e.target.value, 'date')}
+                            className="bg-white dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-full px-4 py-1.5 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
+                          />
+                        </div>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">às</span>
+                        <div className="relative">
+                          <input
+                            type="time"
+                            value={c.time || ''}
+                            onChange={e => updateContactValue(i, e.target.value, 'time')}
+                            className="bg-white dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-full px-4 py-1.5 text-sm text-slate-600 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500/20 transition-all appearance-none"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-sm text-slate-400 italic">Data e hora ocultas</span>
+                    )}
+
+                    <div className="ml-auto">
+                      <button
+                        onClick={() => updateContactValue(i, !c.noDateTime, 'noDateTime')}
+                        className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${c.noDateTime ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                      >
+                        Sem Data/Hora
+                        <div className={`w-8 h-4 rounded-full relative transition-colors ${c.noDateTime ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${c.noDateTime ? 'left-[18px]' : 'left-0.5'}`} />
+                        </div>
+                      </button>
                     </div>
-                  )}
+                  </div>
+                </div>
+              ) : (
+                // Generic Layout for Others
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-white dark:bg-slate-700 rounded-lg text-slate-500">
+                    {c.type === 'WhatsApp' && <OfficialWhatsAppIcon size={14} />}
+                    {c.type === 'Email' && <Mail size={14} />}
+                    {c.type === 'Link' && <LinkIcon size={14} />}
+                  </div>
+                  <input
+                    type="text"
+                    value={c.value}
+                    onChange={e => updateContactValue(i, e.target.value)}
+                    placeholder={`Informe o ${c.type}...`}
+                    className="flex-1 bg-transparent border-none px-2 py-1 text-base font-medium outline-none"
+                    onFocus={scrollToCenter}
+                  />
                 </div>
               )}
             </div>
@@ -1112,298 +1151,349 @@ Cód. Vaga: *${code}*
                       </div>
                     </div>
 
-                    {renderContactSection()}
-                  </div>
-                )}
+                    {/* OBSERVATION - Optional */}
+                    <div className="space-y-3 pt-2 pb-4">
+                      <button
+                        onClick={() => setJobDraft({ ...jobDraft, showObservation: !jobDraft.showObservation })}
+                        className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors"
+                      >
+                        {jobDraft.showObservation ? (
+                          <><div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center text-white"><CheckCircle2 size={10} /></div> Deseja adicionar observação?</>
+                        ) : (
+                          <><div className="w-4 h-4 rounded border border-slate-300"></div> Deseja adicionar observação?</>
+                        )}
+                      </button>
 
-                {jobCreationStep === 'upload' && (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-1 gap-6">
-                      {/* Nome da Vaga Obrigatório */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome da Vaga <span className="text-red-500">*</span></label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
-                          <input
-                            type="text"
-                            value={jobDraft.role || ''}
-                            onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
-                            placeholder="Ex: Auxiliar Administrativo"
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                      {jobDraft.showObservation && (
+                        <div className="animate-fadeIn space-y-1.5 pl-6 border-l-2 border-slate-100 dark:border-slate-800 ml-2">
+                          <label className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-semibold">Observação</label>
+                          <textarea
+                            value={jobDraft.observation || ''}
+                            onChange={e => setJobDraft({ ...jobDraft, observation: e.target.value })}
+                            rows={2}
+                            placeholder="Informe a observação..."
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400"
                           />
                         </div>
-                      </div>
-
-                      <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
-                        <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
-                        {attachedFile ? (
-                          <div className="relative w-full h-full">
-                            <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center p-10">
-                            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                              <Upload size={32} />
-                            </div>
-                            <p className="font-bold text-slate-700 dark:text-slate-300">Carregar arte da vaga</p>
-                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Formatos suportados: JPG, PNG</p>
-                          </div>
-                        )}
-                      </label>
-
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
-                          </div>
-                          <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
-                          </button>
-                        </div>
-                        {showFooterInImage && <div className="animate-fadeIn pt-2 border-t border-slate-100 dark:border-slate-800">{renderContactSection()}</div>}
-                      </div>
+                      )}
                     </div>
                   </div>
+
+                    {renderContactSection()}
+              </div>
                 )}
 
-                {jobCreationStep === 'preview' && (
-                  <div className="space-y-6">
-                    <div className="bg-slate-50 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative">
-                      <div className="absolute top-6 right-8 flex items-center gap-3">
-                        <button
-                          onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm transition-all"
-                        >
-                          Alterar Emojis
-                        </button>
-                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</span>
+              {jobCreationStep === 'upload' && (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 gap-6">
+                    {/* Nome da Vaga Obrigatório */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome da Vaga <span className="text-red-500">*</span></label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
+                        <input
+                          type="text"
+                          value={jobDraft.role || ''}
+                          onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
+                          placeholder="Ex: Auxiliar Administrativo"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                        />
                       </div>
-                      {jobDraft.type === 'file' && attachedFile && (
-                        <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
-                          <img src={URL.createObjectURL(attachedFile)} className="w-full h-auto" alt="Job Visual" />
+                    </div>
+
+                    <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
+                      <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
+                      {attachedFile ? (
+                        <div className="relative w-full h-full">
+                          <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center p-10">
+                          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <Upload size={32} />
+                          </div>
+                          <p className="font-bold text-slate-700 dark:text-slate-300">Carregar arte da vaga</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Formatos suportados: JPG, PNG</p>
                         </div>
                       )}
-                      <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
-                        {generatePreviewText()}
-                      </pre>
+                    </label>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
+                        </div>
+                        <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                      {showFooterInImage && <div className="animate-fadeIn pt-2 border-t border-slate-100 dark:border-slate-800">{renderContactSection()}</div>}
                     </div>
-
-
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Footer seguindo padrão anexo */}
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
+              {jobCreationStep === 'preview' && (
+                <div className="space-y-6">
+                  <div className="bg-slate-50 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative">
+                    <div className="absolute top-6 right-8 flex items-center gap-3">
+                      <button
+                        onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm transition-all"
+                      >
+                        Alterar Emojis
+                      </button>
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</span>
+                    </div>
+                    {jobDraft.type === 'file' && attachedFile && (
+                      <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
+                        <img src={URL.createObjectURL(attachedFile)} className="w-full h-auto" alt="Job Visual" />
+                      </div>
+                    )}
+                    <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
+                      {generatePreviewText()}
+                    </pre>
+                  </div>
+
+
+                </div>
+              )}
+            </div>
+
+            {/* Footer seguindo padrão anexo */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
+              <button
+                onClick={() => {
+                  if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
+                  else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
+                  else setIsJobModalOpen(false);
+                }}
+                className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
+              >
+                {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
+              </button>
+
+              {jobCreationStep !== 'selection' && (
                 <button
                   onClick={() => {
-                    if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
-                    else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
-                    else setIsJobModalOpen(false);
-                  }}
-                  className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
-                >
-                  {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
-                </button>
+                    if (jobCreationStep === 'preview') handleSaveJob();
+                    else {
+                      // Validação: obrigar o nome da vaga
+                      if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
 
-                {jobCreationStep !== 'selection' && (
-                  <button
-                    onClick={() => {
-                      if (jobCreationStep === 'preview') handleSaveJob();
-                      else {
-                        // Validação: obrigar o nome da vaga
-                        if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
+                      // Para Vaga Imagem (file), apenas Função e Imagem são obrigatórios (e contatos)
+                      // Para Vaga Texto (scratch), todos os campos são obrigatórios
+                      if (jobDraft.type !== 'file') {
                         if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
                         if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
                         if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
                         if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
                         if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
                         if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
-
-                        if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
-                          alert("Por favor, selecione ao menos 1 contato.");
-                          return;
-                        }
-
-                        if (jobDraft.contacts.some(c => !c.value.trim())) {
-                          alert("Por favor, preencha as informações de todos os contatos selecionados.");
-                          return;
-                        }
-
-                        if (jobCreationStep === 'upload' && !attachedFile) {
-                          alert("Por favor, carregue a imagem da vaga.");
-                          return;
-                        }
-                        setJobCreationStep('preview');
                       }
-                    }}
-                    className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
-                  >
-                    {jobCreationStep === 'preview' ? 'Finalizar e Salvar' : 'Próximo Passo'}
-                  </button>
-                )}
-              </div>
+
+                      if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
+                        alert("Por favor, selecione ao menos 1 contato.");
+                        return;
+                      }
+
+                      if (jobDraft.contacts.some(c => !c.value.trim())) {
+                        alert("Por favor, preencha as informações de todos os contatos selecionados.");
+                        return;
+                      }
+
+                      // Validate Address Date/Time if active
+                      const addressContacts = jobDraft.contacts.filter(c => c.type === 'Endereço');
+                      for (const ac of addressContacts) {
+                        if (!ac.noDateTime) {
+                          if (!ac.date || !ac.time) {
+                            alert("Para contatos de Endereço, a Data e Hora são obrigatórias quando a opção 'Sem Data/Hora' está desativada.");
+                            return;
+                          }
+                        }
+                      }
+
+                      if (jobCreationStep === 'upload' && !attachedFile) {
+                        alert("Por favor, carregue a imagem da vaga.");
+                        return;
+                      }
+                      setJobCreationStep('preview');
+                    }
+                  }}
+                  className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+                >
+                  {jobCreationStep === 'preview' ? 'Finalizar e Salvar' : 'Próximo Passo'}
+                </button>
+              )}
             </div>
           </div>
+          </div>
 
-        )}
+  )
+}
 
-      {/* Modal: Nova Pasta / Editar Pasta */}
-      {(isFolderModalOpen || isEditFolderModalOpen) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center">
-              <h3 className="text-lg font-bold">{isEditFolderModalOpen ? 'Editar Pasta' : (currentDepth === 0 ? 'Nova Empresa' : 'Novo Setor')}</h3>
-              <button onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
-            </div>
-            <div className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Identificação</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={folderNameInput}
-                  onChange={e => setFolderNameInput(e.target.value)}
-                  placeholder="Digite o nome..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 ring-blue-500"
-                  onKeyDown={e => e.key === 'Enter' && (isEditFolderModalOpen ? handleUpdateFolder() : handleCreateFolder())}
-                />
-              </div>
-              <div className="flex gap-4">
-                <button onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} className="flex-1 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-sm">Cancelar</button>
-                <button
-                  onClick={isEditFolderModalOpen ? handleUpdateFolder : handleCreateFolder}
-                  className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95"
-                >
-                  Salvar
-                </button>
-              </div>
-            </div>
+{/* Modal: Nova Pasta / Editar Pasta */ }
+{
+  (isFolderModalOpen || isEditFolderModalOpen) && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} />
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
+        <div className="p-6 bg-blue-950 text-white flex justify-between items-center">
+          <h3 className="text-lg font-bold">{isEditFolderModalOpen ? 'Editar Pasta' : (currentDepth === 0 ? 'Nova Empresa' : 'Novo Setor')}</h3>
+          <button onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+        </div>
+        <div className="p-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Identificação</label>
+            <input
+              autoFocus
+              type="text"
+              value={folderNameInput}
+              onChange={e => setFolderNameInput(e.target.value)}
+              placeholder="Digite o nome..."
+              className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 ring-blue-500"
+              onKeyDown={e => e.key === 'Enter' && (isEditFolderModalOpen ? handleUpdateFolder() : handleCreateFolder())}
+            />
+          </div>
+          <div className="flex gap-4">
+            <button onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} className="flex-1 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-sm">Cancelar</button>
+            <button
+              onClick={isEditFolderModalOpen ? handleUpdateFolder : handleCreateFolder}
+              className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95"
+            >
+              Salvar
+            </button>
           </div>
         </div>
-      )}
-      <SavedContactsModal
-        isOpen={isContactsModalOpen}
-        onClose={() => setIsContactsModalOpen(false)}
-        savedContacts={savedContacts}
-        onUpdate={fetchSavedContacts}
-      />
+      </div>
+    </div>
+  )
+}
+<SavedContactsModal
+  isOpen={isContactsModalOpen}
+  onClose={() => setIsContactsModalOpen(false)}
+  savedContacts={savedContacts}
+  onUpdate={fetchSavedContacts}
+/>
 
 
-      {/* Modal de Visualização Rápida */}
-      {isViewModalOpen && viewingJob && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsViewModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl p-8 animate-scaleUp max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{viewingJob.role || viewingJob.title}</h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] font-bold text-slate-400">COD: <span className="text-slate-600 dark:text-slate-300">{viewingJob.jobCode || viewingJob.code}</span></span>
-                  <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${viewingJob.status === 'Ativa' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                    {viewingJob.status}
-                  </span>
+{/* Modal de Visualização Rápida */ }
+{
+  isViewModalOpen && viewingJob && (
+    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsViewModalOpen(false)} />
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl p-8 animate-scaleUp max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white">{viewingJob.role || viewingJob.title}</h3>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-[10px] font-bold text-slate-400">COD: <span className="text-slate-600 dark:text-slate-300">{viewingJob.jobCode || viewingJob.code}</span></span>
+              <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${viewingJob.status === 'Ativa' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                {viewingJob.status}
+              </span>
+            </div>
+          </div>
+          <button onClick={() => setIsViewModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X size={20} /></button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Content Section */}
+          <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400">
+            <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
+            <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
+
+            <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
+            <p className="mb-4">{viewingJob.requirements}</p>
+
+            <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
+            <p className="mb-4">{viewingJob.benefits}</p>
+
+            <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
+            <p className="mb-4">{viewingJob.activities}</p>
+
+            {/* Contacts Section - Integrated */}
+            {viewingJob.contacts && viewingJob.contacts.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <strong className="text-slate-800 dark:text-slate-200 block mb-2 text-xs uppercase tracking-wide">Contatos</strong>
+                <div className="space-y-2">
+                  {viewingJob.contacts.map((contact, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                      <div className="w-6 h-6 rounded bg-white dark:bg-slate-800 flex items-center justify-center text-blue-500 shadow-sm border border-slate-100 dark:border-slate-700">
+                        {contact.type === 'WhatsApp' && <OfficialWhatsAppIcon size={12} />}
+                        {contact.type === 'Email' && <Mail size={12} />}
+                        {contact.type === 'Endereço' && <MapPin size={12} />}
+                        {contact.type === 'Link' && <LinkIcon size={12} />}
+                      </div>
+                      <span className="font-medium">{contact.value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <button onClick={() => setIsViewModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X size={20} /></button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Content Section */}
-              <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400">
-                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
-                <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
-
-                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
-                <p className="mb-4">{viewingJob.requirements}</p>
-
-                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
-                <p className="mb-4">{viewingJob.benefits}</p>
-
-                <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
-                <p className="mb-4">{viewingJob.activities}</p>
-
-                {/* Contacts Section - Integrated */}
-                {viewingJob.contacts && viewingJob.contacts.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
-                    <strong className="text-slate-800 dark:text-slate-200 block mb-2 text-xs uppercase tracking-wide">Contatos</strong>
-                    <div className="space-y-2">
-                      {viewingJob.contacts.map((contact, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                          <div className="w-6 h-6 rounded bg-white dark:bg-slate-800 flex items-center justify-center text-blue-500 shadow-sm border border-slate-100 dark:border-slate-700">
-                            {contact.type === 'WhatsApp' && <OfficialWhatsAppIcon size={12} />}
-                            {contact.type === 'Email' && <Mail size={12} />}
-                            {contact.type === 'Endereço' && <MapPin size={12} />}
-                            {contact.type === 'Link' && <LinkIcon size={12} />}
-                          </div>
-                          <span className="font-medium">{contact.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Modal de Emojis */}
-      {isEmojiModalOpen && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsEmojiModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">Personalizar Emojis</h3>
-              <button onClick={() => setIsEmojiModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seus Emojis (Máx 3)</label>
-                <input
-                  type="text"
-                  value={emojiInput}
-                  onChange={(e) => setEmojiInput(e.target.value)} // User logic validation if strict needed, but let's keep simple
-                  placeholder="Ex: 🟡🔴🔵"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-xl text-center outline-none focus:ring-2 ring-blue-500"
-                />
-                <p className="text-[10px] text-slate-400 mt-2 text-center">Cole os emojis que deseja utilizar no título.</p>
-              </div>
-              <button
-                onClick={async () => {
-                  if (!user) return;
-                  // Basic validation
-                  /*if ([...emojiInput].length > 6) {
-                     alert("Por favor, use no máximo 3 emojis (aprox).");
-                     return;
-                  }*/
-
-                  const { error } = await supabase
-                    .from('user_job_emojis')
-                    .upsert({ user_id: user.id, emojis: emojiInput });
-
-                  if (error) {
-                    alert("Erro ao salvar emojis");
-                  } else {
-                    setPreviewEmojis(emojiInput);
-                    setIsEmojiModalOpen(false);
-                  }
-                }}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
-              >
-                Salvar Preferência
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      </div>
     </div>
+  )
+}
+
+{/* Modal de Emojis */ }
+{
+  isEmojiModalOpen && (
+    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsEmojiModalOpen(false)} />
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Personalizar Emojis</h3>
+          <button onClick={() => setIsEmojiModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seus Emojis (Máx 3)</label>
+            <input
+              type="text"
+              value={emojiInput}
+              onChange={(e) => setEmojiInput(e.target.value)} // User logic validation if strict needed, but let's keep simple
+              placeholder="Ex: 🟡🔴🔵"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-xl text-center outline-none focus:ring-2 ring-blue-500"
+            />
+            <p className="text-[10px] text-slate-400 mt-2 text-center">Cole os emojis que deseja utilizar no título.</p>
+          </div>
+          <button
+            onClick={async () => {
+              if (!user) return;
+              // Basic validation
+              /*if ([...emojiInput].length > 6) {
+                 alert("Por favor, use no máximo 3 emojis (aprox).");
+                 return;
+              }*/
+
+              const { error } = await supabase
+                .from('user_job_emojis')
+                .upsert({ user_id: user.id, emojis: emojiInput });
+
+              if (error) {
+                alert("Erro ao salvar emojis");
+              } else {
+                setPreviewEmojis(emojiInput);
+                setIsEmojiModalOpen(false);
+              }
+            }}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+          >
+            Salvar Preferência
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+    </div >
   );
 };
 
