@@ -63,11 +63,54 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   // Group Details Modal State
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Common Emojis
+  // ... (Common Emojis array) commonEmojis remains here or is effectively unchanged if I don't replace it. 
+  // Wait, replace_file_content replaces the chunk. I need to include commonEmojis if I touch lines around it.
+
   const commonEmojis = ['😀', '😂', '😍', '🔥', '👍', '🙏', '🤝', '💼', '🚀', '📢', '✅', '❌', '⚠️', '🎉', '👋', '🌟', '💡', '💰', '📅', '📍'];
 
+  // ...
+
+  const handleGroupClick = (group: Group) => {
+    setSelectedGroup(group);
+    setDescriptionDraft(group.description || '');
+    setNameDraft(group.name);
+    setShowEmojiPicker(false);
+  };
+
+  const handleSaveDetails = async () => {
+    if (!selectedGroup) return;
+
+    try {
+      const { error } = await supabase
+        .from('whatsapp_groups')
+        .update({
+          description: descriptionDraft,
+          name_group: nameDraft
+        })
+        .eq('id', selectedGroup.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGroup = { ...selectedGroup, description: descriptionDraft, name: nameDraft };
+      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
+      setSelectedGroup(updatedGroup);
+      alert('Grupo atualizado com sucesso!');
+    } catch (error) {
+      console.error('Error updating group:', error);
+      alert('Erro ao atualizar grupo.');
+    }
+  };
+  const handleClearDescription = () => {
+    setDescriptionDraft('');
+  };
+
+  const addEmoji = (emoji: string) => {
+    setDescriptionDraft(prev => prev + emoji);
+  };
   const [joinValue, setJoinValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -77,6 +120,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   // Form for creation
   const [formName, setFormName] = useState('');
   const [formImage, setFormImage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formContact, setFormContact] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formTagsInput, setFormTagsInput] = useState('');
@@ -131,7 +175,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         const mappedGroups: Group[] = groupsData.map((g: any) => ({
           id: g.id,
           name: g.name_group,
-          image: `https://picsum.photos/seed/${g.id}/200/200`, // Placeholder as DB has no image
+          image: g.image || `https://picsum.photos/seed/${g.id}/200/200`, // Use uploaded image or placeholder
           membersCount: g.total || 0,
           isAdmin: g.admin || false,
           link: g.link_invite || '',
@@ -162,6 +206,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const openCreateModal = () => {
     setFormName('');
     setFormImage('');
+    setSelectedFile(null);
     setFormContact('');
     setFormDescription('');
     setFormTagsInput('');
@@ -171,6 +216,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormImage(reader.result as string);
@@ -183,7 +229,28 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     if (!formName.trim() || !formContact.trim() || !user) return;
 
     try {
-      // 1. Create Group
+      let imageUrl = null;
+
+      // 1. Upload Image (if selected)
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('group-logos')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('group-logos')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
+      // 2. Create Group
       const { data: groupData, error: groupError } = await supabase
         .from('whatsapp_groups')
         .insert({
@@ -192,14 +259,15 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           link_invite: formContact,
           description: formDescription,
           admin: true, // User created it, so they are admin
-          total: 1
+          total: 1,
+          image: imageUrl
         })
         .select()
         .single();
 
       if (groupError) throw groupError;
 
-      // 2. Handle Tags
+      // 3. Handle Tags
       const tags = formTagsInput
         .split(',')
         .map(t => t.trim())
@@ -384,41 +452,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     setEditingTagIndex(null);
   };
 
-  const handleGroupClick = (group: Group) => {
-    setSelectedGroup(group);
-    setDescriptionDraft(group.description || '');
-    setShowEmojiPicker(false);
-  };
 
-  const handleSaveDescription = async () => {
-    if (!selectedGroup) return;
-
-    try {
-      const { error } = await supabase
-        .from('whatsapp_groups')
-        .update({ description: descriptionDraft })
-        .eq('id', selectedGroup.id);
-
-      if (error) throw error;
-
-      // Update local state
-      const updatedGroup = { ...selectedGroup, description: descriptionDraft };
-      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
-      setSelectedGroup(updatedGroup);
-      alert('Descrição atualizada com sucesso!');
-    } catch (error) {
-      console.error('Error updating description:', error);
-      alert('Erro ao atualizar descrição.');
-    }
-  };
-
-  const handleClearDescription = () => {
-    setDescriptionDraft('');
-  };
-
-  const addEmoji = (emoji: string) => {
-    setDescriptionDraft(prev => prev + emoji);
-  };
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -470,43 +504,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         </div>
       </div>
 
-      {/*  const handleGroupClick = (group: Group) => {
-    setSelectedGroup(group);
-    setDescriptionDraft(group.description || '');
-    setShowEmojiPicker(false);
-  };
-
-  const handleSaveDescription = async () => {
-    if (!selectedGroup) return;
-
-    try {
-      const { error } = await supabase
-        .from('whatsapp_groups')
-        .update({ description: descriptionDraft })
-        .eq('id', selectedGroup.id);
-
-      if (error) throw error;
-
-      // Update local state
-      const updatedGroup = { ...selectedGroup, description: descriptionDraft };
-      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
-      setSelectedGroup(updatedGroup);
-      alert('Descrição atualizada com sucesso!');
-    } catch (error) {
-      console.error('Error updating description:', error);
-      alert('Erro ao atualizar descrição.');
-    }
-  };
-
-  const handleClearDescription = () => {
-    setDescriptionDraft('');
-  };
-
-  const addEmoji = (emoji: string) => {
-    setDescriptionDraft(prev => prev + emoji);
-  };
-
-  // Filtering Bar */}
+      {/* Filtering Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
         <button
           onClick={() => { setSelectedTag(null); setShowMyGroups(false); }}
@@ -656,6 +654,24 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             </div>
 
             <div className="p-8 overflow-y-auto custom-scrollbar">
+              {/* Name Field */}
+              <div className="mb-6">
+                <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Nome do Grupo</label>
+                {selectedGroup.isAdmin ? (
+                  <input
+                    type="text"
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 border border-slate-100 dark:border-slate-800 transition-all"
+                    placeholder="Nome do grupo..."
+                  />
+                ) : (
+                  <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800 opacity-75">
+                    {selectedGroup.name}
+                  </div>
+                )}
+              </div>
+
               <div className="mb-6">
                 <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Descrição</label>
 
@@ -712,7 +728,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             {selectedGroup.isAdmin && (
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
                 <button onClick={() => setSelectedGroup(null)} className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-white transition-all">Cancelar</button>
-                <button onClick={handleSaveDescription} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
+                <button onClick={handleSaveDetails} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
                   <Save size={16} />
                   Salvar Alterações
                 </button>
