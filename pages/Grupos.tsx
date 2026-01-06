@@ -84,6 +84,30 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [formDescription, setFormDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [showUpdateInfoModal, setShowUpdateInfoModal] = useState(false);
+  const [isOnCooldown, setIsOnCooldown] = useState(false);
+
+  // Alert Modal State
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertConfig({ isOpen: true, title, message, type });
+  };
+
+  const closeAlert = () => {
+    setAlertConfig(prev => ({ ...prev, isOpen: false }));
+  };
+
 
   // Global tags management
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -107,7 +131,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   const handleGroupClick = (group: Group) => {
     if (!isWhatsAppConnected) {
-      alert('Conecte o WhatsApp para editar grupos.');
+      showAlert('Atenção', 'Conecte o WhatsApp para editar grupos.', 'warning');
       return;
     }
     setSelectedGroup(group);
@@ -130,10 +154,12 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   };
 
+
+
   const handleSaveDetails = async () => {
     if (!selectedGroup) return;
     if (!selectedGroup.isAdmin) {
-      alert("Você não tem permissão para editar este grupo.");
+      showAlert('Permissão Negada', 'Você não tem permissão para editar este grupo.', 'error');
       return;
     }
 
@@ -173,10 +199,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       const updatedGroup = { ...selectedGroup, description: descriptionDraft, name: nameDraft, image: imageUrl };
       setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
       setSelectedGroup(updatedGroup);
-      alert('Grupo atualizado com sucesso!');
+      showAlert('Sucesso', 'Grupo atualizado com sucesso!', 'success');
     } catch (error) {
       console.error('Error updating group:', error);
-      alert('Erro ao atualizar grupo.');
+      showAlert('Erro', 'Erro ao atualizar grupo.', 'error');
     }
   };
 
@@ -245,6 +271,53 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   };
 
+  const handleUpdateGroup = async () => {
+    if (isSyncing || isOnCooldown) return;
+    setIsSyncing(true);
+    setIsOnCooldown(true);
+    setShowUpdateInfoModal(true);
+
+    // Set cooldown timer (5 minutes)
+    setTimeout(() => {
+      setIsOnCooldown(false);
+    }, 300000);
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 300000); // 5 minutes
+
+    try {
+      const response = await fetch('https://webhook.leppsconecta.com.br/webhook/96f0be42-9d16-4eb9-8b45-41061f2c24fc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_groups', user_id: user?.id }),
+        signal: controller.signal
+      });
+
+      const data = await response.json();
+
+      if (data.status_updade_group === true) {
+        await fetchData();
+        showAlert('Sucesso', 'Grupos atualizados com sucesso!', 'success');
+      } else {
+        throw new Error("Falha na atualização");
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // Silent timeout - do nothing, just reset state in finally
+        console.log('Update timed out silently');
+      } else {
+        console.error('Sync error:', error);
+        showAlert('Erro', 'Erro ao sincronizar grupos.', 'error');
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      setIsSyncing(false);
+    }
+  };
+
   const filteredGroups = groups.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
@@ -258,7 +331,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   const openCreateModal = () => {
     if (!isWhatsAppConnected) {
-      alert('Conecte o WhatsApp para criar grupos.');
+      showAlert('Atenção', 'Conecte o WhatsApp para criar grupos.', 'warning');
       return;
     }
     setFormName('');
@@ -296,7 +369,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const handleCreateGroup = async () => {
     if (isCreating) return;
     if (!formName.trim() || !formFirstMember.trim() || !user) {
-      alert("Preencha todos os campos obrigatórios (Nome, Primeiro Integrante).");
+      showAlert('Campos Obrigatórios', 'Preencha todos os campos obrigatórios (Nome, Primeiro Integrante).', 'warning');
       return;
     }
 
@@ -392,7 +465,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
     } catch (error) {
       console.error('Error creating group:', error);
-      alert('Erro ao criar grupo. Tente novamente.');
+      showAlert('Erro', 'Erro ao criar grupo. Tente novamente.', 'error');
     } finally {
       setIsCreating(false);
     }
@@ -400,7 +473,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   const handleJoinGroup = () => {
     if (!joinValue.trim()) return;
-    alert(`Solicitação enviada para o grupo: ${joinValue}`);
+    showAlert('Info', `Solicitação enviada para o grupo: ${joinValue}`, 'info');
     setJoinValue('');
     setIsJoinModalOpen(false);
   };
@@ -414,7 +487,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   // Tag Group Actions
   const toggleTagInGroup = async (group: Group, tag: string) => {
     if (!isWhatsAppConnected) {
-      alert('Conecte o WhatsApp para gerenciar tags.');
+      showAlert('Atenção', 'Conecte o WhatsApp para gerenciar tags.', 'warning');
       return;
     }
     if (!user) return;
@@ -579,24 +652,17 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         {/* Action Buttons */}
         <div className="flex items-center gap-3 w-full lg:w-auto">
           <button
-            onClick={handleSyncGroups}
-            disabled={isSyncing}
-            className={`flex items-center justify-center gap-2 px-5 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Atualizar Grupos"
+            onClick={handleUpdateGroup}
+            disabled={isSyncing || isOnCooldown}
+            className={`p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 ${(isSyncing || isOnCooldown) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={isOnCooldown ? "Aguarde para atualizar novamente" : "Atualizar Grupos"}
           >
-            <RotateCw size={18} className={isSyncing ? 'animate-spin text-blue-600' : ''} />
-            <span className="hidden sm:inline">{isSyncing ? 'Atualizando...' : 'Atualizar'}</span>
+            <RotateCw size={20} className={isSyncing ? 'animate-spin text-blue-600' : ''} />
           </button>
 
 
 
-          <button
-            onClick={() => setIsJoinModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 whitespace-nowrap"
-          >
-            <LinkIcon size={18} />
-            <span className="hidden sm:inline">Entrar</span>
-          </button>
+          {/* Join Button Removed */}
 
           <button
             onClick={openCreateModal}
@@ -751,20 +817,47 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       {/* Modal: Group Details & Description */}
       {selectedGroup && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setSelectedGroup(null)} />
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full border-2 border-white/20 p-0.5 overflow-hidden">
-                  <img src={selectedGroup.image} className="w-full h-full object-cover rounded-full" alt="" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">{selectedGroup.name}</h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Detalhes do Grupo</p>
-                </div>
+            <div className="p-8 text-white flex flex-col items-center justify-center relative flex-shrink-0 overflow-hidden">
+              {/* Blurred Background Image */}
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={imageDraft || selectedGroup.image}
+                  className="w-full h-full object-cover blur-xl scale-110 opacity-60"
+                  alt=""
+                />
+                <div className="absolute inset-0 bg-blue-950/80" />
               </div>
-              <button onClick={() => setSelectedGroup(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+
+              {/* Content */}
+              <div className="relative z-10 flex flex-col items-center w-full">
+                <button onClick={() => setSelectedGroup(null)} className="absolute -top-4 -right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+
+                <div className="w-24 h-24 rounded-full border-4 border-white/20 p-1 overflow-hidden relative group cursor-pointer mb-4 shadow-lg">
+                  {selectedGroup.isAdmin && (
+                    <>
+                      <input
+                        type="file"
+                        ref={fileInputRefDetails}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageUploadDetails}
+                      />
+                      <div
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        onClick={() => fileInputRefDetails.current?.click()}
+                      >
+                        <Upload size={24} className="text-white" />
+                      </div>
+                    </>
+                  )}
+                  <img src={imageDraft || selectedGroup.image} className="w-full h-full object-cover rounded-full" alt="" />
+                </div>
+
+                <h3 className="text-2xl font-bold text-center drop-shadow-md">{selectedGroup.name}</h3>
+              </div>
             </div>
 
             <div className="p-8 overflow-y-auto custom-scrollbar">
@@ -968,6 +1061,30 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         </div>
       )}
 
+      {/* Modal: Update Info */}
+      {showUpdateInfoModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowUpdateInfoModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                <RotateCw size={32} className="animate-spin" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">Atualização Iniciada</h3>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">
+                A atualização dos grupos ocorrerá em segundo plano. Você pode continuar usando o sistema normalmente e avisaremos assim que terminar.
+              </p>
+              <button
+                onClick={() => setShowUpdateInfoModal(false)}
+                className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Join Group */}
       {isJoinModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1097,6 +1214,55 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
               <button onClick={() => setTaggingGroup(null)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg">Concluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Standardized Alert Modal */}
+      {alertConfig.isOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={closeAlert} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+            <div className={`p-8 flex flex-col items-center text-center relative overflow-hidden`}>
+              {/* Background Status Color Accent */}
+              <div className={`absolute top-0 left-0 right-0 h-32 opacity-10 
+                ${alertConfig.type === 'success' ? 'bg-emerald-500' : ''}
+                ${alertConfig.type === 'error' ? 'bg-rose-500' : ''}
+                ${alertConfig.type === 'warning' ? 'bg-amber-500' : ''}
+                ${alertConfig.type === 'info' ? 'bg-blue-500' : ''}
+              `} />
+
+              <div className={`
+                w-20 h-20 rounded-full flex items-center justify-center mb-6 relative z-10
+                ${alertConfig.type === 'success' ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20' : ''}
+                ${alertConfig.type === 'error' ? 'bg-rose-50 text-rose-500 dark:bg-rose-900/20' : ''}
+                ${alertConfig.type === 'warning' ? 'bg-amber-50 text-amber-500 dark:bg-amber-900/20' : ''}
+                ${alertConfig.type === 'info' ? 'bg-blue-50 text-blue-500 dark:bg-blue-900/20' : ''}
+              `}>
+                {alertConfig.type === 'success' && <CheckCircle2 size={40} strokeWidth={2.5} />}
+                {alertConfig.type === 'error' && <AlertCircle size={40} strokeWidth={2.5} />}
+                {alertConfig.type === 'warning' && <AlertCircle size={40} strokeWidth={2.5} />}
+                {alertConfig.type === 'info' && <div className="text-3xl font-bold">i</div>}
+              </div>
+
+              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 relative z-10">{alertConfig.title}</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8 relative z-10 px-4">
+                {alertConfig.message}
+              </p>
+
+              <button
+                onClick={closeAlert}
+                className={`
+                  w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 relative z-10
+                  ${alertConfig.type === 'success' ? 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' : ''}
+                  ${alertConfig.type === 'error' ? 'bg-rose-500 shadow-rose-500/20 hover:bg-rose-600' : ''}
+                  ${alertConfig.type === 'warning' ? 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' : ''}
+                  ${alertConfig.type === 'info' ? 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700' : ''}
+                `}
+              >
+                Entendido
+              </button>
             </div>
           </div>
         </div>
