@@ -17,7 +17,7 @@ import {
   MoreVertical,
   CheckCircle2,
   AlertCircle,
-  Move,
+  FolderInput,
   Phone,
   Mail,
   MapPin,
@@ -976,7 +976,7 @@ Cód. Vaga: *${code}*
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => { setJobToMove(vaga); setIsMoveJobModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Mover Vaga"><Move size={16} /></button>
+                          <button onClick={() => { setJobToMove(vaga); setIsMoveJobModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Mover Vaga"><FolderInput size={16} /></button>
                           <button onClick={() => handleViewJob(vaga)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Eye size={16} /></button>
                           <button onClick={() => handleEditJob(vaga)} className="p-2 text-slate-400 hover:text-yellow-600 transition-colors"><Edit2 size={16} /></button>
                           <button onClick={() => handleDeleteJob(vaga.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
@@ -1495,7 +1495,7 @@ Cód. Vaga: *${code}*
             <div className="p-6 bg-indigo-950 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white">
-                  <Move size={20} />
+                  <FolderInput size={20} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">Mover Vaga</h3>
