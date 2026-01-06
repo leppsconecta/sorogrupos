@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  Briefcase, 
+import {
+  Plus,
+  Briefcase,
   X,
   FolderPlus,
   ChevronRight,
@@ -30,26 +30,26 @@ import {
   MessageSquare,
   ChevronDown,
   Smartphone,
-  Search
+  Search,
+  Building2,
+  EyeOff
 } from 'lucide-react';
 import { Vaga, Folder, JobContact } from '../types';
+import { supabase } from '../lib/supabase';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
   </svg>
 );
 
 export const Vagas: React.FC = () => {
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([
-    { id: 'f1', name: 'Sorocaba Tech', parentId: null, level: 'company' },
-    { id: 'f2', name: 'Logística Regional', parentId: null, level: 'company' },
-    { id: 'sub1', name: 'Desenvolvimento', parentId: 'f1', level: 'sector' },
-  ]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Estados dos Modais
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
@@ -57,7 +57,7 @@ export const Vagas: React.FC = () => {
   const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
   const [isMoveJobModalOpen, setIsMoveJobModalOpen] = useState(false);
   const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview' | null>(null);
-  
+
   // Draft da Vaga sendo criada
   const [jobDraft, setJobDraft] = useState<Partial<Vaga>>({});
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -67,21 +67,102 @@ export const Vagas: React.FC = () => {
   const [folderToEdit, setFolderToEdit] = useState<Folder | null>(null);
   const [jobToMove, setJobToMove] = useState<Vaga | null>(null);
   const [folderNameInput, setFolderNameInput] = useState('');
+
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+
+  // Estado Modal Confirmação Exclusão
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteData, setDeleteData] = useState<{ type: 'folder' | 'job', item: any } | null>(null);
 
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);
   const currentDepth = !currentFolder ? 0 : currentFolder.level === 'company' ? 1 : 2;
   const filteredFolders = folders.filter(f => f.parentId === currentFolderId);
-  
+
+  // Carregar dados (Empresas, Setores, Vagas)
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Execute all fetches in parallel for better performance
+      const [companiesResponse, sectorsResponse, jobsResponse] = await Promise.all([
+        supabase.from('folder_companies').select('id, name').order('name'),
+        supabase.from('sectors').select('id, name, folder_company_id').order('name'),
+        supabase.from('jobs').select('*, job_contacts (*)').order('created_at', { ascending: false })
+      ]);
+
+      if (companiesResponse.error) throw companiesResponse.error;
+      if (sectorsResponse.error) throw sectorsResponse.error;
+      if (jobsResponse.error) throw jobsResponse.error;
+
+      // 1. Map Companies (Level 0)
+      const mappedCompanies: Folder[] = (companiesResponse.data || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        parentId: null,
+        level: 'company'
+      }));
+
+      // 2. Map Sectors (Level 1)
+      const mappedSectors: Folder[] = (sectorsResponse.data || []).map(s => ({
+        id: s.id,
+        name: s.name,
+        parentId: s.folder_company_id, // Link to folder_companies
+        level: 'sector'
+      }));
+
+      setFolders([...mappedCompanies, ...mappedSectors]);
+
+      // 3. Map Jobs
+      const mappedJobs: Vaga[] = (jobsResponse.data || []).map(j => ({
+        id: j.id,
+        folderId: j.sector_id, // Link to sector
+        companyId: j.folder_company_id,
+        jobCode: j.code,
+        title: j.title,
+        role: j.title, // 'role' in UI seems to map to 'title'
+        status: j.status === 'active' ? 'Ativa' : 'Pausada',
+        date: new Date(j.created_at).toLocaleDateString('pt-BR'),
+        type: j.job_type === 'text' ? 'scratch' : 'file',
+        companyName: j.company_name,
+        hideCompany: j.hide_company,
+        bond: j.employment_type,
+        city: j.city,
+        region: j.region,
+        activities: j.activities,
+        requirements: j.requirements,
+        benefits: j.benefits,
+        imageUrl: j.image_url,
+        footerEnabled: j.footer_enabled,
+        contacts: (j.job_contacts || []).map((c: any) => ({
+          type: c.type === 'whatsapp' ? 'WhatsApp' :
+            c.type === 'email' ? 'Email' :
+              c.type === 'address' ? 'Endereço' : 'Link',
+          value: c.value,
+        }))
+      }));
+
+      setVagas(mappedJobs);
+
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      alert('Erro ao carregar dados. Verifique o console.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // Filter jobs by folder AND search term
   const filteredJobs = vagas.filter(v => {
     const matchesFolder = v.folderId === currentFolderId;
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       (v.role || v.title).toLowerCase().includes(searchTerm.toLowerCase()) ||
       (v.companyName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (v.jobCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesFolder && matchesSearch;
   });
 
@@ -135,7 +216,7 @@ export const Vagas: React.FC = () => {
       else if (c.type === 'Endereço') parts.push(`Compareça no ${c.value} no dia ${c.date || '__/__'} as ${c.time || '__:__'}`);
     });
 
-    const interessadosText = parts.length > 0 
+    const interessadosText = parts.length > 0
       ? `Envie seu currículo para ${parts.join(' ou ')}`
       : 'Entre em contato pelos canais oficiais.';
 
@@ -171,21 +252,102 @@ ${j.benefits || ''}
 🠖 soroempregos.com.br`;
   };
 
-  const handleSaveJob = () => {
-    const newJob: Vaga = {
-      ...jobDraft,
-      id: Math.random().toString(36).substr(2, 9),
-      title: jobDraft.role || 'Nova Vaga',
-      companyId: currentFolderId!,
-      folderId: currentFolderId!,
-      date: new Date().toLocaleDateString('pt-BR'),
-      status: 'Ativa',
-      type: jobDraft.type as 'scratch' | 'file'
-    } as Vaga;
+  const handleSaveJob = async () => {
+    if (!currentFolderId) return;
 
-    setVagas([...vagas, newJob]);
-    setIsJobModalOpen(false);
-    setJobCreationStep(null);
+    // Determine IDs
+    // We are currently inside a SECTOR (Level 2).
+    const sectorId = currentFolderId;
+    const sector = folders.find(f => f.id === sectorId);
+    if (!sector || !sector.parentId) {
+      alert("Erro: Vaga deve ser criada dentro de um SETOR.");
+      return;
+    }
+    const companyId = sector.parentId;
+
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) {
+      alert("Usuário não autenticado");
+      return;
+    }
+    const userId = user.data.user.id;
+
+    try {
+      let imageUrl = '';
+
+      // 1. Upload Image if exists
+      if (jobDraft.type === 'file' && attachedFile) {
+        const fileExt = attachedFile.name.split('.').pop();
+        const fileName = `${userId}/${companyId}/${sectorId}/${jobDraft.jobCode}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('job-images')
+          .upload(fileName, attachedFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('job-images')
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrlData.publicUrl;
+      }
+
+      // 2. Insert Job
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .insert({
+          sector_id: sectorId,
+          folder_company_id: companyId,
+          user_id: userId,
+          code: jobDraft.jobCode,
+          job_type: jobDraft.type === 'scratch' ? 'text' : 'image',
+          title: jobDraft.role,
+          status: 'active',
+
+          // Text fields
+          function: jobDraft.role, // Mapping intent from user spec 'function'
+          company_name: jobDraft.companyName,
+          hide_company: jobDraft.hideCompany,
+          employment_type: jobDraft.bond,
+          city: jobDraft.city,
+          region: jobDraft.region,
+          activities: jobDraft.activities,
+          requirements: jobDraft.requirements,
+          benefits: jobDraft.benefits,
+
+          // Image fields
+          image_url: imageUrl,
+          footer_enabled: showFooterInImage,
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      // 3. Insert Contacts
+      if (jobDraft.contacts && jobDraft.contacts.length > 0) {
+        const contactsToInsert = jobDraft.contacts.map(c => ({
+          job_id: jobData.id,
+          type: c.type.toLowerCase() === 'endereço' ? 'address' : c.type.toLowerCase(),
+          value: c.value
+        }));
+
+        const { error: contactsError } = await supabase
+          .from('job_contacts')
+          .insert(contactsToInsert);
+
+        if (contactsError) throw contactsError;
+      }
+
+      await fetchData(); // Refresh all data
+      setIsJobModalOpen(false);
+      setJobCreationStep(null);
+
+    } catch (error: any) {
+      console.error('Erro ao salvar vaga:', error);
+      alert(`Erro ao salvar vaga: ${error.message}`);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,37 +356,148 @@ ${j.benefits || ''}
     }
   };
 
-  const toggleJobStatus = (id: string) => {
-    setVagas(prev => prev.map(v => v.id === id ? { ...v, status: v.status === 'Ativa' ? 'Pausada' : 'Ativa' } : v));
+  const toggleJobStatus = async (id: string) => {
+    const job = vagas.find(v => v.id === id);
+    if (!job) return;
+
+    const newStatus = job.status === 'Ativa' ? 'inactive' : 'active';
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      alert('Erro ao atualizar status');
+      console.error(error);
+      return;
+    }
+
+    // Optimistic update
+    setVagas(prev => prev.map(v => v.id === id ? { ...v, status: newStatus === 'active' ? 'Ativa' : 'Pausada' } : v));
   };
 
-  const handleMoveJob = (vagaId: string, targetFolderId: string) => {
+  const handleMoveJob = async (vagaId: string, targetFolderId: string) => {
+    // Only move if targetFolderId is a SECTOR (check level)
+    const targetFolder = folders.find(f => f.id === targetFolderId);
+    if (!targetFolder || targetFolder.level !== 'sector') {
+      alert("Você só pode mover vagas para dentro de Setores, não Empresas.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('jobs')
+      .update({ sector_id: targetFolderId })
+      .eq('id', vagaId);
+
+    if (error) {
+      alert("Erro ao mover vaga");
+      return;
+    }
+
     setVagas(prev => prev.map(v => v.id === vagaId ? { ...v, folderId: targetFolderId } : v));
     setIsMoveJobModalOpen(false);
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!folderNameInput.trim()) return;
-    
-    const newFolder: Folder = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: folderNameInput,
-      parentId: currentFolderId,
-      level: currentDepth === 0 ? 'company' : 'sector'
-    };
 
-    setFolders([...folders, newFolder]);
-    setIsFolderModalOpen(false);
-    setFolderNameInput('');
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) return;
+    const userId = user.data.user.id;
+
+    try {
+      if (currentDepth === 0) {
+        // Creating Company -> NOW folder_companies
+        const { error } = await supabase
+          .from('folder_companies')
+          .insert({
+            name: folderNameInput,
+            user_id: userId
+          });
+        if (error) throw error;
+      } else {
+        // Creating Sector
+        // currentFolderId is the Company ID (folder_companies)
+        const { error } = await supabase
+          .from('sectors')
+          .insert({
+            name: folderNameInput,
+            folder_company_id: currentFolderId
+          });
+        if (error) throw error;
+      }
+
+      await fetchData();
+      setIsFolderModalOpen(false);
+      setFolderNameInput('');
+    } catch (error: any) {
+      alert(`Erro ao criar pasta: ${error.message}`);
+    }
   };
 
-  const handleUpdateFolder = () => {
+  const handleUpdateFolder = async () => {
     if (!folderNameInput.trim() || !folderToEdit) return;
 
-    setFolders(prev => prev.map(f => f.id === folderToEdit.id ? { ...f, name: folderNameInput } : f));
-    setIsEditFolderModalOpen(false);
-    setFolderToEdit(null);
-    setFolderNameInput('');
+    try {
+      const table = folderToEdit.level === 'company' ? 'folder_companies' : 'sectors';
+      const { error } = await supabase
+        .from(table)
+        .update({ name: folderNameInput })
+        .eq('id', folderToEdit.id);
+
+      if (error) throw error;
+
+      setFolders(prev => prev.map(f => f.id === folderToEdit.id ? { ...f, name: folderNameInput } : f));
+      setIsEditFolderModalOpen(false);
+      setFolderToEdit(null);
+      setFolderNameInput('');
+    } catch (error: any) {
+      alert(`Erro ao atualizar: ${error.message}`);
+    }
+  };
+
+  const handleDeleteFolder = (folder: Folder) => {
+    setDeleteData({ type: 'folder', item: folder });
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteJob = (jobId: string) => {
+    const job = vagas.find(v => v.id === jobId);
+    if (job) {
+      setDeleteData({ type: 'job', item: job });
+      setIsDeleteModalOpen(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteData) return;
+
+    try {
+      if (deleteData.type === 'folder') {
+        const folder = deleteData.item as Folder;
+        const table = folder.level === 'company' ? 'folder_companies' : 'sectors';
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq('id', folder.id);
+
+        if (error) throw error;
+        await fetchData();
+      } else {
+        const job = deleteData.item as Vaga;
+        const { error } = await supabase
+          .from('jobs')
+          .delete()
+          .eq('id', job.id);
+
+        if (error) throw error;
+        setVagas(prev => prev.filter(v => v.id !== job.id));
+      }
+      setIsDeleteModalOpen(false);
+      setDeleteData(null);
+    } catch (error: any) {
+      alert(`Erro ao excluir: ${error.message}`);
+    }
   };
 
   // Reusable Contact Section for Modal
@@ -243,7 +516,7 @@ ${j.benefits || ''}
             { type: 'Endereço', icon: <MapPin size={24} />, color: 'bg-rose-50 text-rose-600 border-rose-100' },
             { type: 'Link', icon: <LinkIcon size={24} />, color: 'bg-indigo-50 text-indigo-600 border-indigo-100' }
           ].map((item) => (
-            <button 
+            <button
               key={item.type}
               onClick={() => handleAddContactField(item.type as JobContact['type'])}
               className={`flex-1 flex items-center justify-center p-5 rounded-[1.5rem] border transition-all hover:scale-105 active:scale-95 shadow-sm ${item.color}`}
@@ -254,12 +527,12 @@ ${j.benefits || ''}
           ))}
         </div>
       </div>
-      
+
       {/* Contact List */}
       <div className="space-y-3">
         {jobDraft.contacts?.map((c, i) => (
           <div key={i} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl shadow-sm relative group animate-scaleUp">
-            <button 
+            <button
               onClick={() => removeContact(i)}
               className="absolute -top-1.5 -right-1.5 p-1.5 bg-rose-500 text-white rounded-full shadow-lg hover:bg-rose-600 transition-colors z-10"
             >
@@ -268,19 +541,19 @@ ${j.benefits || ''}
 
             <div className="grid grid-cols-1 gap-3">
               <div className="flex items-center gap-2">
-                 <div className="p-1.5 bg-white dark:bg-slate-700 rounded-lg text-slate-500">
-                    {c.type === 'WhatsApp' && <OfficialWhatsAppIcon size={14} />}
-                    {c.type === 'Email' && <Mail size={14} />}
-                    {c.type === 'Endereço' && <MapPin size={14} />}
-                    {c.type === 'Link' && <LinkIcon size={14} />}
-                 </div>
-                 <input 
-                    type="text" 
-                    value={c.value}
-                    onChange={e => updateContactValue(i, e.target.value)}
-                    placeholder={`Informe o ${c.type}...`}
-                    className="flex-1 bg-transparent border-none px-2 py-1 text-xs font-medium outline-none"
-                  />
+                <div className="p-1.5 bg-white dark:bg-slate-700 rounded-lg text-slate-500">
+                  {c.type === 'WhatsApp' && <OfficialWhatsAppIcon size={14} />}
+                  {c.type === 'Email' && <Mail size={14} />}
+                  {c.type === 'Endereço' && <MapPin size={14} />}
+                  {c.type === 'Link' && <LinkIcon size={14} />}
+                </div>
+                <input
+                  type="text"
+                  value={c.value}
+                  onChange={e => updateContactValue(i, e.target.value)}
+                  placeholder={`Informe o ${c.type}...`}
+                  className="flex-1 bg-transparent border-none px-2 py-1 text-xs font-medium outline-none"
+                />
               </div>
               {c.type === 'Endereço' && (
                 <div className="flex gap-2 pl-8">
@@ -341,7 +614,7 @@ ${j.benefits || ''}
       {/* Grid de Pastas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredFolders.map(folder => (
-          <div 
+          <div
             key={folder.id}
             onDragOver={(e) => { e.preventDefault(); setDragOverFolderId(folder.id); }}
             onDrop={(e) => { e.preventDefault(); handleMoveJob(e.dataTransfer.getData('jobId'), folder.id); setDragOverFolderId(null); }}
@@ -354,7 +627,7 @@ ${j.benefits || ''}
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={(e) => { e.stopPropagation(); setFolderToEdit(folder); setFolderNameInput(folder.name); setIsEditFolderModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-blue-600"><Edit2 size={14} /></button>
-                <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir pasta?')) setFolders(folders.filter(f => f.id !== folder.id)); }} className="p-1.5 text-slate-400 hover:text-rose-500"><Trash2 size={14} /></button>
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder); }} className="p-1.5 text-slate-400 hover:text-rose-500"><Trash2 size={14} /></button>
               </div>
             </div>
             <h4 className="font-semibold text-slate-800 dark:text-white truncate">{folder.name}</h4>
@@ -373,21 +646,21 @@ ${j.benefits || ''}
               <Briefcase size={18} className="text-blue-600" />
               <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest">Listagem de Vagas</h3>
             </div>
-            
+
             {/* Search Input */}
             <div className="relative w-full sm:w-64 group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Search size={16} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por cargo ou código..."
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
               />
               {searchTerm && (
-                <button 
+                <button
                   onClick={() => setSearchTerm('')}
                   className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                 >
@@ -436,17 +709,17 @@ ${j.benefits || ''}
                       <td className="hidden md:table-cell px-6 py-4 text-xs text-slate-400 whitespace-nowrap">{vaga.date}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                           <button onClick={() => toggleJobStatus(vaga.id)} className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                             <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${vaga.status === 'Ativa' ? 'left-4.5' : 'left-0.5'}`} />
-                           </button>
-                           <span className="hidden sm:inline text-[10px] font-bold uppercase whitespace-nowrap text-slate-400">{vaga.status}</span>
+                          <button onClick={() => toggleJobStatus(vaga.id)} className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                            <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${vaga.status === 'Ativa' ? 'left-4.5' : 'left-0.5'}`} />
+                          </button>
+                          <span className="hidden sm:inline text-[10px] font-bold uppercase whitespace-nowrap text-slate-400">{vaga.status}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1">
                           <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Eye size={16} /></button>
                           <button className="p-2 text-slate-400 hover:text-yellow-600 transition-colors"><Edit2 size={16} /></button>
-                          <button onClick={() => setVagas(vagas.filter(v => v.id !== vaga.id))} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
+                          <button onClick={() => handleDeleteJob(vaga.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -458,22 +731,62 @@ ${j.benefits || ''}
         </div>
       )}
 
+      {/* Modal de Confirmação de Exclusão */}
+      {isDeleteModalOpen && deleteData && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsDeleteModalOpen(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp text-center">
+
+            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={32} />
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Confirmar Exclusão</h3>
+
+            <p className="text-sm text-slate-500 mb-6">
+              {deleteData.type === 'folder'
+                ? `Tem certeza que deseja excluir ${deleteData.item.level === 'company' ? 'a empresa' : 'o setor'} "${deleteData.item.name}"?`
+                : `Tem certeza que deseja excluir a vaga "${deleteData.item.role || deleteData.item.title}"?`
+              }
+              <br />
+              <span className="font-bold text-rose-500 text-xs mt-1 block">Essa ação não pode ser desfeita.</span>
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all active:scale-95"
+              >
+                Excluir
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* MODAL: Criação de Vaga - Largura reduzida para max-w-2xl */}
       {isJobModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)} />
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
-            
+
             {/* Header seguindo padrão anexo */}
             <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                   {jobCreationStep === 'preview' ? <CheckCircle2 size={24} /> : <Plus size={24} />}
+                  {jobCreationStep === 'preview' ? <CheckCircle2 size={24} /> : <Plus size={24} />}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">
-                    {jobCreationStep === 'selection' ? 'Novo Anúncio' : 
-                     jobCreationStep === 'preview' ? 'Confirmar Publicação' : 'Detalhes da Vaga'}
+                    {jobCreationStep === 'selection' ? 'Novo Anúncio' :
+                      jobCreationStep === 'preview' ? 'Confirmar Publicação' : 'Detalhes da Vaga'}
                   </h3>
                   <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Cód: {jobDraft.jobCode}</p>
                 </div>
@@ -484,14 +797,14 @@ ${j.benefits || ''}
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
               {jobCreationStep === 'selection' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full items-center py-4">
-                  <button onClick={() => { setJobDraft({...jobDraft, type: 'scratch'}); setJobCreationStep('form'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
+                  <button onClick={() => { setJobDraft({ ...jobDraft, type: 'scratch' }); setJobCreationStep('form'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
                     <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
                       <FileText size={28} />
                     </div>
                     <span className="font-black text-slate-800 dark:text-white block text-lg uppercase tracking-tight">Criar por Texto</span>
                     <p className="text-xs text-slate-500 mt-2 font-medium">Gera o template automático de text.</p>
                   </button>
-                  <button onClick={() => { setJobDraft({...jobDraft, type: 'file'}); setJobCreationStep('upload'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
+                  <button onClick={() => { setJobDraft({ ...jobDraft, type: 'file' }); setJobCreationStep('upload'); }} className="group p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border-2 border-transparent hover:border-yellow-400 transition-all text-center flex flex-col items-center">
                     <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-yellow-400 group-hover:text-blue-950 transition-colors">
                       <ImageIcon size={28} />
                     </div>
@@ -506,58 +819,103 @@ ${j.benefits || ''}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     {/* Row 1 */}
                     <div className="md:col-span-6 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Função / Cargo <span className="text-rose-500">*</span></label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Briefcase size={18} /></div>
-                        <input type="text" value={jobDraft.role || ''} onChange={e => setJobDraft({...jobDraft, role: e.target.value})} placeholder="Ex: Auxiliar de Limpeza" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" />
+                      <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
+                        <input type="text" value={jobDraft.role || ''} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                       </div>
                     </div>
                     <div className="md:col-span-6 space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Empresa</label>
-                        <button onClick={() => setJobDraft({...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : ''})} className={`text-[9px] font-bold px-2 py-0.5 rounded ${jobDraft.hideCompany ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>{jobDraft.hideCompany ? 'EMPRESA OCULTA' : 'OCULTAR EMPRESA'}</button>
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-semibold">Empresa</label>
+                        <button
+                          onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}
+                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        >
+                          {jobDraft.hideCompany ? (
+                            <><Eye size={12} /> Mostrar Nome</>
+                          ) : (
+                            <><EyeOff size={12} /> Ocultar na Vaga</>
+                          )}
+                        </button>
                       </div>
-                      <input type="text" disabled={jobDraft.hideCompany} value={jobDraft.companyName || ''} onChange={e => setJobDraft({...jobDraft, companyName: e.target.value})} placeholder="Nome da empresa" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-3.5 text-sm focus:ring-2 ring-blue-500 disabled:opacity-30 outline-none" />
+
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                          <Building2 size={18} />
+                        </div>
+                        <input
+                          type="text"
+                          disabled={jobDraft.hideCompany}
+                          value={jobDraft.companyName || ''}
+                          onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
+                          placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
+                          className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
+                            ${jobDraft.hideCompany ? 'opacity-60 cursor-not-allowed select-none bg-slate-100 dark:bg-slate-900/50' : 'border-slate-100 dark:border-slate-800'}
+                            `}
+                        />
+                      </div>
                     </div>
 
-                    {/* Row 2 */}
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vínculo</label>
-                      <select value={jobDraft.bond} onChange={e => setJobDraft({...jobDraft, bond: e.target.value as any})} className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-3 py-3.5 text-xs focus:ring-2 ring-blue-500 outline-none">
-                        <option value="CLT">CLT</option>
-                        <option value="Jurídico">PJ</option>
-                        <option value="Freelance">Freela</option>
-                        <option value="Temporário">Temp</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cidade</label>
-                      <input type="text" value={jobDraft.city || ''} onChange={e => setJobDraft({...jobDraft, city: e.target.value})} placeholder="Sorocaba" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3.5 text-sm outline-none" />
-                    </div>
-                    <div className="md:col-span-7 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Região / Bairro</label>
-                      <input type="text" value={jobDraft.region || ''} onChange={e => setJobDraft({...jobDraft, region: e.target.value})} placeholder="Ex: Campolim, Centro..." className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-4 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" />
+                    {/* Row 2: Vínculo (30%), Cidade (30%), Região (40%) */}
+                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-10 gap-6">
+                      <div className="md:col-span-3 space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Vínculo</label>
+                        <div className="relative group">
+                          <select value={jobDraft.bond} onChange={e => setJobDraft({ ...jobDraft, bond: e.target.value as any })}
+                            className="w-full appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:ring-2 ring-blue-500 outline-none transition-all"
+                          >
+                            <option value="CLT">CLT</option>
+                            <option value="Jurídico">PJ</option>
+                            <option value="Freelance">Freela</option>
+                            <option value="Temporário">Temp</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                            <ChevronDown size={14} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-3 space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
+                        <div className="relative group">
+                          <input type="text" value={jobDraft.city || ''} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-4 space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
+                        <div className="relative group">
+                          <input type="text" value={jobDraft.region || ''} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Detailed Fields Area */}
                     <div className="md:col-span-12 space-y-4 pt-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ATIVIDADES</label>
-                        <textarea value={jobDraft.activities || ''} onChange={e => setJobDraft({...jobDraft, activities: e.target.value})} rows={3} placeholder="O que o candidato irá fazer?" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 ring-blue-500 outline-none resize-none" />
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">REQUISITOS</label>
-                        <textarea value={jobDraft.requirements || ''} onChange={e => setJobDraft({...jobDraft, requirements: e.target.value})} rows={3} placeholder="O que o candidato precisa ter?" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 ring-blue-500 outline-none resize-none" />
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ATIVIDADES</label>
+                        <textarea value={jobDraft.activities || ''} onChange={e => setJobDraft({ ...jobDraft, activities: e.target.value })} rows={3} placeholder="O que o candidato irá fazer?"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">BENEFÍCIOS</label>
-                        <textarea value={jobDraft.benefits || ''} onChange={e => setJobDraft({...jobDraft, benefits: e.target.value})} rows={3} placeholder="O que a empresa oferece?" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 ring-blue-500 outline-none resize-none" />
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">REQUISITOS</label>
+                        <textarea value={jobDraft.requirements || ''} onChange={e => setJobDraft({ ...jobDraft, requirements: e.target.value })} rows={3} placeholder="O que o candidato precisa ter?"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">BENEFÍCIOS</label>
+                        <textarea value={jobDraft.benefits || ''} onChange={e => setJobDraft({ ...jobDraft, benefits: e.target.value })} rows={3} placeholder="O que a empresa oferece?"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                       </div>
                     </div>
                   </div>
-                  
+
                   {renderContactSection()}
                 </div>
               )}
@@ -567,15 +925,15 @@ ${j.benefits || ''}
                   <div className="grid grid-cols-1 gap-6">
                     {/* Nome da Vaga Obrigatório */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Vaga <span className="text-rose-500">*</span></label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Briefcase size={18} /></div>
-                        <input 
-                          type="text" 
-                          value={jobDraft.role || ''} 
-                          onChange={e => setJobDraft({...jobDraft, role: e.target.value})} 
-                          placeholder="Ex: Auxiliar Administrativo" 
-                          className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl pl-12 pr-5 py-3.5 text-sm outline-none focus:ring-2 ring-blue-500" 
+                      <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome da Vaga <span className="text-red-500">*</span></label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
+                        <input
+                          type="text"
+                          value={jobDraft.role || ''}
+                          onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
+                          placeholder="Ex: Auxiliar Administrativo"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
                         />
                       </div>
                     </div>
@@ -586,7 +944,7 @@ ${j.benefits || ''}
                         <div className="relative w-full h-full">
                           <img src={URL.createObjectURL(attachedFile)} className="w-full h-full object-contain" alt="Preview" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                             <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
+                            <p className="text-white font-black uppercase text-xs">Trocar Imagem</p>
                           </div>
                         </div>
                       ) : (
@@ -603,11 +961,11 @@ ${j.benefits || ''}
                     <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
-                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
+                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
                         </div>
                         <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                           <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
+                          <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
                         </button>
                       </div>
                       {showFooterInImage && <div className="animate-fadeIn pt-2 border-t border-slate-100 dark:border-slate-800">{renderContactSection()}</div>}
@@ -643,19 +1001,19 @@ ${j.benefits || ''}
 
             {/* Footer seguindo padrão anexo */}
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
-              <button 
+              <button
                 onClick={() => {
                   if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
                   else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
                   else setIsJobModalOpen(false);
-                }} 
+                }}
                 className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
               >
                 {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
               </button>
-              
+
               {jobCreationStep !== 'selection' && (
-                <button 
+                <button
                   onClick={() => {
                     if (jobCreationStep === 'preview') handleSaveJob();
                     else {
@@ -693,20 +1051,20 @@ ${j.benefits || ''}
             <div className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Identificação</label>
-                <input 
-                  autoFocus 
-                  type="text" 
-                  value={folderNameInput} 
-                  onChange={e => setFolderNameInput(e.target.value)} 
-                  placeholder="Digite o nome..." 
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 ring-blue-500" 
+                <input
+                  autoFocus
+                  type="text"
+                  value={folderNameInput}
+                  onChange={e => setFolderNameInput(e.target.value)}
+                  placeholder="Digite o nome..."
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 ring-blue-500"
                   onKeyDown={e => e.key === 'Enter' && (isEditFolderModalOpen ? handleUpdateFolder() : handleCreateFolder())}
                 />
               </div>
               <div className="flex gap-4">
                 <button onClick={() => { setIsFolderModalOpen(false); setIsEditFolderModalOpen(false); }} className="flex-1 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-sm">Cancelar</button>
-                <button 
-                  onClick={isEditFolderModalOpen ? handleUpdateFolder : handleCreateFolder} 
+                <button
+                  onClick={isEditFolderModalOpen ? handleUpdateFolder : handleCreateFolder}
                   className="flex-1 py-3.5 rounded-2xl bg-blue-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95"
                 >
                   Salvar
