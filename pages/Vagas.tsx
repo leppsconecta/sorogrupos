@@ -936,7 +936,7 @@ Cód. Vaga: *${code}*
                   </tr>
                 ) : (
                   filteredJobs.map(vaga => (
-                    <tr key={vaga.id} draggable onDragStart={(e) => e.dataTransfer.setData('jobId', vaga.id)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                    <tr key={vaga.id} draggable onDragStart={(e) => e.dataTransfer.setData('jobId', vaga.id)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-grab active:cursor-grabbing">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${vaga.type === 'file' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
