@@ -48,7 +48,7 @@ const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
 import { useAuth } from '../contexts/AuthContext';
 
 export const Vagas: React.FC = () => {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -206,7 +206,10 @@ export const Vagas: React.FC = () => {
 
   const handleAddContactField = (type: JobContact['type']) => {
     const existing = jobDraft.contacts || [];
-    if (type !== 'WhatsApp' && existing.some(c => c.type === type)) return;
+    if (existing.some(c => c.type === type)) {
+      alert(`O canal ${type} já foi adicionado.`);
+      return;
+    }
 
     // Auto-fill logic
     const saved = savedContacts.find(c => c.type === type);
@@ -253,7 +256,7 @@ export const Vagas: React.FC = () => {
       return `*Anúncio de Vaga (Imagem)*\nCargo: *${j.role || ''}*\nCód. Vaga: *${code}*\n\n*Rodapé de Contato:*\n${interessadosText}`;
     }
 
-    return `*Agência Sync Contrata* 🟡🔴🔵  
+    return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🔵  
 -----------------------------  
 Função: *${j.role || ''}*
 Cód. Vaga: *${code}*
@@ -261,24 +264,18 @@ Cód. Vaga: *${code}*
 *Vínculo:* ${j.bond || ''}
 *Empresa:* ${j.hideCompany ? '(Oculto)' : j.companyName || ''}
 *Cidade/Bairro:* ${j.city || ''} - ${j.region || ''}
-
-*Atividades:*
-${j.activities || ''}
-
-*Requisitos:*
-${j.requirements || ''}
-
-*Benefícios:*
-${j.benefits || ''}
+*Requisitos:* ${j.requirements || ''}
+*Benefícios:* ${j.benefits || ''}
+*Atividades:* ${j.activities || ''}
 
 *Interessados*
  ${interessadosText}
 ----------------------------- 
 
 *Mais informações:*
-🠖 Agência Sync
-🠖 5515996993021
-🠖 soroempregos.com.br`;
+➞ ${company?.name || 'Agência Sync'}
+➞ ${company?.whatsapp || '5515996993021'}
+➞ ${company?.website || 'soroempregos.com.br'}`;
   };
 
   const handleSaveJob = async () => {
@@ -1026,13 +1023,7 @@ ${j.benefits || ''}
                     </pre>
                   </div>
 
-                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/20 p-5 rounded-2xl border border-amber-100 dark:border-amber-900/30">
-                    <AlertCircle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Revise os dados antes de publicar.</p>
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400/70 mt-0.5">Ao confirmar, a vaga ficará disponível imediatamente para disparos em massa.</p>
-                    </div>
-                  </div>
+
                 </div>
               )}
             </div>
@@ -1056,10 +1047,24 @@ ${j.benefits || ''}
                     if (jobCreationStep === 'preview') handleSaveJob();
                     else {
                       // Validação: obrigar o nome da vaga
-                      if (!jobDraft.role?.trim()) {
-                        alert("Por favor, informe o nome da vaga antes de prosseguir.");
+                      if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
+                      if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
+                      if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
+                      if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
+                      if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
+                      if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
+                      if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
+
+                      if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
+                        alert("Por favor, selecione ao menos 1 contato.");
                         return;
                       }
+
+                      if (jobDraft.contacts.some(c => !c.value.trim())) {
+                        alert("Por favor, preencha as informações de todos os contatos selecionados.");
+                        return;
+                      }
+
                       if (jobCreationStep === 'upload' && !attachedFile) {
                         alert("Por favor, carregue a imagem da vaga.");
                         return;
