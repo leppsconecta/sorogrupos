@@ -297,6 +297,9 @@ const AppContent: React.FC = () => {
     setConnectionData(null);
   };
 
+  // Job Navigation State
+  const [targetJobId, setTargetJobId] = useState<string | null>(null);
+
   const renderContent = () => {
     // If onboarding is incomplete, force 'perfil' tab
     if (isLoggedIn && !onboardingCompleted && activeTab !== 'perfil') {
@@ -314,8 +317,8 @@ const AppContent: React.FC = () => {
 
     switch (activeTab) {
       case 'painel': return <Dashboard setActiveTab={setActiveTab} {...commonProps} />;
-      case 'marketing': return <Marketing {...commonProps} />;
-      case 'vagas': return <Vagas />;
+      case 'marketing': return <Marketing setActiveTab={setActiveTab} setTargetJobId={setTargetJobId} {...commonProps} />;
+      case 'vagas': return <Vagas initialJobId={targetJobId} onClearTargetJob={() => setTargetJobId(null)} />;
       case 'grupos': return <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />;
       case 'agendamentos': return <Agendamentos setActiveTab={setActiveTab} />;
       case 'plano': return <Plano />;

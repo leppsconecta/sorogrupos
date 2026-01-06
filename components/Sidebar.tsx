@@ -26,7 +26,7 @@ const WhatsAppIcon = ({ size = 22 }: { size?: number }) => (
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const menuItems = [
     { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
-    { id: 'marketing', label: 'Marketing', icon: <Megaphone size={22} /> },
+    { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
     { id: 'agendamentos', label: 'Agendamentos', icon: <CalendarDays size={22} /> },
     { id: 'vagas', label: 'Vagas', icon: <Briefcase size={22} /> },
     { id: 'grupos', label: 'Grupos', icon: <WhatsAppIcon size={22} /> },

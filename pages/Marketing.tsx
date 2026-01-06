@@ -21,48 +21,75 @@ import {
   Calendar as CalendarIcon,
   Smartphone,
   AlertCircle,
-  Tag as TagIcon
+  Tag as TagIcon,
+  Edit2,
+  Image as ImageIcon
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-// Mock data for jobs
-const MOCK_VAGAS = [
-  { id: 'v1', role: 'Auxiliar de Produção', jobCode: 'PROD22', type: 'scratch', companyName: 'Indústria ABC', city: 'Sorocaba' },
-  { id: 'v2', role: 'Desenvolvedor Frontend', jobCode: 'DEV99', type: 'scratch', companyName: 'Tech Solutions', city: 'Votorantim' },
-  { id: 'v3', role: 'Vendedor Externo', jobCode: 'VEND05', type: 'scratch', companyName: 'Comércio Local', city: 'Sorocaba' },
-  { id: 'v4', role: 'Operador de Empilhadeira', jobCode: 'LOG10', type: 'scratch', companyName: 'Logistics SA', city: 'Sorocaba' },
-  { id: 'v5', role: 'Recepcionista', jobCode: 'REC01', type: 'scratch', companyName: 'Hotel Central', city: 'Itu' },
-  { id: 'v6', role: 'Auxiliar Administrativo', jobCode: 'ADM55', type: 'scratch', companyName: 'Office Corp', city: 'Sorocaba' },
-  { id: 'v7', role: 'Cozinheiro', jobCode: 'COZ02', type: 'scratch', companyName: 'Restaurante Sabor', city: 'Votorantim' },
-  { id: 'v8', role: 'Analista de RH', jobCode: 'RH001', type: 'scratch', companyName: 'Empresa XPTO', city: 'Sorocaba' },
-  { id: 'v9', role: 'Motorista', jobCode: 'MOT09', type: 'scratch', companyName: 'Transp Global', city: 'Iperó' },
-  { id: 'v10', role: 'Segurança', jobCode: 'SEG55', type: 'scratch', companyName: 'Protect S/A', city: 'Sorocaba' },
-  { id: 'v11', role: 'Faxineira', jobCode: 'FAX01', type: 'scratch', companyName: 'Clean Pro', city: 'Votorantim' },
-];
+// Helper for date formatting
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
 
-// Mock data for groups with tags
-const MOCK_GROUPS = [
-  { id: 'g1', name: 'Empregos Sorocaba - Grupo 1', members: 256, tags: ['Empregos', 'Sorocaba'] },
-  { id: 'g2', name: 'Vagas TI & Tech', members: 120, tags: ['Tecnologia', 'TI'] },
-  { id: 'g3', name: 'Oportunidades Votorantim', members: 180, tags: ['Empregos', 'Votorantim'] },
-  { id: 'g4', name: 'Vagas Indústria & Operacional', members: 250, tags: ['Indústria', 'Operacional'] },
-  { id: 'g5', name: 'Balcão de Empregos', members: 256, tags: ['Empregos'] },
-];
+// Interfaces
+interface Job {
+  id: string;
+  code: string;
+  title: string;
+  city: string;
+  company_name: string;
+  job_type: 'text' | 'image';
+  status: string;
+}
 
-const AVAILABLE_TAGS = ['Empregos', 'Tecnologia', 'Indústria', 'Operacional', 'TI', 'Sorocaba', 'Votorantim'];
+interface GroupTag {
+  tags_group: {
+    name: string;
+  };
+}
 
-// Mock data for scheduled items
-const INITIAL_SCHEDULES = [
-  { id: 's1', jobsCount: 3, groupsCount: 5, date: '25/05/2024', time: '09:00', status: 'pending' },
-  { id: 's2', jobsCount: 1, groupsCount: 2, date: '26/05/2024', time: '14:00', status: 'pending' },
-];
+interface Group {
+  id: string;
+  name_group: string;
+  total: number;
+  image: string | null;
+  whatsapp_groups_tags: GroupTag[];
+}
+
+interface Tag {
+  id: string;
+  name: string;
+}
+
+interface Schedule {
+  id: string;
+  jobsCount: number;
+  groupsCount: number;
+  date: string;
+  time: string;
+  status: 'pending' | 'success' | 'error';
+}
+
+const INITIAL_SCHEDULES: Schedule[] = []; // We can keep this empty or fetch from DB later
 
 interface MarketingProps {
   isWhatsAppConnected: boolean;
   onOpenConnect: () => void;
+  setActiveTab?: (tab: string) => void;
 }
 
 export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect }) => {
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
+
+  // Data States
+  const [vagas, setVagas] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [selectedVagaIds, setSelectedVagaIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [groupSearch, setGroupSearch] = useState('');
@@ -92,6 +119,80 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const groupItemRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
 
   useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch Jobs
+      const { data: jobsData } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Fetch Groups with tags
+      const { data: groupsData } = await supabase
+        .from('whatsapp_groups')
+        .select(`
+          id,
+          name_group,
+          total,
+          image,
+          whatsapp_groups_tags (
+            tags_group (
+              name
+            )
+          )
+        `)
+        .eq('user_id', user.id);
+
+      // Fetch Tags
+      const { data: tagsData } = await supabase
+        .from('tags_group')
+        .select('name')
+        .eq('user_id', user.id);
+
+      if (jobsData) {
+        const mappedVagas = jobsData.map(j => ({
+          id: j.id,
+          role: j.title, // Map title to role
+          jobCode: j.code, // Map code to jobCode
+          type: j.job_type === 'text' ? 'scratch' : 'file',
+          companyName: j.company_name,
+          city: j.city,
+          status: j.status
+        }));
+        setVagas(mappedVagas);
+      }
+
+      if (groupsData) {
+        const mappedGroups = groupsData.map(g => ({
+          id: g.id,
+          name: g.name_group, // Map name_group to name
+          members: g.total, // Map total to members
+          image: g.image,
+          tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group?.name).filter(Boolean) // Flatten tags
+        }));
+        setGroups(mappedGroups);
+      }
+
+      if (tagsData) {
+        setAvailableTags(tagsData.map(t => t.name));
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (jobDropdownRef.current && !jobDropdownRef.current.contains(event.target as Node)) {
         setIsJobDropdownOpen(false);
@@ -109,24 +210,24 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   }, []);
 
   const filteredGroups = useMemo(() => {
-    return MOCK_GROUPS.filter(g => {
+    return groups.filter(g => {
       const matchesSearch = g.name.toLowerCase().includes(groupSearch.toLowerCase());
       const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
       return matchesSearch && matchesTag;
     });
-  }, [groupSearch, selectedTag]);
+  }, [groups, groupSearch, selectedTag]);
 
   const filteredVagasList = useMemo(() => {
-    return MOCK_VAGAS.filter(v =>
+    return vagas.filter(v =>
       v.role.toLowerCase().includes(vagaSearch.toLowerCase()) ||
       v.jobCode.toLowerCase().includes(vagaSearch.toLowerCase()) ||
       v.city.toLowerCase().includes(vagaSearch.toLowerCase())
     );
-  }, [vagaSearch]);
+  }, [vagas, vagaSearch]);
 
   const selectedVagas = useMemo(() => {
-    return MOCK_VAGAS.filter(v => selectedVagaIds.includes(v.id));
-  }, [selectedVagaIds]);
+    return vagas.filter(v => selectedVagaIds.includes(v.id));
+  }, [vagas, selectedVagaIds]);
 
   const toggleVagaSelection = (id: string) => {
     setSelectedVagaIds(prev => {
@@ -246,32 +347,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-yellow-400/10 rounded-2xl flex items-center justify-center text-yellow-600 dark:text-yellow-400 border border-yellow-400/20">
-            <Megaphone size={24} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Broadcasting</h2>
-            <p className="text-sm text-slate-500 font-medium">Gerencie seus disparos e agendamentos.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-          {[{ id: 'broadcast', label: 'Novo Envio', icon: Megaphone }, { id: 'schedules', label: 'Agendamentos', icon: CalendarDays }, { id: 'reports', label: 'Histórico', icon: History }].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setView(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap
-                ${view === tab.id
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+
 
       {view === 'broadcast' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
@@ -497,7 +573,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                   >
                     Todos
                   </button>
-                  {AVAILABLE_TAGS.map(tag => (
+                  {availableTags.map(tag => (
                     <button
                       key={tag}
                       onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
@@ -525,24 +601,28 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
                           ? 'border-blue-200 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-800'
                           : 'border-slate-100 dark:border-slate-800 hover:border-blue-200 bg-white dark:bg-slate-800/30'}`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                          <Users size={18} />
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors overflow-hidden ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          {group.image ? (
+                            <img src={group.image} alt={group.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Users size={18} />
+                          )}
                         </div>
-                        <div>
-                          <h4 className={`font-semibold text-sm ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-slate-700 dark:text-slate-300'}`}>{group.name}</h4>
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`font-semibold text-sm truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-slate-700 dark:text-slate-300'}`}>{group.name}</h4>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1"><Users size={10} /> {group.members} membros</span>
-                            <div className="flex gap-1">
+                            <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1 flex-shrink-0"><Users size={10} /> {group.members} membros</span>
+                            <div className="flex gap-1 overflow-hidden">
                               {group.tags.map(t => (
-                                <span key={t} className="text-[9px] px-1.5 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded text-slate-500 font-medium uppercase">{t}</span>
+                                <span key={t} className="text-[9px] px-1.5 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded text-slate-500 font-medium uppercase whitespace-nowrap">{t}</span>
                               ))}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700'}`}>
+                      <div className={`w-5 h-5 rounded-full border flex flex-shrink-0 items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700'}`}>
                         {isSelected && <Check size={10} className="text-white" />}
                       </div>
                     </div>

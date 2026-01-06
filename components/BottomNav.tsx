@@ -24,7 +24,7 @@ const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
   const menuItems = [
     { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={20} /> },
-    { id: 'marketing', label: 'Marketing', icon: <Megaphone size={20} /> },
+    { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={20} /> },
     { id: 'agendamentos', label: 'Agenda', icon: <CalendarDays size={20} /> },
     { id: 'vagas', label: 'Vagas', icon: <Briefcase size={20} /> },
     { id: 'grupos', label: 'Grupos', icon: <WhatsAppIcon size={20} /> },
