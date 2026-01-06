@@ -17,6 +17,15 @@ export interface JobContact {
   time?: string;
 }
 
+export interface SavedJobContact {
+  id: string;
+  user_id: string;
+  type: 'WhatsApp' | 'Email' | 'Endereço' | 'Link';
+  value: string;
+  label?: string;
+  created_at?: string;
+}
+
 export interface Vaga {
   id: string;
   title: string;
@@ -25,7 +34,7 @@ export interface Vaga {
   status: 'Ativa' | 'Finalizada' | 'Pausada';
   date: string;
   type: 'scratch' | 'file';
-  
+
   // Detalhes da Vaga
   role?: string;
   companyName?: string;

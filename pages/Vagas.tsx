@@ -32,10 +32,12 @@ import {
   Smartphone,
   Search,
   Building2,
-  EyeOff
+  EyeOff,
+  Settings
 } from 'lucide-react';
-import { Vaga, Folder, JobContact } from '../types';
+import { Vaga, Folder, JobContact, SavedJobContact } from '../types';
 import { supabase } from '../lib/supabase';
+import { SavedContactsModal } from '../components/SavedContactsModal';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
@@ -43,7 +45,10 @@ const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+import { useAuth } from '../contexts/AuthContext';
+
 export const Vagas: React.FC = () => {
+  const { user } = useAuth();
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -73,6 +78,10 @@ export const Vagas: React.FC = () => {
   // Estado Modal Confirmação Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteData, setDeleteData] = useState<{ type: 'folder' | 'job', item: any } | null>(null);
+
+  // Saved Contacts
+  const [savedContacts, setSavedContacts] = useState<SavedJobContact[]>([]);
+  const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
 
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);
@@ -151,9 +160,22 @@ export const Vagas: React.FC = () => {
     }
   };
 
+  // Fetch Saved Contacts
+  const fetchSavedContacts = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('saved_job_contacts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+
+    if (data) setSavedContacts(data as SavedJobContact[]);
+  };
+
   useEffect(() => {
     fetchData();
-  }, []);
+    if (user) fetchSavedContacts();
+  }, [user]);
 
   // Filter jobs by folder AND search term
   const filteredJobs = vagas.filter(v => {
@@ -186,9 +208,12 @@ export const Vagas: React.FC = () => {
     const existing = jobDraft.contacts || [];
     if (type !== 'WhatsApp' && existing.some(c => c.type === type)) return;
 
+    // Auto-fill logic
+    const saved = savedContacts.find(c => c.type === type);
+
     setJobDraft({
       ...jobDraft,
-      contacts: [...existing, { type, value: '' }]
+      contacts: [...existing, { type, value: saved ? saved.value : '' }]
     });
   };
 
@@ -504,8 +529,15 @@ ${j.benefits || ''}
   const renderContactSection = () => (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div>
+        <div className="flex items-center justify-between">
           <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">CANAIS DE CONTATO</h4>
+          <button
+            onClick={() => setIsContactsModalOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all"
+          >
+            <Settings size={12} />
+            Configurar
+          </button>
         </div>
 
         {/* Contact Selection Area - Side by side icons ONLY */}
@@ -1074,6 +1106,13 @@ ${j.benefits || ''}
           </div>
         </div>
       )}
+      <SavedContactsModal
+        isOpen={isContactsModalOpen}
+        onClose={() => setIsContactsModalOpen(false)}
+        savedContacts={savedContacts}
+        onUpdate={fetchSavedContacts}
+      />
     </div>
   );
 };
+
