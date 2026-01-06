@@ -194,7 +194,7 @@ export const Vagas: React.FC = () => {
     setJobDraft({
       jobCode: code,
       contacts: [],
-      bond: 'CLT',
+      bond: 'CLT ( Fixo )',
       hideCompany: false,
       status: 'Ativa'
     });
@@ -227,6 +227,10 @@ export const Vagas: React.FC = () => {
     const updated = [...(jobDraft.contacts || [])];
     updated.splice(index, 1);
     setJobDraft({ ...jobDraft, contacts: updated });
+  };
+
+  const scrollToCenter = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement> | React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const generatePreviewText = () => {
@@ -584,13 +588,14 @@ ${j.benefits || ''}
                   value={c.value}
                   onChange={e => updateContactValue(i, e.target.value)}
                   placeholder={`Informe o ${c.type}...`}
-                  className="flex-1 bg-transparent border-none px-2 py-1 text-xs font-medium outline-none"
+                  className="flex-1 bg-transparent border-none px-2 py-1 text-base font-medium outline-none"
+                  onFocus={scrollToCenter}
                 />
               </div>
               {c.type === 'Endereço' && (
                 <div className="flex gap-2 pl-8">
-                  <input type="date" value={c.date || ''} onChange={e => updateContactValue(i, e.target.value, 'date')} className="flex-1 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-[10px] outline-none" />
-                  <input type="time" value={c.time || ''} onChange={e => updateContactValue(i, e.target.value, 'time')} className="w-24 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-[10px] outline-none" />
+                  <input type="date" value={c.date || ''} onChange={e => updateContactValue(i, e.target.value, 'date')} className="flex-1 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-sm outline-none" onFocus={scrollToCenter} />
+                  <input type="time" value={c.time || ''} onChange={e => updateContactValue(i, e.target.value, 'time')} className="w-24 bg-white dark:bg-slate-700 border-none rounded-xl px-3 py-2 text-sm outline-none" onFocus={scrollToCenter} />
                 </div>
               )}
             </div>
@@ -854,7 +859,7 @@ ${j.benefits || ''}
                       <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
-                        <input type="text" value={jobDraft.role || ''} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
+                        <input type="text" value={jobDraft.role || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                       </div>
                     </div>
@@ -880,6 +885,7 @@ ${j.benefits || ''}
                         <input
                           type="text"
                           disabled={jobDraft.hideCompany}
+                          onFocus={scrollToCenter}
                           value={jobDraft.companyName || ''}
                           onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
                           placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
@@ -898,10 +904,10 @@ ${j.benefits || ''}
                           <select value={jobDraft.bond} onChange={e => setJobDraft({ ...jobDraft, bond: e.target.value as any })}
                             className="w-full appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:ring-2 ring-blue-500 outline-none transition-all"
                           >
-                            <option value="CLT">CLT</option>
-                            <option value="Jurídico">PJ</option>
-                            <option value="Freelance">Freela</option>
-                            <option value="Temporário">Temp</option>
+                            <option value="CLT ( Fixo )">CLT ( Fixo )</option>
+                            <option value="Pessoa Jurídica">Pessoa Jurídica</option>
+                            <option value="Freelance">Freelance</option>
+                            <option value="Temporário">Temporário</option>
                           </select>
                           <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
                             <ChevronDown size={14} />
@@ -912,7 +918,7 @@ ${j.benefits || ''}
                       <div className="md:col-span-3 space-y-1.5">
                         <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
                         <div className="relative group">
-                          <input type="text" value={jobDraft.city || ''} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
+                          <input type="text" value={jobDraft.city || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                         </div>
                       </div>
@@ -920,7 +926,7 @@ ${j.benefits || ''}
                       <div className="md:col-span-4 space-y-1.5">
                         <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
                         <div className="relative group">
-                          <input type="text" value={jobDraft.region || ''} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
+                          <input type="text" value={jobDraft.region || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                         </div>
                       </div>
@@ -929,20 +935,20 @@ ${j.benefits || ''}
                     {/* Detailed Fields Area */}
                     <div className="md:col-span-12 space-y-4 pt-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ATIVIDADES</label>
-                        <textarea value={jobDraft.activities || ''} onChange={e => setJobDraft({ ...jobDraft, activities: e.target.value })} rows={3} placeholder="O que o candidato irá fazer?"
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
-                      </div>
-
-                      <div className="space-y-1.5">
                         <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">REQUISITOS</label>
-                        <textarea value={jobDraft.requirements || ''} onChange={e => setJobDraft({ ...jobDraft, requirements: e.target.value })} rows={3} placeholder="O que o candidato precisa ter?"
+                        <textarea value={jobDraft.requirements || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, requirements: e.target.value })} rows={3} placeholder="O que o candidato precisa ter?"
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">BENEFÍCIOS</label>
-                        <textarea value={jobDraft.benefits || ''} onChange={e => setJobDraft({ ...jobDraft, benefits: e.target.value })} rows={3} placeholder="O que a empresa oferece?"
+                        <textarea value={jobDraft.benefits || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, benefits: e.target.value })} rows={3} placeholder="O que a empresa oferece?"
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ATIVIDADES</label>
+                        <textarea value={jobDraft.activities || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, activities: e.target.value })} rows={3} placeholder="O que o candidato irá fazer?"
                           className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none" />
                       </div>
                     </div>
