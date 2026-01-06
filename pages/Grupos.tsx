@@ -23,7 +23,11 @@ import {
   RotateCw,
   Smartphone,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Smile,
+  Eraser,
+  Save,
+  Trash
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,6 +59,14 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [editingTagValue, setEditingTagValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Group Details Modal State
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Common Emojis
+  const commonEmojis = ['😀', '😂', '😍', '🔥', '👍', '🙏', '🤝', '💼', '🚀', '📢', '✅', '❌', '⚠️', '🎉', '👋', '🌟', '💡', '💰', '📅', '📍'];
 
   const [joinValue, setJoinValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -372,6 +384,42 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     setEditingTagIndex(null);
   };
 
+  const handleGroupClick = (group: Group) => {
+    setSelectedGroup(group);
+    setDescriptionDraft(group.description || '');
+    setShowEmojiPicker(false);
+  };
+
+  const handleSaveDescription = async () => {
+    if (!selectedGroup) return;
+
+    try {
+      const { error } = await supabase
+        .from('whatsapp_groups')
+        .update({ description: descriptionDraft })
+        .eq('id', selectedGroup.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGroup = { ...selectedGroup, description: descriptionDraft };
+      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
+      setSelectedGroup(updatedGroup);
+      alert('Descrição atualizada com sucesso!');
+    } catch (error) {
+      console.error('Error updating description:', error);
+      alert('Erro ao atualizar descrição.');
+    }
+  };
+
+  const handleClearDescription = () => {
+    setDescriptionDraft('');
+  };
+
+  const addEmoji = (emoji: string) => {
+    setDescriptionDraft(prev => prev + emoji);
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Search and Action Bar */}
@@ -422,18 +470,54 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         </div>
       </div>
 
-      {/* Tag Filter Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+      {/*  const handleGroupClick = (group: Group) => {
+    setSelectedGroup(group);
+    setDescriptionDraft(group.description || '');
+    setShowEmojiPicker(false);
+  };
+
+  const handleSaveDescription = async () => {
+    if (!selectedGroup) return;
+
+    try {
+      const { error } = await supabase
+        .from('whatsapp_groups')
+        .update({ description: descriptionDraft })
+        .eq('id', selectedGroup.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGroup = { ...selectedGroup, description: descriptionDraft };
+      setGroups(groups.map(g => g.id === selectedGroup.id ? updatedGroup : g));
+      setSelectedGroup(updatedGroup);
+      alert('Descrição atualizada com sucesso!');
+    } catch (error) {
+      console.error('Error updating description:', error);
+      alert('Erro ao atualizar descrição.');
+    }
+  };
+
+  const handleClearDescription = () => {
+    setDescriptionDraft('');
+  };
+
+  const addEmoji = (emoji: string) => {
+    setDescriptionDraft(prev => prev + emoji);
+  };
+
+  // Filtering Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
         <button
           onClick={() => { setSelectedTag(null); setShowMyGroups(false); }}
-          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
+          className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
             ${selectedTag === null && !showMyGroups
               ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
+              : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600'
             }`}
         >
           Todos
-          <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedTag === null && !showMyGroups ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${selectedTag === null && !showMyGroups ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
             {groups.length}
           </span>
         </button>
@@ -441,18 +525,19 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
         {availableTags.map(tag => {
           const count = groups.filter(g => g.tags.includes(tag)).length;
+          const isSelected = selectedTag === tag;
           return (
             <button
               key={tag}
-              onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
-                ${selectedTag === tag
+              onClick={() => setSelectedTag(isSelected ? null : tag)}
+              className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2 group
+                ${isSelected
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                  : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-500'
+                  : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600'
                 }`}
             >
               # {tag}
-              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedTag === tag ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
                 {count}
               </span>
             </button>
@@ -465,7 +550,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         {filteredGroups.map((group) => (
           <div
             key={group.id}
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative"
+            onClick={() => handleGroupClick(group)}
+            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative cursor-pointer hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900"
           >
             {/* Admin Badge - Top Left */}
             {group.isAdmin && (
@@ -479,7 +565,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             {/* Tag Button Top Right */}
             <div className="absolute top-4 right-4 z-10">
               <button
-                onClick={() => setTaggingGroup(group)}
+                onClick={(e) => { e.stopPropagation(); setTaggingGroup(group); }}
                 className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 active:scale-95"
                 title="Adicionar Tag"
               >
@@ -512,7 +598,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 {group.tags.map(tag => (
                   <button
                     key={tag}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (confirm(`Remover a tag "${tag}" deste grupo?`)) {
                         toggleTagInGroup(group, tag);
                       }
@@ -529,7 +616,9 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               </div>
             </div>
 
-            <button className="w-full mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); }}
+              className="w-full mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
               Ver Conversas
               <ExternalLink size={14} />
             </button>
@@ -547,6 +636,91 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           </div>
         ))}
       </div>
+
+      {/* Modal: Group Details & Description */}
+      {selectedGroup && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setSelectedGroup(null)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
+            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full border-2 border-white/20 p-0.5 overflow-hidden">
+                  <img src={selectedGroup.image} className="w-full h-full object-cover rounded-full" alt="" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">{selectedGroup.name}</h3>
+                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Detalhes do Grupo</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedGroup(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
+            </div>
+
+            <div className="p-8 overflow-y-auto custom-scrollbar">
+              <div className="mb-6">
+                <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Descrição</label>
+
+                {selectedGroup.isAdmin ? (
+                  <div className="relative">
+                    <textarea
+                      value={descriptionDraft}
+                      onChange={(e) => setDescriptionDraft(e.target.value)}
+                      rows={6}
+                      className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 resize-none border border-slate-100 dark:border-slate-800"
+                      placeholder="Adicione uma descrição..."
+                    />
+
+                    {/* Toolbar */}
+                    <div className="absolute bottom-3 right-3 flex gap-2">
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 transition-colors"
+                          title="Emojis"
+                        >
+                          <Smile size={18} />
+                        </button>
+
+                        {/* Emoji Picker Popover */}
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 w-64 grid grid-cols-5 gap-2 z-50">
+                            {commonEmojis.map(emoji => (
+                              <button key={emoji} onClick={() => addEmoji(emoji)} className="text-xl hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded-lg transition-colors">
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleClearDescription}
+                        className="p-2 hover:bg-rose-100 hover:text-rose-500 rounded-lg text-slate-400 transition-colors"
+                        title="Limpar"
+                      >
+                        <Eraser size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-sm text-slate-600 dark:text-slate-400 min-h-[100px] whitespace-pre-wrap">
+                    {selectedGroup.description || "Sem descrição disponível."}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedGroup.isAdmin && (
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                <button onClick={() => setSelectedGroup(null)} className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-white transition-all">Cancelar</button>
+                <button onClick={handleSaveDescription} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
+                  <Save size={16} />
+                  Salvar Alterações
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal: Create Group */}
       {isCreateModalOpen && (
