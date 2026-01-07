@@ -21,17 +21,18 @@ const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+const menuItems = [
+  { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={20} /> },
+  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={20} /> },
+  { id: 'agendamentos', label: 'Calendário', icon: <CalendarDays size={20} /> },
+  { id: 'vagas', label: 'Minhas vagas', icon: <Briefcase size={20} /> },
+  { id: 'grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={20} /> },
+  { id: 'plano', label: 'Plano', icon: <CreditCard size={20} /> },
+  { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={20} /> },
+  { id: 'perfil', label: 'Perfil', icon: <UserCircle size={20} /> },
+];
+
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
-  const menuItems = [
-    { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={20} /> },
-    { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={20} /> },
-    { id: 'agendamentos', label: 'Agenda', icon: <CalendarDays size={20} /> },
-    { id: 'vagas', label: 'Vagas', icon: <Briefcase size={20} /> },
-    { id: 'grupos', label: 'Grupos', icon: <WhatsAppIcon size={20} /> },
-    { id: 'plano', label: 'Plano', icon: <CreditCard size={20} /> },
-    { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={20} /> },
-    { id: 'perfil', label: 'Perfil', icon: <UserCircle size={20} /> },
-  ];
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-[60] px-4 safe-area-bottom shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.1)]">

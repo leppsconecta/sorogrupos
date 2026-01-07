@@ -23,17 +23,18 @@ const WhatsAppIcon = ({ size = 22 }: { size?: number }) => (
   </svg>
 );
 
+const menuItems = [
+  { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
+  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
+  { id: 'agendamentos', label: 'Calendário', icon: <CalendarDays size={22} /> },
+  { id: 'vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
+  { id: 'grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
+  { id: 'plano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
+  { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
+  { id: 'perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
-  const menuItems = [
-    { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
-    { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
-    { id: 'agendamentos', label: 'Agendamentos', icon: <CalendarDays size={22} /> },
-    { id: 'vagas', label: 'Vagas', icon: <Briefcase size={22} /> },
-    { id: 'grupos', label: 'Grupos', icon: <WhatsAppIcon size={22} /> },
-    { id: 'plano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
-    { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
-    { id: 'perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
-  ];
 
   return (
     <aside

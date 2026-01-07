@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     ChevronLeft,
     ChevronRight,
@@ -7,23 +6,25 @@ import {
     CheckCircle2,
     Plus
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AgendamentosProps {
     setActiveTab: (tab: string) => void;
 }
 
-// Mock data for scheduled and published posts
-const MOCK_POSTS = [
-    { id: 'p1', title: 'Auxiliar de Produção', company: 'Indústria ABC', date: '2026-01-06', time: '19:00', status: 'scheduled', groups: 3 },
-    { id: 'p2', title: 'Desenvolvedor Frontend', company: 'Tech Solutions', date: '2026-01-07', time: '14:00', status: 'scheduled', groups: 5 },
-    { id: 'p3', title: 'Vendedor Externo', company: 'Comércio Local', date: '2026-01-05', time: '10:00', status: 'published', groups: 4 },
-    { id: 'p4', title: 'Op. de Empilhadeira', company: 'Logistics SA', date: '2026-01-04', time: '15:30', status: 'published', groups: 2 },
-    { id: 'p5', title: 'Recepcionista', company: 'Hotel Central', date: '2026-01-08', time: '09:00', status: 'scheduled', groups: 3 },
-];
+
 
 export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
+    const { user, company } = useAuth();
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [schedules, setSchedules] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Modal State
+    const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
     // Generate week days starting from today
     const getWeekDays = () => {
@@ -41,26 +42,115 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
         return days;
     };
 
+    const fetchSchedules = async () => {
+        try {
+            setLoading(true);
+
+            if (!user) return;
+
+            // 1. Fetch Schedules
+            const { data: schedulesData, error: schedulesError } = await supabase
+                .from('marketing_schedules')
+                .select('*')
+                .eq('user_id', user.id);
+
+            if (schedulesError) throw schedulesError;
+
+            // 2. Extract all unique Job IDs 
+            const allJobIds = new Set<string>();
+            (schedulesData || []).forEach(s => {
+                if (Array.isArray(s.jobs_ids)) {
+                    s.jobs_ids.forEach((id: string) => allJobIds.add(id));
+                }
+            });
+
+            // 3. Fetch Job Details
+            let jobsMap: Record<string, any> = {};
+            if (allJobIds.size > 0) {
+                const { data: jobsData } = await supabase
+                    .from('jobs')
+                    .select('*, job_contacts(*)')
+                    .in('id', Array.from(allJobIds));
+
+                if (jobsData) {
+                    jobsData.forEach(j => {
+                        jobsMap[j.id] = {
+                            ...j,
+                            // Map fields similar to Marketing.tsx for generateJobText/display
+                            role: j.title,
+                            jobCode: j.code,
+                            type: j.job_type === 'text' ? 'scratch' : 'file',
+                            companyName: j.company_name,
+                            hideCompany: j.hide_company,
+                            bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type,
+                            contacts: (j.job_contacts || []).map((c: any) => ({
+                                type: c.type === 'whatsapp' ? 'WhatsApp' :
+                                    c.type === 'email' ? 'Email' :
+                                        c.type === 'address' ? 'Endereço' : 'Link',
+                                value: c.value,
+                                date: c.date,
+                                time: c.time,
+                                noDateTime: c.no_date_time
+                            }))
+                        };
+                    });
+                }
+            }
+
+            // 4. Merge Data
+            const processedSchedules = (schedulesData || []).map(s => {
+                const firstJobId = s.jobs_ids?.[0];
+                const job = jobsMap[firstJobId];
+
+                return {
+                    id: s.id,
+                    job: job, // Store full job object
+                    title: job?.role || job?.title || 'Vaga sem título',
+                    company: job?.company_name || 'Empresa',
+                    date: s.scheduled_date,
+                    time: s.scheduled_time?.substring(0, 5),
+                    status: s.status === 'sent' || s.status === 'completed' ? 'published' : 'scheduled',
+                    groups: s.groups_count,
+                    rawDate: new Date(s.scheduled_date)
+                };
+            });
+
+            setSchedules(processedSchedules);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSchedules();
+    }, [currentDate, user]);
+
     const weekDays = useMemo(() => getWeekDays(), [currentDate]);
 
     const formatDate = (date: Date) => {
-        return date.toISOString().split('T')[0];
+        // Correct timezone issue by using local parts
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     };
 
     const getPostsForDate = (date: Date) => {
         const dateStr = formatDate(date);
-        return MOCK_POSTS.filter(post => post.date === dateStr);
-    };
-
-    const goToPreviousWeek = () => {
-        const newDate = new Date(currentDate);
-        newDate.setDate(currentDate.getDate() - 7);
-        setCurrentDate(newDate);
+        return schedules.filter(post => post.date === dateStr);
     };
 
     const goToNextWeek = () => {
         const newDate = new Date(currentDate);
         newDate.setDate(currentDate.getDate() + 7);
+        setCurrentDate(newDate);
+    };
+
+    const goToPreviousWeek = () => {
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() - 7);
         setCurrentDate(newDate);
     };
 
@@ -71,6 +161,105 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
     const isToday = (date: Date) => {
         const today = new Date();
         return date.toDateString() === today.toDateString();
+    };
+
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // Stop card click
+        if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+            try {
+                const { error } = await supabase
+                    .from('marketing_schedules')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // Remove from state
+                setSchedules(prev => prev.filter(s => s.id !== id));
+                if (selectedSchedule?.id === id) {
+                    setIsPreviewModalOpen(false);
+                    setSelectedSchedule(null);
+                }
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+                alert('Erro ao excluir agendamento');
+            }
+        }
+    };
+
+    const openPreview = (schedule: any) => {
+        setSelectedSchedule(schedule);
+        setIsPreviewModalOpen(true);
+    };
+
+    // --- Preview Generation Logic (Adapted from Marketing.tsx) ---
+    const generateJobText = (job: any) => {
+        if (!job) return '';
+        const code = job.jobCode || '---';
+        const cvParts: string[] = [];
+        const addressParts: string[] = [];
+        const linkParts: string[] = [];
+
+        job.contacts?.forEach((c: any) => {
+            if (c.type === 'WhatsApp') cvParts.push(`WhatsApp ${c.value}`);
+            else if (c.type === 'Email') cvParts.push(`e-mail ${c.value}`);
+            else if (c.type === 'Link') linkParts.push(`Link ${c.value}`);
+            else if (c.type === 'Endereço') {
+                const addressBase = `${c.value}`;
+                if (!c.noDateTime) {
+                    const dateStr = c.date ? new Date(c.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
+                    addressParts.push(`${addressBase} no dia ${dateStr} às ${c.time || '__:__'}`);
+                } else {
+                    addressParts.push(addressBase);
+                }
+            }
+        });
+
+        const joinList = (list: string[]) => {
+            if (list.length === 0) return '';
+            if (list.length === 1) return list[0];
+            const last = list.pop();
+            return `${list.join(', ')} ou ${last}`;
+        };
+
+        const cvText = cvParts.length > 0 ? `Enviar curriculo com o nome da vaga/codigo para: ${joinList(cvParts)}` : '';
+        const addressText = addressParts.length > 0 ? `Compareça no endereço: ${joinList(addressParts)}` : '';
+        const linkText = linkParts.length > 0 ? `Acesse: ${joinList(linkParts)}` : '';
+
+        const finalParts = [cvText, addressText, linkText].filter(Boolean);
+        const interessadosText = finalParts.length > 0 ? joinList(finalParts) : 'Entre em contato pelos canais oficiais.';
+
+        if (job.type === 'file') {
+            const observationText = job.show_observation && job.observation ? `\nObs: ${job.observation}\n` : '';
+            return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+      -----------------------------
+Função: *${job.role || ''}*
+Cód. Vaga: *${code}*
+-----------------------------${observationText}
+*Interessados*
+ ${interessadosText}`;
+        }
+
+        return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+-----------------------------
+Função: *${job.role || ''}*
+Cód. Vaga: *${code}*
+-----------------------------  
+*Vínculo:* ${job.bond || 'CLT'}
+*Empresa:* ${job.hideCompany ? '(Oculto)' : job.companyName || ''}
+*Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}
+*Requisitos:* ${job.requirements || ''}
+*Benefícios:* ${job.benefits || ''}
+*Atividades:* ${job.activities || ''}
+
+*Interessados*
+ ${interessadosText}
+----------------------------- 
+
+*Mais informações:*
+➞ ${company?.name || 'Lepps |Conecta'}
+➞ ${company?.whatsapp || '11946610753'}
+➞ ${company?.website || 'leppsconecta.com.br'}`;
     };
 
     const monthYear = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -87,8 +276,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                             <button
                                 onClick={() => setViewMode('week')}
                                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === 'week'
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                             >
                                 Semana
@@ -96,8 +285,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                             <button
                                 onClick={() => setViewMode('month')}
                                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === 'month'
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                             >
                                 Mês
@@ -176,8 +365,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                                 <div className="flex items-center justify-between mb-2 px-1 flex-shrink-0">
                                     <span
                                         className={`text-xs font-bold ${isTodayDate
-                                                ? 'w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full'
-                                                : 'text-slate-700 dark:text-slate-300'
+                                            ? 'w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full'
+                                            : 'text-slate-700 dark:text-slate-300'
                                             }`}
                                     >
                                         {day.getDate()}
@@ -189,17 +378,20 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                                     )}
                                 </div>
 
+
                                 {/* Posts for this day - Compact View + Scroll */}
-                                <div className="space-y-1.5 flex-1 overflow-y-auto custom-scrollbar p-1">
+                                <div className="space-y-1.5 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1">
                                     {posts.map(post => (
                                         <div
                                             key={post.id}
-                                            className={`p-2 rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
+                                            onClick={() => openPreview(post)}
+                                            className={`group relative p-2 rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
                         ${post.status === 'scheduled'
                                                     ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' // Programado = Verde
                                                     : 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' // Publicado = Amarelo
                                                 }`}
                                         >
+
                                             {/* Time & Icon */}
                                             <div className="flex items-center gap-1 mb-1">
                                                 {post.status === 'scheduled' ? (
@@ -208,8 +400,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                                                     <CheckCircle2 size={10} className="text-yellow-600 dark:text-yellow-400" />
                                                 )}
                                                 <span className={`text-[10px] font-black tracking-tight ${post.status === 'scheduled'
-                                                        ? 'text-emerald-700 dark:text-emerald-300'
-                                                        : 'text-yellow-700 dark:text-yellow-300'
+                                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                                    : 'text-yellow-700 dark:text-yellow-300'
                                                     }`}>
                                                     {post.time}
                                                 </span>
@@ -232,6 +424,74 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                     })}
                 </div>
             </div>
+
+            {/* Preview Modal */}
+            {isPreviewModalOpen && selectedSchedule && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
+                        {/* Modal Header */}
+                        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white">Detalhes do Agendamento</h3>
+                            <button onClick={() => setIsPreviewModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+
+                        {/* Modal Content - Job Preview */}
+                        <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            <div className="bg-[#E5DDD5] dark:bg-[#111b21] p-4 rounded-xl shadow-inner relative">
+                                <div className="bg-white dark:bg-[#202c33] p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                                    {selectedSchedule.job ? (
+                                        <>
+                                            {selectedSchedule.job.image_url || selectedSchedule.job.file_url ? (
+                                                <div className="mb-3 rounded-lg overflow-hidden bg-slate-100">
+                                                    <img src={selectedSchedule.job.image_url || selectedSchedule.job.file_url} alt="Vaga" className="w-full h-auto object-contain max-h-[200px]" />
+                                                </div>
+                                            ) : null}
+                                            <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium leading-snug">
+                                                {generateJobText(selectedSchedule.job)}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="text-center py-8 text-slate-400">
+                                            <p>Detalhes da vaga não encontrados.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Schedule Details */}
+                            <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+                                    <span className="block font-bold text-slate-400 mb-1 uppercase tracking-wider text-[10px]">Data</span>
+                                    <span className="font-bold text-slate-700 dark:text-slate-300">{new Date(selectedSchedule.date).toLocaleDateString()}</span>
+                                </div>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
+                                    <span className="block font-bold text-slate-400 mb-1 uppercase tracking-wider text-[10px]">Horário</span>
+                                    <span className="font-bold text-slate-700 dark:text-slate-300">{selectedSchedule.time}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Actions */}
+                        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-between gap-3">
+                            <button
+                                onClick={(e) => handleDelete(e, selectedSchedule.id)}
+                                className="px-4 py-2.5 bg-rose-100 text-rose-600 hover:bg-rose-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors flex items-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                Excluir
+                            </button>
+                            <button
+                                onClick={() => setIsPreviewModalOpen(false)}
+                                className="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors"
+                            >
+                                Sair
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

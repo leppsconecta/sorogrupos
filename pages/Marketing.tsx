@@ -137,6 +137,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const [scheduleTime, setScheduleTime] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Carousel state
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -177,6 +178,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         .from('jobs')
         .select('*, job_contacts(*)')
         .eq('user_id', user.id)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       console.log('Jobs Data:', jobsData);
@@ -441,7 +443,8 @@ Cód. Vaga: *${code}*
           scheduled_time: timeStr,
           status: status,
           jobs_ids: selectedVagaIds,
-          groups_ids: selectedGroupIds
+          groups_ids: selectedGroupIds,
+          id_group: selectedGroupIds.join(',')
         });
 
       if (error) {
@@ -457,28 +460,63 @@ Cód. Vaga: *${code}*
   };
 
   const handleSend = async () => {
-    if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0) return;
+    if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending) return;
 
-    // Save as "sent" (executed immediately)
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR');
-    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    try {
+      setIsSending(true);
+      // Save as "sent" (executed immediately)
+      const now = new Date();
+      // Use YYYY-MM-DD for DB compatibility
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
 
-    const success = await saveScheduleToDB('sent', dateStr, timeStr);
+      const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    if (success) {
-      setSuccessMessage("O envio será processado em breve");
-      setSuccessModalOpen(true);
-      // Optional: Clear selection after sending
-      setSelectedVagaIds([]);
-      setSelectedGroupIds([]);
+      const success = await saveScheduleToDB('sent', dateStr, timeStr);
+
+      if (success) {
+        setSuccessMessage("O envio será processado em breve");
+        setSuccessModalOpen(true);
+
+        // Reset selection
+        setSelectedVagaIds([]);
+        setSelectedGroupIds([]);
+      }
+    } catch (error) {
+      console.error("Error in handleSend:", error);
+      alert("Erro ao enviar.");
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleScheduleSubmit = async () => {
+    if (selectedDates.length === 0 || !scheduleTime) return;
+
+    const datePart = selectedDates[0]; // expect YYYY-MM-DD
+    // Create Date from inputs
+    // datePart is YYYY-MM-DD, scheduleTime is HH:MM
+    // We need to parse explicitly to avoid timezone issues or just use string construction
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes] = scheduleTime.split(':').map(Number);
+
+    const scheduledDate = new Date(year, month - 1, day, hours, minutes);
+    const now = new Date();
+
+    // Calculate difference in minutes
+    const diffMs = scheduledDate.getTime() - now.getTime();
+    const diffMins = diffMs / 60000;
+
+    if (diffMins < 30) {
+      alert("Selecione um horário pelo menos 30 minutos após o horário atual.");
+      return;
+    }
+
     const success = await saveScheduleToDB(
       'pending',
-      selectedDates.join(', '),
+      datePart,
       scheduleTime
     );
 
@@ -491,7 +529,6 @@ Cód. Vaga: *${code}*
       setScheduleTime('');
       setSelectedVagaIds([]);
       setSelectedGroupIds([]);
-      // Do NOT switch to 'schedules' view since we are removing it.
     }
   };
 
@@ -540,14 +577,16 @@ Cód. Vaga: *${code}*
   const formatDateValue = (date: Date) => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `${day}/${month}`;
+    const year = date.getFullYear();
+    return `${year}-${month}-${day}`;
   };
 
   const toggleDateSelection = (date: Date) => {
     const dateStr = formatDateValue(date);
+    // Single selection logic
     setSelectedDates(prev => {
-      if (prev.includes(dateStr)) return prev.filter(d => d !== dateStr);
-      return [...prev, dateStr];
+      if (prev[0] === dateStr) return []; // Deselect if same
+      return [dateStr]; // Replace with new
     });
   };
 
@@ -917,10 +956,15 @@ Cód. Vaga: *${code}*
                   </button>
                   <button
                     onClick={handleSend}
-                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
-                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95"
+                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending}
+                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
                   >
-                    <Send size={18} /> Enviar Agora
+                    {isSending ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                    {isSending ? 'Enviando...' : 'Enviar Agora'}
                   </button>
                 </div>
               </div>
