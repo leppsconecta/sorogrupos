@@ -31,9 +31,10 @@ interface JobEditModalProps {
     onClose: () => void;
     jobToEdit?: any | null; // Can be Job type or null for new job
     onSave: () => void;
+    hideBackButton?: boolean;
 }
 
-export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, jobToEdit, onSave }) => {
+export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, jobToEdit, onSave, hideBackButton }) => {
     const { company } = useAuth();
     const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview'>('selection');
     const [jobDraft, setJobDraft] = useState<Partial<Job>>({
@@ -112,7 +113,17 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, job
     };
 
     const handleAddContactField = (type: JobContact['type']) => {
-        const newContact: JobContact = { type, value: '' };
+        // Find saved contact for this type (case insensitive matching)
+        const saved = savedContacts.find(c =>
+            c.type.toLowerCase() === type.toLowerCase() ||
+            (type === 'Endereço' && c.type === 'address') ||
+            (type === 'Link' && c.type === 'link')
+        );
+
+        const newContact: JobContact = {
+            type,
+            value: saved ? saved.value : ''
+        };
         setJobDraft(prev => ({ ...prev, contacts: [...(prev.contacts || []), newContact] }));
     };
 
@@ -168,7 +179,7 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, job
 
         if (jobDraft.type === 'file') {
             const observationText = jobDraft.showObservation && jobDraft.observation ? `\nObs: ${jobDraft.observation}\n` : '';
-            return `*${jobDraft.companyName || 'Sua Empresa'} Contrata* ${previewEmojis}
+            return `*${jobDraft.companyName || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${jobDraft.role || ''}*
 Cód. Vaga: *${code}*
@@ -177,7 +188,7 @@ Cód. Vaga: *${code}*
  ${interessadosText}`;
         }
 
-        return `*${jobDraft.companyName || 'Sua Empresa'} Contrata* ${previewEmojis}
+        return `*${jobDraft.companyName || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${jobDraft.role || ''}*
 Cód. Vaga: *${code}*
@@ -304,6 +315,7 @@ Cód. Vaga: *${code}*
                     ].map((item) => (
                         <button
                             key={item.type}
+                            type="button"
                             onClick={() => handleAddContactField(item.type as JobContact['type'])}
                             className={`flex-1 flex items-center justify-center p-5 rounded-[1.5rem] border transition-all hover:scale-105 active:scale-95 shadow-sm ${item.color}`}
                             title={`Adicionar ${item.type}`}
@@ -680,18 +692,21 @@ Cód. Vaga: *${code}*
                     )}
                 </div>
 
-                {/* Footer */}
                 <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between gap-4 flex-shrink-0">
-                    <button
-                        onClick={() => {
-                            if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
-                            else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
-                            else onClose();
-                        }}
-                        className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
-                    >
-                        {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
-                    </button>
+                    {(!hideBackButton || jobCreationStep === 'preview') ? (
+                        <button
+                            onClick={() => {
+                                if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
+                                else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
+                                else onClose();
+                            }}
+                            className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
+                        >
+                            {jobCreationStep === 'selection' ? 'Cancelar' : 'Voltar'}
+                        </button>
+                    ) : (
+                        <div />
+                    )}
 
                     {jobCreationStep !== 'selection' && (
                         <button

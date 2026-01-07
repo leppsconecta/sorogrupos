@@ -390,8 +390,8 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     // Image Job Text Structure (Simpler)
     if (job.type === 'file') {
       const observationText = job.showObservation && job.observation ? `\nObs: ${job.observation}\n` : '';
-      return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🤣
------------------------------
+      return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+      -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
 -----------------------------${observationText}
@@ -400,7 +400,7 @@ Cód. Vaga: *${code}*
     }
 
     // Text Job Structure (Full)
-    return `*${company?.name || 'Sua Empresa'} Contrata* 🟡🔴🤣
+    return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
 -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
@@ -1077,6 +1077,7 @@ Cód. Vaga: *${code}*
         isOpen={isEditModalOpen}
         onClose={() => { setIsEditModalOpen(false); setEditingJob(null); }}
         jobToEdit={editingJob}
+        hideBackButton={true}
         onSave={() => {
           fetchData();
           setIsEditModalOpen(false);
