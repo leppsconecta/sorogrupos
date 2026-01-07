@@ -28,6 +28,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { JobEditModal } from '../components/JobEditModal';
+import { SuccessModal } from '../components/SuccessModal';
 
 // Helper for date formatting
 const formatDateTime = (dateString: string) => {
@@ -115,7 +116,7 @@ interface MarketingProps {
 }
 
 export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect, setActiveTab, setTargetJobId }) => {
-  const { company } = useAuth();
+  const { company, user } = useAuth();
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
 
   // Data States
@@ -140,11 +141,16 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Carousel state
   const [previewIndex, setPreviewIndex] = useState(0);
 
+  // Calendar State
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
   // Schedules state
   const [schedules, setSchedules] = useState(INITIAL_SCHEDULES);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [editingJob, setEditingJob] = useState<any>(null);
 
   // Dropdown states & Refs for Click Outside
@@ -422,63 +428,130 @@ Cód. Vaga: *${code}*
 ➞ ${company?.website || 'leppsconecta.com.br'}`;
   };
 
-  const handleSend = () => {
-    if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0) return;
-    alert(`Enviando ${selectedVagaIds.length} vaga(s) para ${selectedGroupIds.length} grupo(s)!`);
+  /* New: Utility to save schedule/send action to DB */
+  const saveScheduleToDB = async (status: 'pending' | 'sent', dateStr: string, timeStr: string) => {
+    try {
+      const { error } = await supabase
+        .from('marketing_schedules')
+        .insert({
+          user_id: user?.id,
+          jobs_count: selectedVagaIds.length,
+          groups_count: selectedGroupIds.length,
+          scheduled_date: dateStr,
+          scheduled_time: timeStr,
+          status: status,
+          jobs_ids: selectedVagaIds,
+          groups_ids: selectedGroupIds
+        });
+
+      if (error) {
+        console.error('Error saving schedule:', error);
+        alert('Erro ao salvar agendamento: ' + error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Exception saving schedule:', err);
+      return false;
+    }
   };
 
-  const handleScheduleSubmit = () => {
-    const newSchedule = {
-      id: `s${Date.now()}`,
-      jobsCount: selectedVagaIds.length,
-      groupsCount: selectedGroupIds.length,
-      date: selectedDates.join(', '),
-      time: scheduleTime,
-      status: 'pending'
-    };
-    setSchedules([...schedules, newSchedule]);
-    setIsScheduling(false);
-    setView('schedules');
-    setSelectedDates([]);
-    setScheduleTime('');
-    setSelectedVagaIds([]);
-    setSelectedGroupIds([]);
+  const handleSend = async () => {
+    if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0) return;
+
+    // Save as "sent" (executed immediately)
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    const success = await saveScheduleToDB('sent', dateStr, timeStr);
+
+    if (success) {
+      setSuccessMessage("O envio será processado em breve");
+      setSuccessModalOpen(true);
+      // Optional: Clear selection after sending
+      setSelectedVagaIds([]);
+      setSelectedGroupIds([]);
+    }
+  };
+
+  const handleScheduleSubmit = async () => {
+    const success = await saveScheduleToDB(
+      'pending',
+      selectedDates.join(', '),
+      scheduleTime
+    );
+
+    if (success) {
+      setSuccessMessage("O envio foi programado, aguarde para verificar status");
+      setSuccessModalOpen(true);
+      setIsScheduling(false);
+      // Reset form
+      setSelectedDates([]);
+      setScheduleTime('');
+      setSelectedVagaIds([]);
+      setSelectedGroupIds([]);
+      // Do NOT switch to 'schedules' view since we are removing it.
+    }
   };
 
   const removeSchedule = (id: string) => {
     setSchedules(prev => prev.filter(s => s.id !== id));
   };
 
-  // Generate date slots (today + 14 days)
-  // Helper to generate next 7 days
-  const generateNext7Days = () => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      dates.push(`${day}/${month}`);
-    }
-    return dates;
+  // Calendar Logic
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(year, month, i + 1);
+      return d;
+    });
   };
 
-  const dateSlots = useMemo(() => generateNext7Days(), []);
+  const calendarDays = useMemo(() => getDaysInMonth(currentMonth), [currentMonth]);
 
-  // Generate time slots 24h, ordered starting from 07:00
-  const timeSlots = useMemo(() => {
-    const slots = [];
-    // 07:00 to 23:00
-    for (let i = 7; i <= 23; i++) {
-      slots.push(`${String(i).padStart(2, '0')}:00`);
-    }
-    // 00:00 to 06:00
-    for (let i = 0; i < 7; i++) {
-      slots.push(`${String(i).padStart(2, '0')}:00`);
-    }
-    return slots;
-  }, []);
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(prev.getMonth() - 1);
+      } else {
+        newDate.setMonth(prev.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = new Date();
+    maxDate.setDate(today.getDate() + 30);
+
+    // Normalize date to compare dates only
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+
+    return checkDate < today || checkDate > maxDate;
+  };
+
+  const formatDateValue = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}`;
+  };
+
+  const toggleDateSelection = (date: Date) => {
+    const dateStr = formatDateValue(date);
+    setSelectedDates(prev => {
+      if (prev.includes(dateStr)) return prev.filter(d => d !== dateStr);
+      return [...prev, dateStr];
+    });
+  };
+
+  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   return (
     <div className="space-y-4">
@@ -862,76 +935,89 @@ Cód. Vaga: *${code}*
                     <button onClick={() => setIsScheduling(false)} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={16} /></button>
                   </div>
 
-                  <div className="space-y-3">
-                    {/* Date Picker */}
-                    <div className="relative" ref={datePickerRef}>
-                      <button
-                        onClick={() => setShowDatePicker(!showDatePicker)}
-                        className={`w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all
-                            ${selectedDates.length > 0 ? 'border-blue-500 text-slate-800 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <CalendarIcon size={14} className={selectedDates.length > 0 ? 'text-blue-600' : 'text-slate-400'} />
-                          <span>{selectedDates.length > 0 ? `${selectedDates.length} datas selecionadas` : 'Escolha a Data'}</span>
-                        </div>
-                        <ChevronDown size={12} className={`transition-transform duration-300 ${showDatePicker ? 'rotate-180' : ''}`} />
-                      </button>
+                  <div className="space-y-4">
+                    {/* Custom Calendar */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
 
-                      {showDatePicker && (
-                        <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-3 animate-scaleUp">
-                          <div className="grid grid-cols-4 gap-2">
-                            {dateSlots.map(date => (
-                              <button
-                                key={date}
-                                onClick={() => {
-                                  setSelectedDates(prev => prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]);
-                                }}
-                                className={`p-2 rounded-lg text-[10px] font-bold transition-all border relative
-                                    ${selectedDates.includes(date)
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-400'}`}
-                              >
-                                {date}
-                                {selectedDates.includes(date) && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-white"></div>}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* Calendar Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <button
+                          onClick={() => handleMonthChange('prev')}
+                          disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0))}
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-800 dark:text-white capitalize">
+                          {currentMonth.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          onClick={() => handleMonthChange('next')}
+                          disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+
+                      {/* Week Days */}
+                      <div className="grid grid-cols-7 mb-2">
+                        {weekDays.map((d, i) => (
+                          <div key={i} className="text-center text-[10px] font-bold text-slate-400 uppercase">{d}</div>
+                        ))}
+                      </div>
+
+                      {/* Days Grid */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() }).map((_, i) => (
+                          <div key={`empty-${i}`} />
+                        ))}
+
+                        {calendarDays.map(date => {
+                          const dateStr = formatDateValue(date);
+                          const isSelected = selectedDates.includes(dateStr);
+                          const disabled = isDateDisabled(date);
+                          const isToday = new Date().toDateString() === date.toDateString();
+
+                          return (
+                            <button
+                              key={date.toISOString()}
+                              onClick={() => toggleDateSelection(date)}
+                              disabled={disabled}
+                              className={`
+                                h-8 w-full rounded-lg text-xs font-medium transition-all flex items-center justify-center relative
+                                ${isSelected
+                                  ? 'bg-blue-600 text-white shadow-md'
+                                  : disabled
+                                    ? 'text-slate-300 dark:text-slate-600 opacity-50 cursor-not-allowed'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm'}
+                                ${isToday && !isSelected ? 'border border-blue-200 dark:border-blue-800 text-blue-600' : ''}
+                              `}
+                            >
+                              {date.getDate()}
+                              {isSelected && <div className="absolute bottom-0.5 w-1 h-1 bg-white rounded-full" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    {/* Time Picker */}
-                    <div className="relative" ref={timePickerRef}>
-                      <button
-                        onClick={() => setShowTimePicker(!showTimePicker)}
-                        className={`w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all
-                            ${scheduleTime ? 'border-blue-500 text-slate-800 dark:text-white' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Clock3 size={14} className={scheduleTime ? 'text-blue-600' : 'text-slate-400'} />
-                          <span>{scheduleTime || 'Escolha a Hora'}</span>
+                    {/* Time Input (Flexible) */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Horário do Disparo</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                          <Clock3 size={18} />
                         </div>
-                        <ChevronDown size={12} className={`transition-transform duration-300 ${showTimePicker ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {showTimePicker && (
-                        <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-3 animate-scaleUp">
-                          <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                            {timeSlots.map(t => (
-                              <button
-                                key={t}
-                                onClick={() => { setScheduleTime(t); setShowTimePicker(false); }}
-                                className={`py-2 rounded-lg text-[10px] font-bold transition-all border
-                                    ${scheduleTime === t
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-400'}`}
-                              >
-                                {t}
-                              </button>
-                            ))}</div>
-                        </div>
-                      )}
+                        <input
+                          type="time"
+                          value={scheduleTime}
+                          onChange={(e) => setScheduleTime(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all cursor-pointer"
+                        />
+                      </div>
                     </div>
+
                   </div>
 
                   <button
@@ -949,81 +1035,7 @@ Cód. Vaga: *${code}*
       )
       }
 
-      {
-        view === 'schedules' && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Envios Programados</h3>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Fila de automação: {schedules.length} agendamentos</p>
-                </div>
-                <button
-                  onClick={() => setView('broadcast')}
-                  className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Plus size={18} /> Novo Envio
-                </button>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {schedules.map(item => (
-                  <div key={item.id} className="flex flex-col p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-800 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:translate-y-[-4px]">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-blue-600 shadow-sm border border-slate-100 dark:border-slate-800">
-                          <span className="text-lg font-bold leading-none">{item.date.split('/')[0]}</span>
-                          <span className="text-[8px] font-bold uppercase tracking-widest opacity-40">{item.date.split('/')[1] === '05' ? 'MAI' : 'JUN'}</span>
-                        </div>
-                        <div>
-                          <div className="bg-blue-600/10 dark:bg-blue-400/10 px-3 py-1 rounded-full w-fit mb-1 border border-blue-600/20">
-                            <span className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest leading-none">Automático</span>
-                          </div>
-                          <h4 className="font-bold text-slate-800 dark:text-white uppercase tracking-tight text-sm">Disparo em Massa</h4>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Eye size={18} /></button>
-                        <button onClick={() => removeSchedule(item.id)} className="p-3 bg-white dark:bg-slate-900 rounded-xl text-slate-400 hover:text-rose-500 shadow-sm transition-all border border-slate-100 dark:border-slate-800"><Trash2 size={18} /></button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vagas</span>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{item.jobsCount} ITENS</span>
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Canais</span>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{item.groupsCount} GRUPOS</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Pronto para envio</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-900 dark:text-white">
-                          <Clock size={14} className="text-blue-500" />
-                          <span className="text-sm font-bold">{item.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {schedules.length === 0 && (
-                  <div className="col-span-1 md:col-span-2 text-center py-32 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem]">
-                    <CalendarDays size={64} className="mx-auto mb-6 text-slate-200" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Fila de agendamento vazia</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      }
 
       {
         view === 'reports' && (
@@ -1083,6 +1095,13 @@ Cód. Vaga: *${code}*
           setIsEditModalOpen(false);
           setEditingJob(null);
         }}
+      />
+
+      <SuccessModal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        message={successMessage}
+        autoCloseDuration={5000}
       />
     </div >
   );
