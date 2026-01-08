@@ -11,6 +11,9 @@ import { Perfil } from './pages/Perfil';
 import { Suporte } from './pages/Suporte';
 import { Plano } from './pages/Plano';
 import { Agendamentos } from './pages/Agendamentos';
+import { Candidatos } from './pages/Candidatos';
+import { Curriculos } from './pages/Curriculos';
+import { MinhaAgenda } from './pages/MinhaAgenda';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2, LogOut } from 'lucide-react';
@@ -324,6 +327,9 @@ const AppContent: React.FC = () => {
       case 'plano': return <Plano />;
       case 'suporte': return <Suporte />;
       case 'perfil': return <Perfil />;
+      case 'candidatos': return <Candidatos />;
+      case 'curriculos': return <Curriculos />;
+      case 'minha-agenda': return <MinhaAgenda />;
       default: return <Dashboard setActiveTab={setActiveTab} {...commonProps} />;
     }
   };

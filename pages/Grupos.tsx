@@ -20,7 +20,6 @@ import {
   Tag as TagIcon,
   Edit3,
   Upload,
-  RotateCw,
   Smartphone,
   AlertCircle,
   CheckCircle2,
@@ -86,8 +85,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [formDescription, setFormDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [showUpdateInfoModal, setShowUpdateInfoModal] = useState(false);
-  const [isOnCooldown, setIsOnCooldown] = useState(false);
+
 
   // Alert Modal State
   const [alertConfig, setAlertConfig] = useState<{
@@ -195,7 +193,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           name_group: nameDraft,
           image: imageUrl
         })
-        .eq('id_group', selectedGroup.id);
+        .eq('id', selectedGroup.id);
 
       if (error) throw error;
 
@@ -272,7 +270,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       if (groupsData) {
         const mappedGroups: Group[] = groupsData.map((g: any) => ({
-          id: g.id_group,
+          id: g.id,
           name: g.name_group,
           image: g.image || `https://picsum.photos/seed/${g.id}/200/200`, // Use uploaded image or placeholder
           membersCount: g.total || 0,
@@ -293,53 +291,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   };
 
-  const handleUpdateGroup = async () => {
-    if (isSyncing || isOnCooldown) return;
-    setIsSyncing(true);
-    setIsOnCooldown(true);
-    setShowUpdateInfoModal(true);
-    showAlert('Atualização Iniciada', 'Sincronizando grupos. Avisaremos quando concluir.', 'info');
 
-    // Set cooldown timer (5 minutes)
-    setTimeout(() => {
-      setIsOnCooldown(false);
-    }, 300000);
-
-    // Create AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 300000); // 5 minutes
-
-    try {
-      const response = await fetch('https://webhook.leppsconecta.com.br/webhook/96f0be42-9d16-4eb9-8b45-41061f2c24fc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_groups', user_id: user?.id }),
-        signal: controller.signal
-      });
-
-      const data = await response.json();
-
-      if (data.status_updade_group === true) {
-        await fetchData();
-        showAlert('Sucesso', 'Grupos sincronizados com sucesso!', 'success');
-      } else {
-        throw new Error("Falha na atualização");
-      }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        // Silent timeout - do nothing, just reset state in finally
-        console.log('Update timed out silently');
-      } else {
-        console.error('Sync error:', error);
-        showAlert('Erro', 'Erro ao sincronizar grupos.', 'error');
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      setIsSyncing(false);
-    }
-  };
 
   const filteredGroups = groups.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -437,7 +389,6 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       const { data: groupData, error: groupError } = await supabase
         .from('whatsapp_groups')
         .insert({
-          id_group: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary ID
           user_id: user.id,
           name_group: formName,
           link_invite: "", // Removed input, setting to empty/null manually later
@@ -689,14 +640,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button
-            onClick={handleUpdateGroup}
-            disabled={isSyncing || isOnCooldown}
-            className={`p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all shadow-sm active:scale-95 ${(isSyncing || isOnCooldown) ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={isOnCooldown ? "Aguarde para atualizar novamente" : "Atualizar Grupos"}
-          >
-            <RotateCw size={20} className={isSyncing ? 'animate-spin text-blue-600' : ''} />
-          </button>
+
 
 
 
@@ -1136,30 +1080,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       }
 
       {/* Modal: Update Info */}
-      {
-        showUpdateInfoModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowUpdateInfoModal(false)} />
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
-              <div className="p-8 flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                  <RotateCw size={32} className="animate-spin" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">Atualização Iniciada</h3>
-                <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                  A atualização dos grupos ocorrerá em segundo plano. Você pode continuar usando o sistema normalmente e avisaremos assim que terminar.
-                </p>
-                <button
-                  onClick={() => setShowUpdateInfoModal(false)}
-                  className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-                >
-                  Entendido
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
+
 
       {/* Modal: Join Group */}
       {

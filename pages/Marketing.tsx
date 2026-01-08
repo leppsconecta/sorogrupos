@@ -280,9 +280,11 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     return groups.filter(g => {
       const matchesSearch = g.name.toLowerCase().includes(groupSearch.toLowerCase());
       const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
-      return matchesSearch && matchesTag;
+      // HIDE SELECTED GROUPS
+      const notSelected = !selectedGroupIds.includes(g.id);
+      return matchesSearch && matchesTag && notSelected;
     });
-  }, [groups, groupSearch, selectedTag]);
+  }, [groups, groupSearch, selectedTag, selectedGroupIds]);
 
   const filteredVagasList = useMemo(() => {
     return vagas.filter(v =>
@@ -920,11 +922,11 @@ Cód. Vaga: *${code}*
                           : 'border-slate-100 dark:border-slate-800 hover:border-blue-200 bg-white dark:bg-slate-800/30'}`}
                     >
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors overflow-hidden ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors overflow-hidden ${isSelected ? 'bg-white border-2 border-blue-100' : 'bg-slate-100 dark:bg-slate-800'}`}>
                           {group.image ? (
                             <img src={group.image} alt={group.name} className="w-full h-full object-cover" />
                           ) : (
-                            <Users size={18} />
+                            <Users size={18} className="text-slate-300 dark:text-slate-600" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">

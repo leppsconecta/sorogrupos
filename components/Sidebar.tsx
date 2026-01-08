@@ -7,7 +7,10 @@ import {
   UserCircle,
   LifeBuoy,
   CreditCard,
-  CalendarDays
+  CalendarDays,
+  Users,
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -25,8 +28,8 @@ const WhatsAppIcon = ({ size = 22 }: { size?: number }) => (
 
 const menuItems = [
   { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
-  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { id: 'agendamentos', label: 'Calendário', icon: <CalendarDays size={22} /> },
+  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { id: 'vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { id: 'grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
   { id: 'plano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
@@ -34,11 +37,17 @@ const menuItems = [
   { id: 'perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
 ];
 
+const comingSoonItems = [
+  { id: 'candidatos', label: 'Candidatos', icon: <Users size={22} /> },
+  { id: 'curriculos', label: 'Currículos', icon: <FileText size={22} /> },
+  { id: 'minha-agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
 
   return (
     <aside
-      className="hidden lg:flex h-screen bg-blue-950 text-white z-50 border-r border-white/5 shadow-2xl flex-col flex-shrink-0 w-64"
+      className="hidden lg:flex h-screen bg-blue-950 text-white z-50 border-r border-white/5 shadow-2xl flex-col flex-shrink-0 w-72"
     >
       {/* Logo Area */}
       <div className="h-24 flex items-center px-5 overflow-hidden flex-shrink-0">
@@ -55,20 +64,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             onClick={() => setActiveTab(item.id)}
             className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative
               ${activeTab === item.id
-                ? 'bg-blue-900/50 text-yellow-400 shadow-sm border border-white/5'
-                : 'text-blue-100/60 hover:bg-white/5 hover:text-white'
+                ? 'bg-blue-900/50 shadow-sm border border-white/5'
+                : 'hover:bg-white/5'
               }`}
           >
-            <div className="flex items-center justify-center mr-3 min-w-[22px]">
+            <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
               {item.icon}
             </div>
-            <span className="text-sm font-medium whitespace-nowrap">
+            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${activeTab === item.id ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
               {item.label}
             </span>
 
             {activeTab === item.id && (
               <div className="absolute left-0 w-1 h-6 bg-yellow-400 rounded-r-full" />
             )}
+          </button>
+        ))}
+
+        <div className="pt-6 pb-3 px-2">
+          <p className="text-xs font-bold text-blue-400/50 uppercase tracking-widest pl-3 mb-3">Em breve</p>
+          <div className="border-t border-white/5 mb-2 mx-1"></div>
+        </div>
+
+        {comingSoonItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative opacity-70 hover:opacity-100
+              ${activeTab === item.id
+                ? 'bg-blue-900/50 shadow-sm border border-white/5 opacity-100'
+                : 'hover:bg-white/5'
+              }`}
+          >
+            <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
+              {item.icon}
+            </div>
+            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${activeTab === item.id ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
+              {item.label}
+            </span>
           </button>
         ))}
       </nav>
