@@ -602,6 +602,25 @@ Cód. Vaga: *${code}*
                                     </div>
                                 </div>
 
+                                <div className="text-red-500 font-bold p-4 bg-yellow-200">DEBUG: CAMPOS CIDADE/REGIAO AQUI</div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
+                                        <div className="relative group">
+                                            <input type="text" value={jobDraft.city || ''} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
+                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
+                                        <div className="relative group">
+                                            <input type="text" value={jobDraft.region || ''} onChange={e => setJobDraft({ ...jobDraft, region: e.target.value })} placeholder="Ex: Campolim, Centro..."
+                                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                 <label className="flex flex-col items-center justify-center w-full aspect-video bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] cursor-pointer hover:border-blue-500 transition-all group overflow-hidden">
                                     <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
                                     {attachedFile || jobDraft.imageUrl ? (
@@ -776,32 +795,34 @@ Cód. Vaga: *${code}*
                         </button>
                     )}
                 </div>
-            </div>
+            </div >
             <SavedContactsModal
                 isOpen={isContactsModalOpen}
                 onClose={() => setIsContactsModalOpen(false)}
                 savedContacts={savedContacts}
                 onUpdate={fetchSavedContacts}
             />
-            {isEmojiModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsEmojiModalOpen(false)} />
-                    <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp">
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Personalizar Emojis</h3>
-                        <input
-                            type="text"
-                            value={emojiInput}
-                            onChange={(e) => setEmojiInput(e.target.value)}
-                            placeholder="Cole os emojis aqui..."
-                            className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-xl outline-none focus:ring-2 ring-blue-500 mb-6 text-center"
-                        />
-                        <div className="flex gap-3">
-                            <button onClick={() => setIsEmojiModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-xs uppercase tracking-widest">Cancelar</button>
-                            <button onClick={() => { setPreviewEmojis(emojiInput); setIsEmojiModalOpen(false); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20">Salvar</button>
+            {
+                isEmojiModalOpen && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsEmojiModalOpen(false)} />
+                        <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Personalizar Emojis</h3>
+                            <input
+                                type="text"
+                                value={emojiInput}
+                                onChange={(e) => setEmojiInput(e.target.value)}
+                                placeholder="Cole os emojis aqui..."
+                                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-xl outline-none focus:ring-2 ring-blue-500 mb-6 text-center"
+                            />
+                            <div className="flex gap-3">
+                                <button onClick={() => setIsEmojiModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-xs uppercase tracking-widest">Cancelar</button>
+                                <button onClick={() => { setPreviewEmojis(emojiInput); setIsEmojiModalOpen(false); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20">Salvar</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
