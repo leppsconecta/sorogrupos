@@ -43,7 +43,7 @@ interface Group {
   description?: string;
   tags: string[];
   status_create_group?: number;
-  privacy: number;
+  privacy: boolean;
 }
 
 interface GruposProps {
@@ -262,7 +262,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           description: g.description || '',
           tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name),
           status_create_group: g.status_create_group,
-          privacy: g.privacy !== undefined ? g.privacy : 1
+          privacy: g.privacy !== undefined ? g.privacy : false
         }));
         setGroups(mappedGroups);
       }
@@ -793,33 +793,33 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               </div>
             </div>
 
-            {group.privacy !== 0 || group.isAdmin ? (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); }}
-                  className="w-full mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                  Ver Conversas
-                  <ExternalLink size={14} />
-                </button>
-
-                <button
-                  onClick={(e) => { e.stopPropagation(); copyLink(group); }}
-                  className={`w-full mt-3 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
-                    ${copiedId === group.id
-                      ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
-                >
-                  Link do Grupo
-                  {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
-                </button>
-              </>
-            ) : (
-              <div className="w-full mt-6 h-24 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 text-center px-4">
+            {/* Privacy Message - Subtle above Ver Conversas */}
+            {group.privacy && !group.isAdmin && (
+              <div className="mb-2">
+                <span className="text-[10px] font-bold text-red-500/80 dark:text-red-400/80 whitespace-nowrap">
                   Somente admin pode interagir
                 </span>
               </div>
             )}
+
+            {/* Buttons */}
+            <button
+              onClick={(e) => { e.stopPropagation(); }}
+              className="w-full py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+              Ver Conversas
+              <ExternalLink size={14} />
+            </button>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); copyLink(group); }}
+              className={`w-full mt-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
+                ${copiedId === group.id
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
+            >
+              Link do Grupo
+              {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
+            </button>
 
             {/* Creation Overlay Mask */}
             {
