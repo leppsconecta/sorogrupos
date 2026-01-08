@@ -14,8 +14,6 @@ interface AgendamentosProps {
     setActiveTab: (tab: string) => void;
 }
 
-
-
 export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
     const { user, company } = useAuth();
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
@@ -68,10 +66,10 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
 
             if (!user) return;
 
-            // 1. Fetch Schedules
+            // 1. Fetch Schedules (Optimized: Select only used columns)
             const { data: schedulesData, error: schedulesError } = await supabase
                 .from('marketing_schedules')
-                .select('*')
+                .select('id, user_id, jobs_ids, scheduled_date, scheduled_time, status, publish_status, groups_count')
                 .eq('user_id', user.id);
 
             if (schedulesError) throw schedulesError;
@@ -84,12 +82,12 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                 }
             });
 
-            // 3. Fetch Job Details
+            // 3. Fetch Job Details (Optimized: Select only used columns)
             let jobsMap: Record<string, any> = {};
             if (allJobIds.size > 0) {
                 const { data: jobsData } = await supabase
                     .from('jobs')
-                    .select('*, job_contacts(*)')
+                    .select('id, title, code, job_type, company_name, hide_company, employment_type, city, region, requirements, benefits, activities, image_url, file_url, show_observation, observation, job_contacts(type, value, date, time, no_date_time)')
                     .in('id', Array.from(allJobIds));
 
                 if (jobsData) {
@@ -102,7 +100,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                             type: j.job_type === 'text' ? 'scratch' : 'file',
                             companyName: j.company_name,
                             hideCompany: j.hide_company,
-                            bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type,
+                            bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type === 'Estágio' ? 'Estágio' : j.employment_type,
                             contacts: (j.job_contacts || []).map((c: any) => ({
                                 type: c.type === 'whatsapp' ? 'WhatsApp' :
                                     c.type === 'email' ? 'Email' :
@@ -138,7 +136,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
 
             setSchedules(processedSchedules);
         } catch (error) {
-            console.error("Error fetching data:", error);
+            // Error handling kept silent for user, only internal safety
         } finally {
             setLoading(false);
         }
@@ -161,7 +159,6 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                     filter: `user_id=eq.${user.id}`,
                 },
                 (payload) => {
-                    console.log('Realtime change received!', payload);
                     fetchSchedules();
                 }
             )
@@ -170,11 +167,28 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [currentDate, user]);
+        // REMOVED 'currentDate' from dependency array to prevent refetch on navigation
+    }, [user]);
 
     const calendarDays = useMemo(() => {
         return viewMode === 'week' ? getWeekDays() : getMonthDays();
     }, [currentDate, viewMode]);
+
+    // O(1) Schedule Lookup Map
+    const schedulesByDate = useMemo(() => {
+        const map: Record<string, any[]> = {};
+        schedules.forEach(s => {
+            if (!s.date) return;
+            // Ensure date format matches render loop
+            // s.date comes from DB as YYYY-MM-DD usually, or we format it.
+            // Let's rely on the exact string from DB if it matches formatDate(date).
+            // Our formatDate function converts local Date to YYYY-MM-DD.
+            // s.date is already YYYY-MM-DD from 'scheduled_date'.
+            if (!map[s.date]) map[s.date] = [];
+            map[s.date].push(s);
+        });
+        return map;
+    }, [schedules]);
 
     const formatDate = (date: Date) => {
         // Correct timezone issue by using local parts
@@ -186,7 +200,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
 
     const getPostsForDate = (date: Date) => {
         const dateStr = formatDate(date);
-        return schedules.filter(post => post.date === dateStr);
+        return schedulesByDate[dateStr] || [];
     };
 
     const handleNext = () => {
@@ -236,7 +250,6 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                     setSelectedSchedule(null);
                 }
             } catch (error) {
-                console.error('Error deleting schedule:', error);
                 alert('Erro ao excluir agendamento');
             }
         }
@@ -459,18 +472,10 @@ Cód. Vaga: *${code}*
                                             onClick={(e) => {
                                                 if (viewMode === 'month') {
                                                     // In month mode, let the parent click handle zooming into the week
-                                                    // OR optionally open modal directly? User said "open the day", so keeping parent click behavior is safer.
-                                                    // But clicking the item specifically implies interest in the item.
-                                                    // Let's stop propagation if we want item click to open modal, 
-                                                    // but for "Compact Month View", usually clicking day zooms in. 
-                                                    // Let's allow propagation so it zooms in to the day details.
                                                     return;
                                                 }
                                                 // Week mode logic
                                                 e.stopPropagation();
-                                                if (post.publishStatus === -1) {
-                                                    // No alert, just open modal per recent request
-                                                }
                                                 openPreview(post);
                                             }}
                                             className={`group relative rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
@@ -513,7 +518,7 @@ Cód. Vaga: *${code}*
                                                 // Compact Month Card (Title Only)
                                                 <div className="flex items-center gap-1 text-slate-700 dark:text-slate-200">
                                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${post.publishStatus === 0 ? 'bg-emerald-500' :
-                                                            post.publishStatus === 1 ? 'bg-yellow-500' : 'bg-rose-500'
+                                                        post.publishStatus === 1 ? 'bg-yellow-500' : 'bg-rose-500'
                                                         }`} />
                                                     <span className="truncate font-medium">{post.title}</span>
                                                 </div>

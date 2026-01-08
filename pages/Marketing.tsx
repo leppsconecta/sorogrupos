@@ -6,13 +6,10 @@ import {
   Clock,
   Users,
   Eye,
-  Megaphone,
   ChevronDown,
   X,
   ChevronLeft,
   ChevronRight,
-  Info,
-  History,
   Check,
   CalendarDays,
   Trash2,
@@ -21,7 +18,6 @@ import {
   Calendar as CalendarIcon,
   Smartphone,
   AlertCircle,
-  Tag as TagIcon,
   Edit2,
   Image as ImageIcon
 } from 'lucide-react';
@@ -181,7 +177,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      console.log('Jobs Data:', jobsData);
+
 
       // Fetch Groups with tags
       const { data: groupsData } = await supabase
@@ -1086,60 +1082,58 @@ Cód. Vaga: *${code}*
             )}
           </div>
         </div>
-        </div>
-  )
-}
 
+      )
+      }
 
-
-{
-  view === 'reports' && (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
-          <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
-          <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                <CheckCircle2 size={32} />
-              </div>
+      {
+        view === 'reports' && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
-                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
-                  <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
-                  <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
-                  <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
-                </div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
+              </div>
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
+                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
+                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
-              <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
-                <Eye size={18} /> Detalhes
-              </button>
+
+            <div className="grid grid-cols-1 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
+                        <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
+                        <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
+                        <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
+                    <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
+                      <Eye size={18} /> Detalhes
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+        )
+      }
 
-{/* Edit Modal */ }
+      {/* Edit Modal */}
       <JobEditModal
         isOpen={isEditModalOpen}
         onClose={() => { setIsEditModalOpen(false); setEditingJob(null); }}
