@@ -69,6 +69,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [selectedFileDetails, setSelectedFileDetails] = useState<File | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRefDetails = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [joinValue, setJoinValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -131,6 +132,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   // ...
 
   const handleGroupClick = (group: Group) => {
+    if (!group.isAdmin) return;
+
     if (!isWhatsAppConnected) {
       showAlert('Atenção', 'Conecte o WhatsApp para editar grupos.', 'warning');
       return;
@@ -192,7 +195,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           name_group: nameDraft,
           image: imageUrl
         })
-        .eq('id', selectedGroup.id);
+        .eq('id_group', selectedGroup.id);
 
       if (error) throw error;
 
@@ -216,9 +219,26 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
   }, [externalTrigger]);
 
+
+
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        if (searchQuery) {
+          setSearchQuery('');
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [searchQuery]);
 
   const fetchData = async () => {
     // We allow fetching even if not logged in (public read), but user check is good practice if intended for private. 
@@ -252,7 +272,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       if (groupsData) {
         const mappedGroups: Group[] = groupsData.map((g: any) => ({
-          id: g.id,
+          id: g.id_group,
           name: g.name_group,
           image: g.image || `https://picsum.photos/seed/${g.id}/200/200`, // Use uploaded image or placeholder
           membersCount: g.total || 0,
@@ -278,6 +298,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     setIsSyncing(true);
     setIsOnCooldown(true);
     setShowUpdateInfoModal(true);
+    showAlert('Atualização Iniciada', 'Sincronizando grupos. Avisaremos quando concluir.', 'info');
 
     // Set cooldown timer (5 minutes)
     setTimeout(() => {
@@ -302,7 +323,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       if (data.status_updade_group === true) {
         await fetchData();
-        showAlert('Sucesso', 'Grupos atualizados com sucesso!', 'success');
+        showAlert('Sucesso', 'Grupos sincronizados com sucesso!', 'success');
       } else {
         throw new Error("Falha na atualização");
       }
@@ -416,6 +437,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       const { data: groupData, error: groupError } = await supabase
         .from('whatsapp_groups')
         .insert({
+          id_group: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary ID
           user_id: user.id,
           name_group: formName,
           link_invite: "", // Removed input, setting to empty/null manually later
@@ -487,6 +509,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   };
 
   // Tag Group Actions
+  // Tag Group Actions
   const toggleTagInGroup = async (group: Group, tag: string) => {
     if (!isWhatsAppConnected) {
       showAlert('Atenção', 'Conecte o WhatsApp para gerenciar tags.', 'warning');
@@ -494,6 +517,19 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     }
     if (!user) return;
     const hasTag = group.tags.includes(tag);
+
+    // Optimistic update - executed immediately
+    const updatedTags = hasTag
+      ? group.tags.filter(t => t !== tag)
+      : [...group.tags, tag];
+
+    const updatedGroup = { ...group, tags: updatedTags };
+
+    setGroups(prevGroups => prevGroups.map(g => g.id === group.id ? updatedGroup : g));
+
+    if (taggingGroup && taggingGroup.id === group.id) {
+      setTaggingGroup(updatedGroup);
+    }
 
     try {
       // Get Tag ID
@@ -503,7 +539,9 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         .eq('name', tag)
         .single();
 
-      if (!tagRef) return;
+      if (!tagRef) {
+        throw new Error('Tag not found');
+      }
 
       if (hasTag) {
         // Remove
@@ -519,22 +557,20 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           .insert({ group_id: group.id, tag_id: tagRef.id });
       }
 
-      // Optimistic update
-      const updatedTags = hasTag
-        ? group.tags.filter(t => t !== tag)
-        : [...group.tags, tag];
-
-      const updatedGroup = { ...group, tags: updatedTags };
-
-      setGroups(groups.map(g => g.id === group.id ? updatedGroup : g));
-
-      if (taggingGroup && taggingGroup.id === group.id) {
-        setTaggingGroup(updatedGroup);
-      }
-
     } catch (error) {
       console.error('Error toggling tag:', error);
-      fetchData(); // Revert on error
+      // Revert on error
+      const revertedTags = hasTag
+        ? [...group.tags, tag]  // Re-add if it was removed
+        : group.tags.filter(t => t !== tag); // Remove if it was added
+
+      const revertedGroup = { ...group, tags: revertedTags };
+
+      setGroups(prevGroups => prevGroups.map(g => g.id === group.id ? revertedGroup : g));
+      if (taggingGroup && taggingGroup.id === group.id) {
+        setTaggingGroup(revertedGroup);
+      }
+      showAlert('Erro', 'Falha ao atualizar tag. Tente novamente.', 'error');
     }
   };
 
@@ -638,7 +674,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       {/* Search and Action Bar */}
       <div className="flex flex-col lg:flex-row items-center gap-4">
         {/* Search Input - Expanding */}
-        <div className="relative flex-1 w-full group">
+        <div ref={searchContainerRef} className="relative flex-1 w-full group">
           <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
             <Search className="text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
           </div>
@@ -691,7 +727,22 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             {groups.length}
           </span>
         </button>
-        {/* Removed redundant "Meus Grupos" button as RLS now enforces ownership for all visible groups */}
+        <button
+          onClick={() => {
+            setShowMyGroups(!showMyGroups);
+            setSelectedTag(null);
+          }}
+          className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
+            ${showMyGroups
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600'
+            }`}
+        >
+          Meus Grupos
+          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${showMyGroups ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
+            {groups.filter(g => g.isAdmin).length}
+          </span>
+        </button>
 
         {availableTags.map(tag => {
           const count = groups.filter(g => g.tags.includes(tag)).length;
@@ -721,7 +772,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           <div
             key={group.id}
             onClick={() => handleGroupClick(group)}
-            className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative cursor-pointer hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900"
+            className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900 ${group.isAdmin ? 'cursor-pointer' : 'cursor-default'}`}
           >
             {/* Admin Badge - Top Left */}
             <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
@@ -777,9 +828,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                     key={tag}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Remover a tag "${tag}" deste grupo?`)) {
-                        toggleTagInGroup(group, tag);
-                      }
+                      toggleTagInGroup(group, tag);
                     }}
                     className="group/tag relative bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-rose-500 hover:pr-6 transition-all"
                     title="Clique para remover"
