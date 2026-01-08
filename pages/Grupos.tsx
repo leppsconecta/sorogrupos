@@ -43,6 +43,7 @@ interface Group {
   description?: string;
   tags: string[];
   status_create_group?: number;
+  privacy: number;
 }
 
 interface GruposProps {
@@ -260,7 +261,8 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           contact: '', // Database doesn't have contact/phone column separate from link/description
           description: g.description || '',
           tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name),
-          status_create_group: g.status_create_group
+          status_create_group: g.status_create_group,
+          privacy: g.privacy !== undefined ? g.privacy : 1
         }));
         setGroups(mappedGroups);
       }
@@ -744,12 +746,18 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
             {/* Group Thumbnail (Circular) */}
             <div className="relative mb-4 mt-2">
-              <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors">
-                <img
-                  src={group.image}
-                  alt={group.name}
-                  className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
-                />
+              <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-50 dark:bg-slate-800/50">
+                {group.image === 'sem_image' ? (
+                  <span className="text-[10px] font-bold text-slate-400 uppercase text-center leading-tight px-2">
+                    Sem exibição
+                  </span>
+                ) : (
+                  <img
+                    src={group.image}
+                    alt={group.name}
+                    className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
+                  />
+                )}
               </div>
             </div>
 
@@ -785,488 +793,513 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               </div>
             </div>
 
-            <button
-              onClick={(e) => { e.stopPropagation(); }}
-              className="w-full mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-              Ver Conversas
-              <ExternalLink size={14} />
-            </button>
+            {group.privacy !== 0 || group.isAdmin ? (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); }}
+                  className="w-full mt-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                  Ver Conversas
+                  <ExternalLink size={14} />
+                </button>
 
-            <button
-              onClick={(e) => { e.stopPropagation(); copyLink(group); }}
-              className={`w-full mt-3 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
-                ${copiedId === group.id
-                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
-            >
-              {copiedId === group.id ? 'Copiado!' : 'Copiar Link'}
-            </button>
-
-            {/* Creation Overlay Mask */}
-            {group.status_create_group === 0 && (
-              <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
-                  <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
-                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyLink(group); }}
+                  className={`w-full mt-3 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
+                    ${copiedId === group.id
+                      ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
+                >
+                  Link do Grupo
+                  {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </>
+            ) : (
+              <div className="w-full mt-6 h-24 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 text-center px-4">
+                  Somente admin pode interagir
+                </span>
               </div>
             )}
+
+            {/* Creation Overlay Mask */}
+            {
+              group.status_create_group === 0 && (
+                <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
+                    <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
+                  </div>
+                </div>
+              )
+            }
           </div>
         ))}
       </div>
 
       {/* Modal: Group Details & Description */}
-      {selectedGroup && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setSelectedGroup(null)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
-            <div className="p-8 text-white flex flex-col items-center justify-center relative flex-shrink-0 overflow-hidden">
-              {/* Blurred Background Image */}
-              <div className="absolute inset-0 z-0">
-                <img
-                  src={imageDraft || selectedGroup.image}
-                  className="w-full h-full object-cover blur-xl scale-110 opacity-60"
-                  alt=""
-                />
-                <div className="absolute inset-0 bg-blue-950/80" />
-              </div>
-
-              {/* Content */}
-              <div className="relative z-10 flex flex-col items-center w-full">
-                <button onClick={() => setSelectedGroup(null)} className="absolute -top-4 -right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
-
-                <div className="w-24 h-24 rounded-full border-4 border-white/20 p-1 overflow-hidden relative group cursor-pointer mb-4 shadow-lg">
-                  {selectedGroup.isAdmin && (
-                    <>
-                      <input
-                        type="file"
-                        ref={fileInputRefDetails}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleImageUploadDetails}
-                      />
-                      <div
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        onClick={() => fileInputRefDetails.current?.click()}
-                      >
-                        <Upload size={24} className="text-white" />
-                      </div>
-                    </>
-                  )}
-                  <img src={imageDraft || selectedGroup.image} className="w-full h-full object-cover rounded-full" alt="" />
+      {
+        selectedGroup && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setSelectedGroup(null)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
+              <div className="p-8 text-white flex flex-col items-center justify-center relative flex-shrink-0 overflow-hidden">
+                {/* Blurred Background Image */}
+                <div className="absolute inset-0 z-0">
+                  <img
+                    src={imageDraft || selectedGroup.image}
+                    className="w-full h-full object-cover blur-xl scale-110 opacity-60"
+                    alt=""
+                  />
+                  <div className="absolute inset-0 bg-blue-950/80" />
                 </div>
 
-                <h3 className="text-2xl font-bold text-center drop-shadow-md">{selectedGroup.name}</h3>
-              </div>
-            </div>
+                {/* Content */}
+                <div className="relative z-10 flex flex-col items-center w-full">
+                  <button onClick={() => setSelectedGroup(null)} className="absolute -top-4 -right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} /></button>
 
-            <div className="p-8 overflow-y-auto custom-scrollbar">
-              {/* Name Field */}
-              <div className="mb-6">
-                <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Nome do Grupo</label>
-                {selectedGroup.isAdmin ? (
-                  <input
-                    type="text"
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 border border-slate-100 dark:border-slate-800 transition-all"
-                    placeholder="Nome do grupo..."
-                  />
-                ) : (
-                  <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800 opacity-75">
-                    {selectedGroup.name}
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-6">
-                <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Descrição</label>
-
-                {selectedGroup.isAdmin ? (
-                  <div className="relative">
-                    <textarea
-                      value={descriptionDraft}
-                      onChange={(e) => setDescriptionDraft(e.target.value)}
-                      rows={6}
-                      className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 resize-none border border-slate-100 dark:border-slate-800"
-                      placeholder="Adicione uma descrição..."
-                    />
-
-                    {/* Toolbar */}
-                    <div className="absolute bottom-3 right-3 flex gap-2">
-                      <div className="relative">
-                        <button
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 transition-colors"
-                          title="Emojis"
+                  <div className="w-24 h-24 rounded-full border-4 border-white/20 p-1 overflow-hidden relative group cursor-pointer mb-4 shadow-lg">
+                    {selectedGroup.isAdmin && (
+                      <>
+                        <input
+                          type="file"
+                          ref={fileInputRefDetails}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageUploadDetails}
+                        />
+                        <div
+                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          onClick={() => fileInputRefDetails.current?.click()}
                         >
-                          <Smile size={18} />
-                        </button>
+                          <Upload size={24} className="text-white" />
+                        </div>
+                      </>
+                    )}
+                    <img src={imageDraft || selectedGroup.image} className="w-full h-full object-cover rounded-full" alt="" />
+                  </div>
 
-                        {/* Emoji Picker Popover */}
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 w-64 grid grid-cols-5 gap-2 z-50">
-                            {commonEmojis.map(emoji => (
-                              <button key={emoji} onClick={() => addEmoji(emoji)} className="text-xl hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded-lg transition-colors">
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                  <h3 className="text-2xl font-bold text-center drop-shadow-md">{selectedGroup.name}</h3>
+                </div>
+              </div>
 
-                      <button
-                        onClick={handleClearDescription}
-                        className="p-2 hover:bg-rose-100 hover:text-rose-500 rounded-lg text-slate-400 transition-colors"
-                        title="Limpar"
-                      >
-                        <Eraser size={18} />
-                      </button>
+              <div className="p-8 overflow-y-auto custom-scrollbar">
+                {/* Name Field */}
+                <div className="mb-6">
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Nome do Grupo</label>
+                  {selectedGroup.isAdmin ? (
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 border border-slate-100 dark:border-slate-800 transition-all"
+                      placeholder="Nome do grupo..."
+                    />
+                  ) : (
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800 opacity-75">
+                      {selectedGroup.name}
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-sm text-slate-600 dark:text-slate-400 min-h-[100px] whitespace-pre-wrap">
-                    {selectedGroup.description || "Sem descrição disponível."}
-                  </div>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
 
-            {selectedGroup.isAdmin && (
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                <button onClick={() => setSelectedGroup(null)} className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-white transition-all">Cancelar</button>
-                <button onClick={handleSaveDetails} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
-                  <Save size={16} />
-                  Salvar Alterações
-                </button>
+                <div className="mb-6">
+                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-500 font-bold mb-2 block">Descrição</label>
+
+                  {selectedGroup.isAdmin ? (
+                    <div className="relative">
+                      <textarea
+                        value={descriptionDraft}
+                        onChange={(e) => setDescriptionDraft(e.target.value)}
+                        rows={6}
+                        className="w-full bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 ring-blue-500 resize-none border border-slate-100 dark:border-slate-800"
+                        placeholder="Adicione uma descrição..."
+                      />
+
+                      {/* Toolbar */}
+                      <div className="absolute bottom-3 right-3 flex gap-2">
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 transition-colors"
+                            title="Emojis"
+                          >
+                            <Smile size={18} />
+                          </button>
+
+                          {/* Emoji Picker Popover */}
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 w-64 grid grid-cols-5 gap-2 z-50">
+                              {commonEmojis.map(emoji => (
+                                <button key={emoji} onClick={() => addEmoji(emoji)} className="text-xl hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded-lg transition-colors">
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={handleClearDescription}
+                          className="p-2 hover:bg-rose-100 hover:text-rose-500 rounded-lg text-slate-400 transition-colors"
+                          title="Limpar"
+                        >
+                          <Eraser size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 text-sm text-slate-600 dark:text-slate-400 min-h-[100px] whitespace-pre-wrap">
+                      {selectedGroup.description || "Sem descrição disponível."}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+
+              {selectedGroup.isAdmin && (
+                <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                  <button onClick={() => setSelectedGroup(null)} className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-white transition-all">Cancelar</button>
+                  <button onClick={handleSaveDetails} className="px-8 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
+                    <Save size={16} />
+                    Salvar Alterações
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Modal: Create Group */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreateModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col">
-            {/* Dark Header */}
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                  <Users size={24} />
+      {
+        isCreateModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreateModalOpen(false)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col">
+              {/* Dark Header */}
+              <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
+                    <Users size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Criar Grupo</h3>
+                    <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Novo Canal</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold">Criar Grupo</h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Novo Canal</p>
-                </div>
+                <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
               </div>
-              <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-              <div className="space-y-6">
-                {/* Profile Picture Upload */}
-                <div className="flex flex-col items-center mb-6">
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-slate-300 relative group cursor-pointer overflow-hidden hover:border-blue-500 transition-all"
-                  >
-                    {formImage ? (
-                      <img src={formImage} className="w-full h-full object-cover" alt="Preview" />
-                    ) : (
-                      <ImageIcon size={28} />
-                    )}
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Upload size={20} className="text-white" />
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="space-y-6">
+                  {/* Profile Picture Upload */}
+                  <div className="flex flex-col items-center mb-6">
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-slate-300 relative group cursor-pointer overflow-hidden hover:border-blue-500 transition-all"
+                    >
+                      {formImage ? (
+                        <img src={formImage} className="w-full h-full object-cover" alt="Preview" />
+                      ) : (
+                        <ImageIcon size={28} />
+                      )}
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <Upload size={20} className="text-white" />
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3">Clique para carregar foto</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome do Grupo <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><MessageSquare size={18} /></div>
+                      <input autoFocus type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Empregos Sorocaba e Região" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                     </div>
                   </div>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3">Clique para carregar foto</span>
-                </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome do Grupo <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><MessageSquare size={18} /></div>
-                    <input autoFocus type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Empregos Sorocaba e Região" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                  {/* Link Invite Field Removed */}
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Primeiro Integrante (WhatsApp) <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Phone size={18} /></div>
+                      <input type="text" value={formFirstMember} onChange={handlePhoneChange} placeholder="Ex: 5515999999999" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                    </div>
                   </div>
-                </div>
 
-                {/* Link Invite Field Removed */}
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Primeiro Integrante (WhatsApp) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Phone size={18} /></div>
-                    <input type="text" value={formFirstMember} onChange={handlePhoneChange} placeholder="Ex: 5515999999999" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags do Grupo</label>
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl min-h-[60px]">
+                      {availableTags.length === 0 ? (
+                        <span className="text-xs text-slate-400">Nenhuma tag disponível. Crie tags na tela principal.</span>
+                      ) : (
+                        availableTags.map(tag => {
+                          const isSelected = selectedTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedTags(selectedTags.filter(t => t !== tag));
+                                } else {
+                                  setSelectedTags([...selectedTags, tag]);
+                                }
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${isSelected
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500'
+                                }`}
+                            >
+                              {tag}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags do Grupo</label>
-                  <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl min-h-[60px]">
-                    {availableTags.length === 0 ? (
-                      <span className="text-xs text-slate-400">Nenhuma tag disponível. Crie tags na tela principal.</span>
-                    ) : (
-                      availableTags.map(tag => {
-                        const isSelected = selectedTags.includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedTags(selectedTags.filter(t => t !== tag));
-                              } else {
-                                setSelectedTags([...selectedTags, tag]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                              : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500'
-                              }`}
-                          >
-                            {tag}
-                          </button>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Descrição</label>
-                  <div className="relative">
-                    <div className="absolute top-3.5 left-4 text-slate-400"><AlignLeft size={18} /></div>
-                    <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Informações do grupo..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Descrição</label>
+                    <div className="relative">
+                      <div className="absolute top-3.5 left-4 text-slate-400"><AlignLeft size={18} /></div>
+                      <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Informações do grupo..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white dark:bg-slate-900">
-              <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-              <button onClick={handleCreateGroup} disabled={!formName.trim() || !formFirstMember.trim() || isCreating} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-                {isCreating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  'Criar Grupo'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Update Info */}
-      {showUpdateInfoModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowUpdateInfoModal(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                <RotateCw size={32} className="animate-spin" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">Atualização Iniciada</h3>
-              <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                A atualização dos grupos ocorrerá em segundo plano. Você pode continuar usando o sistema normalmente e avisaremos assim que terminar.
-              </p>
-              <button
-                onClick={() => setShowUpdateInfoModal(false)}
-                className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-              >
-                Entendido
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Join Group */}
-      {isJoinModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJoinModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
-            {/* Dark Header */}
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                  <LinkIcon size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Acesso Rápido</h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Entrar no Grupo</p>
-                </div>
-              </div>
-              <button onClick={() => setIsJoinModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-            </div>
-
-            <div className="p-8">
-              <p className="text-sm text-slate-500 mb-6">Informe o Link de convite ou ID numérico do grupo para ingressar.</p>
-              <div className="space-y-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ID ou Link do Grupo</label>
-                  <input autoFocus type="text" value={joinValue} onChange={(e) => setJoinValue(e.target.value)} placeholder="Ex: chat.whatsapp.com/..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setIsJoinModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-                  <button onClick={handleJoinGroup} className="flex-1 bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Confirmar</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Categorize / Manage Tags */}
-      {taggingGroup && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setTaggingGroup(null)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[85vh]">
-            {/* Dark Header */}
-            <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                  <TagIcon size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Tags</h3>
-                  <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest truncate max-w-[120px]">{taggingGroup.name}</p>
-                </div>
-              </div>
-              <button onClick={() => setTaggingGroup(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-            </div>
-
-            <div className="p-6 flex-1 overflow-hidden flex flex-col">
-              {/* Create New Tag */}
-              <div className="flex gap-2 mb-6 flex-shrink-0">
-                <input
-                  type="text"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()}
-                  placeholder="Nova tag..."
-                  className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-blue-500 placeholder:text-slate-400"
-                />
-                <button
-                  onClick={addGlobalTag}
-                  disabled={!newTagInput.trim()}
-                  className="p-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus size={20} />
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white dark:bg-slate-900">
+                <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                <button onClick={handleCreateGroup} disabled={!formName.trim() || !formFirstMember.trim() || isCreating} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
+                  {isCreating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    'Criar Grupo'
+                  )}
                 </button>
               </div>
-
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex-shrink-0">Selecione para Adicionar</p>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                {availableTags.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-sm">
-                    Nenhuma tag criada.
-                  </div>
-                ) : (
-                  availableTags.map((tag, idx) => {
-                    const isSelected = taggingGroup.tags.includes(tag);
-                    const isEditing = editingTagIndex === idx;
-
-                    return (
-                      <div key={tag} className={`group flex items-center justify-between p-2 rounded-xl border transition-all ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
-                        {isEditing ? (
-                          <div className="flex-1 flex gap-2">
-                            <input
-                              autoFocus
-                              type="text"
-                              value={editingTagValue}
-                              onChange={(e) => setEditingTagValue(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
-                              className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-2 py-1 text-sm outline-none ring-1 ring-blue-500"
-                            />
-                            <button onClick={() => saveEditedTag(tag)} className="text-blue-600 p-1"><Check size={16} /></button>
-                            <button onClick={() => setEditingTagIndex(null)} className="text-slate-400 p-1"><X size={16} /></button>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => toggleTagInGroup(taggingGroup, tag)}
-                              className="flex-1 text-left flex items-center gap-3"
-                            >
-                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600'}`}>
-                                {isSelected && <Check size={12} className="text-white" />}
-                              </div>
-                              <span className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{tag}</span>
-                            </button>
-
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => startEditingTag(idx, tag)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"><Edit3 size={14} /></button>
-                              <button onClick={() => deleteGlobalTag(tag)} className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors"><Trash2 size={14} /></button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-              <button onClick={() => setTaggingGroup(null)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg">Concluir</button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {/* Modal: Update Info */}
+      {
+        showUpdateInfoModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowUpdateInfoModal(false)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+              <div className="p-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                  <RotateCw size={32} className="animate-spin" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-3">Atualização Iniciada</h3>
+                <p className="text-slate-500 text-sm leading-relaxed mb-8">
+                  A atualização dos grupos ocorrerá em segundo plano. Você pode continuar usando o sistema normalmente e avisaremos assim que terminar.
+                </p>
+                <button
+                  onClick={() => setShowUpdateInfoModal(false)}
+                  className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Modal: Join Group */}
+      {
+        isJoinModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJoinModalOpen(false)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp">
+              {/* Dark Header */}
+              <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
+                    <LinkIcon size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Acesso Rápido</h3>
+                    <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Entrar no Grupo</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsJoinModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
+              </div>
+
+              <div className="p-8">
+                <p className="text-sm text-slate-500 mb-6">Informe o Link de convite ou ID numérico do grupo para ingressar.</p>
+                <div className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">ID ou Link do Grupo</label>
+                    <input autoFocus type="text" value={joinValue} onChange={(e) => setJoinValue(e.target.value)} placeholder="Ex: chat.whatsapp.com/..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setIsJoinModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                    <button onClick={handleJoinGroup} className="flex-1 bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Confirmar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Modal: Categorize / Manage Tags */}
+      {
+        taggingGroup && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setTaggingGroup(null)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[85vh]">
+              {/* Dark Header */}
+              <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
+                    <TagIcon size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Tags</h3>
+                    <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest truncate max-w-[120px]">{taggingGroup.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setTaggingGroup(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
+              </div>
+
+              <div className="p-6 flex-1 overflow-hidden flex flex-col">
+                {/* Create New Tag */}
+                <div className="flex gap-2 mb-6 flex-shrink-0">
+                  <input
+                    type="text"
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addGlobalTag()}
+                    placeholder="Nova tag..."
+                    className="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-blue-500 placeholder:text-slate-400"
+                  />
+                  <button
+                    onClick={addGlobalTag}
+                    disabled={!newTagInput.trim()}
+                    className="p-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex-shrink-0">Selecione para Adicionar</p>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                  {availableTags.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm">
+                      Nenhuma tag criada.
+                    </div>
+                  ) : (
+                    availableTags.map((tag, idx) => {
+                      const isSelected = taggingGroup.tags.includes(tag);
+                      const isEditing = editingTagIndex === idx;
+
+                      return (
+                        <div key={tag} className={`group flex items-center justify-between p-2 rounded-xl border transition-all ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                          {isEditing ? (
+                            <div className="flex-1 flex gap-2">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingTagValue}
+                                onChange={(e) => setEditingTagValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && saveEditedTag(tag)}
+                                className="flex-1 bg-white dark:bg-slate-700 border-none rounded-lg px-2 py-1 text-sm outline-none ring-1 ring-blue-500"
+                              />
+                              <button onClick={() => saveEditedTag(tag)} className="text-blue-600 p-1"><Check size={16} /></button>
+                              <button onClick={() => setEditingTagIndex(null)} className="text-slate-400 p-1"><X size={16} /></button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => toggleTagInGroup(taggingGroup, tag)}
+                                className="flex-1 text-left flex items-center gap-3"
+                              >
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                                  {isSelected && <Check size={12} className="text-white" />}
+                                </div>
+                                <span className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{tag}</span>
+                              </button>
+
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => startEditingTag(idx, tag)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"><Edit3 size={14} /></button>
+                                <button onClick={() => deleteGlobalTag(tag)} className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors"><Trash2 size={14} /></button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                <button onClick={() => setTaggingGroup(null)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg">Concluir</button>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
       {/* Standardized Alert Modal */}
-      {alertConfig.isOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={closeAlert} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
-            <div className={`p-8 flex flex-col items-center text-center relative overflow-hidden`}>
-              {/* Background Status Color Accent */}
-              <div className={`absolute top-0 left-0 right-0 h-32 opacity-10 
+      {
+        alertConfig.isOpen && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={closeAlert} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+              <div className={`p-8 flex flex-col items-center text-center relative overflow-hidden`}>
+                {/* Background Status Color Accent */}
+                <div className={`absolute top-0 left-0 right-0 h-32 opacity-10 
                 ${alertConfig.type === 'success' ? 'bg-emerald-500' : ''}
                 ${alertConfig.type === 'error' ? 'bg-rose-500' : ''}
                 ${alertConfig.type === 'warning' ? 'bg-amber-500' : ''}
                 ${alertConfig.type === 'info' ? 'bg-blue-500' : ''}
               `} />
 
-              <div className={`
+                <div className={`
                 w-20 h-20 rounded-full flex items-center justify-center mb-6 relative z-10
                 ${alertConfig.type === 'success' ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20' : ''}
                 ${alertConfig.type === 'error' ? 'bg-rose-50 text-rose-500 dark:bg-rose-900/20' : ''}
                 ${alertConfig.type === 'warning' ? 'bg-amber-50 text-amber-500 dark:bg-amber-900/20' : ''}
                 ${alertConfig.type === 'info' ? 'bg-blue-50 text-blue-500 dark:bg-blue-900/20' : ''}
               `}>
-                {alertConfig.type === 'success' && <CheckCircle2 size={40} strokeWidth={2.5} />}
-                {alertConfig.type === 'error' && <AlertCircle size={40} strokeWidth={2.5} />}
-                {alertConfig.type === 'warning' && <AlertCircle size={40} strokeWidth={2.5} />}
-                {alertConfig.type === 'info' && <div className="text-3xl font-bold">i</div>}
-              </div>
+                  {alertConfig.type === 'success' && <CheckCircle2 size={40} strokeWidth={2.5} />}
+                  {alertConfig.type === 'error' && <AlertCircle size={40} strokeWidth={2.5} />}
+                  {alertConfig.type === 'warning' && <AlertCircle size={40} strokeWidth={2.5} />}
+                  {alertConfig.type === 'info' && <div className="text-3xl font-bold">i</div>}
+                </div>
 
-              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 relative z-10">{alertConfig.title}</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8 relative z-10 px-4">
-                {alertConfig.message}
-              </p>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 relative z-10">{alertConfig.title}</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8 relative z-10 px-4">
+                  {alertConfig.message}
+                </p>
 
-              <button
-                onClick={closeAlert}
-                className={`
+                <button
+                  onClick={closeAlert}
+                  className={`
                   w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 relative z-10
                   ${alertConfig.type === 'success' ? 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' : ''}
                   ${alertConfig.type === 'error' ? 'bg-rose-500 shadow-rose-500/20 hover:bg-rose-600' : ''}
                   ${alertConfig.type === 'warning' ? 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' : ''}
                   ${alertConfig.type === 'info' ? 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700' : ''}
                 `}
-              >
-                Entendido
-              </button>
+                >
+                  Entendido
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
