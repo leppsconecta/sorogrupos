@@ -505,6 +505,14 @@ Cód. Vaga: *${code}*
         footer_enabled: showFooterInImage,
         observation: jobDraft.observation,
         show_observation: jobDraft.showObservation,
+
+        // New flat columns for contacts (taking the first of each type found)
+        contact_whatsapp: jobDraft.contacts?.find(c => c.type === 'WhatsApp')?.value || null,
+        contact_email: jobDraft.contacts?.find(c => c.type === 'Email')?.value || null,
+        contact_link: jobDraft.contacts?.find(c => c.type === 'Link')?.value || null,
+        contact_address: jobDraft.contacts?.find(c => c.type === 'Endereço')?.value || null,
+        contact_address_date: jobDraft.contacts?.find(c => c.type === 'Endereço')?.date || null,
+        contact_address_time: jobDraft.contacts?.find(c => c.type === 'Endereço')?.time || null,
       };
 
       let jobData;

@@ -433,19 +433,22 @@ Cód. Vaga: *${code}*
   /* New: Utility to save schedule/send action to DB */
   const saveScheduleToDB = async (status: 'pending' | 'sent', dateStr: string, timeStr: string) => {
     try {
+      const inserts = selectedVagaIds.map(jobId => ({
+        user_id: user?.id,
+        jobs_count: 1, // One record per job
+        groups_count: selectedGroupIds.length,
+        scheduled_date: dateStr,
+        scheduled_time: timeStr,
+        status: status,
+        publish_status: 0,
+        jobs_ids: [jobId], // Wraps single ID in array
+        groups_ids: selectedGroupIds,
+        id_group: selectedGroupIds.join(',')
+      }));
+
       const { error } = await supabase
         .from('marketing_schedules')
-        .insert({
-          user_id: user?.id,
-          jobs_count: selectedVagaIds.length,
-          groups_count: selectedGroupIds.length,
-          scheduled_date: dateStr,
-          scheduled_time: timeStr,
-          status: status,
-          jobs_ids: selectedVagaIds,
-          groups_ids: selectedGroupIds,
-          id_group: selectedGroupIds.join(',')
-        });
+        .insert(inserts);
 
       if (error) {
         console.error('Error saving schedule:', error);

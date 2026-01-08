@@ -109,7 +109,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                     company: job?.company_name || 'Empresa',
                     date: s.scheduled_date,
                     time: s.scheduled_time?.substring(0, 5),
-                    status: s.status === 'sent' || s.status === 'completed' ? 'published' : 'scheduled',
+                    status: s.status, // Keep original for reference
+                    publishStatus: s.publish_status, // New integer status
                     groups: s.groups_count,
                     rawDate: new Date(s.scheduled_date)
                 };
@@ -125,6 +126,30 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
 
     useEffect(() => {
         fetchSchedules();
+
+        // Realtime Subscription
+        if (!user) return;
+
+        const channel = supabase
+            .channel(`marketing_schedules_changes_${user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'marketing_schedules',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Realtime change received!', payload);
+                    fetchSchedules();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [currentDate, user]);
 
     const weekDays = useMemo(() => getWeekDays(), [currentDate]);
@@ -335,11 +360,11 @@ Cód. Vaga: *${code}*
                 </div>
 
                 {/* Week Grid */}
-                <div className="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/20 flex-shrink-0">
+                <div className="grid grid-cols-7 border-b border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/20 flex-shrink-0">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
                         <div
                             key={day}
-                            className={`p-2 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0 ${index === 0 || index === 6 ? 'bg-slate-100/50 dark:bg-slate-800/50' : ''
+                            className={`p-2 text-center border-r border-slate-300 dark:border-slate-600 last:border-r-0 ${index === 0 || index === 6 ? 'bg-slate-100/50 dark:bg-slate-800/50' : ''
                                 }`}
                         >
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -358,7 +383,7 @@ Cód. Vaga: *${code}*
                         return (
                             <div
                                 key={index}
-                                className={`flex flex-col p-2 border-r border-slate-100 dark:border-slate-800 last:border-r-0 ${isTodayDate ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
+                                className={`flex flex-col p-2 border-r border-slate-300 dark:border-slate-600 last:border-r-0 ${isTodayDate ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
                                     } ${index === 0 || index === 6 ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''}`}
                             >
                                 {/* Day Number */}
@@ -386,20 +411,20 @@ Cód. Vaga: *${code}*
                                             key={post.id}
                                             onClick={() => openPreview(post)}
                                             className={`group relative p-2 rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
-                        ${post.status === 'scheduled'
-                                                    ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' // Programado = Verde
-                                                    : 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' // Publicado = Amarelo
+                        ${post.publishStatus === 0
+                                                    ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' // 0 = Agendado = Verde
+                                                    : 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' // 1 = Publicado = Amarelo
                                                 }`}
                                         >
 
                                             {/* Time & Icon */}
                                             <div className="flex items-center gap-1 mb-1">
-                                                {post.status === 'scheduled' ? (
+                                                {post.publishStatus === 0 ? (
                                                     <Clock size={10} className="text-emerald-600 dark:text-emerald-400" />
                                                 ) : (
                                                     <CheckCircle2 size={10} className="text-yellow-600 dark:text-yellow-400" />
                                                 )}
-                                                <span className={`text-[10px] font-black tracking-tight ${post.status === 'scheduled'
+                                                <span className={`text-[10px] font-black tracking-tight ${post.publishStatus === 0
                                                     ? 'text-emerald-700 dark:text-emerald-300'
                                                     : 'text-yellow-700 dark:text-yellow-300'
                                                     }`}>

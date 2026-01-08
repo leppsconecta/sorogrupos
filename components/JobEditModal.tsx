@@ -50,6 +50,7 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, job
     const [savedContacts, setSavedContacts] = useState<any[]>([]);
     const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🤣');
     const [emojiInput, setEmojiInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     // Fetch saved contacts on mount/open
     useEffect(() => {
@@ -210,11 +211,12 @@ Cód. Vaga: *${code}*
 ➞ ${company?.website || 'leppsconecta.com.br'}`;
     };
 
-
     const handleSaveJob = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) throw new Error("Usuário não autenticado");
 
             let finalImageUrl = jobDraft.imageUrl;
 
@@ -246,7 +248,15 @@ Cód. Vaga: *${code}*
                 footer_enabled: showFooterInImage,
                 file_url: finalImageUrl,
                 image_url: finalImageUrl, // Saving to both
-                status: 'Ativa' // Default status
+                status: 'Ativa', // Default status
+
+                // New flat columns for contacts (taking the first of each type found)
+                contact_whatsapp: jobDraft.contacts?.find(c => c.type === 'WhatsApp')?.value || null,
+                contact_email: jobDraft.contacts?.find(c => c.type === 'Email')?.value || null,
+                contact_link: jobDraft.contacts?.find(c => c.type === 'Link')?.value || null,
+                contact_address: jobDraft.contacts?.find(c => c.type === 'Endereço')?.value || null,
+                contact_address_date: jobDraft.contacts?.find(c => c.type === 'Endereço')?.date || null,
+                contact_address_time: jobDraft.contacts?.find(c => c.type === 'Endereço')?.time || null,
             };
 
             let resultId = jobToEdit?.id;
@@ -270,7 +280,7 @@ Cód. Vaga: *${code}*
                 if (jobDraft.contacts && jobDraft.contacts.length > 0) {
                     const contactsToInsert = jobDraft.contacts.map(c => ({
                         job_id: resultId,
-                        type: c.type.toLowerCase(), // generic mapping
+                        type: c.type, // keeping original case (WhatsApp, Endereço, etc)
                         value: c.value,
                         date: c.date,
                         time: c.time,
@@ -285,6 +295,8 @@ Cód. Vaga: *${code}*
 
         } catch (error: any) {
             alert(`Erro ao salvar vaga: ${error.message}`);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -755,9 +767,12 @@ Cód. Vaga: *${code}*
                                     setJobCreationStep('preview');
                                 }
                             }}
-                            className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+                            disabled={isSaving}
+                            className={`px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
                         >
-                            {jobCreationStep === 'preview' ? 'Finalizar e Salvar' : 'Próximo Passo'}
+                            {jobCreationStep === 'preview'
+                                ? (isSaving ? 'Salvando...' : 'Finalizar e Salvar')
+                                : 'Próximo Passo'}
                         </button>
                     )}
                 </div>
