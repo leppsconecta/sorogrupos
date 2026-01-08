@@ -870,8 +870,16 @@ Cód. Vaga: *${code}*
                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Destinatários</h3>
                   <p className="text-xs text-slate-500 font-medium mt-1">Selecione os grupos para disparo</p>
                 </div>
-                <div className="bg-blue-50/80 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-blue-100">
-                  {selectedGroupIds.length} Selecionados
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={selectAllGroups}
+                    className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors"
+                  >
+                    Selecionar Todos
+                  </button>
+                  <div className="bg-blue-50/80 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-blue-100">
+                    {selectedGroupIds.length} Selecionados
+                  </div>
                 </div>
               </div>
 
@@ -946,194 +954,192 @@ Cód. Vaga: *${code}*
 
               {/* Action Bar */}
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 tracking-widest px-2">
-                  <button onClick={selectAllGroups} className="hover:text-blue-600 transition-colors">Selecionar Todos</button>
-                  <button onClick={() => setSelectedGroupIds([])} className="hover:text-rose-500 transition-colors">Limpar</button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <button
-                    onClick={() => setIsScheduling(!isScheduling)}
-                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
-                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
-                  >
-                    <CalendarDays size={18} /> Agendar
-                  </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending}
-                    className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
-                  >
-                    {isSending ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <Send size={18} />
-                    )}
-                    {isSending ? 'Enviando...' : 'Enviar Agora'}
-                  </button>
-                </div>
+                <button onClick={() => setSelectedGroupIds([])} className="hover:text-rose-500 transition-colors">Limpar Seleção</button>
               </div>
 
-              {/* Inline Scheduling Drawer */}
-              {isScheduling && (
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-fadeIn">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-slate-800 dark:text-white font-bold uppercase tracking-tight flex items-center gap-2 text-sm">
-                      <CalendarDays className="text-blue-600" size={18} /> Configurar Agendamento
-                    </h4>
-                    <button onClick={() => setIsScheduling(false)} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={16} /></button>
-                  </div>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <button
+                  onClick={() => setIsScheduling(!isScheduling)}
+                  disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
+                  className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
+                >
+                  <CalendarDays size={18} /> Agendar
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending}
+                  className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
+                >
+                  {isSending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Send size={18} />
+                  )}
+                  {isSending ? 'Enviando...' : 'Enviar Agora'}
+                </button>
+              </div>
+            </div>
 
-                  <div className="space-y-4">
-                    {/* Custom Calendar */}
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+            {/* Inline Scheduling Drawer */}
+            {isScheduling && (
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-fadeIn">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-slate-800 dark:text-white font-bold uppercase tracking-tight flex items-center gap-2 text-sm">
+                    <CalendarDays className="text-blue-600" size={18} /> Configurar Agendamento
+                  </h4>
+                  <button onClick={() => setIsScheduling(false)} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={16} /></button>
+                </div>
 
-                      {/* Calendar Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <button
-                          onClick={() => handleMonthChange('prev')}
-                          disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0))}
-                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <span className="text-sm font-bold text-slate-800 dark:text-white capitalize">
-                          {currentMonth.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
-                        </span>
-                        <button
-                          onClick={() => handleMonthChange('next')}
-                          disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
+                <div className="space-y-4">
+                  {/* Custom Calendar */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
 
-                      {/* Week Days */}
-                      <div className="grid grid-cols-7 mb-2">
-                        {weekDays.map((d, i) => (
-                          <div key={i} className="text-center text-[10px] font-bold text-slate-400 uppercase">{d}</div>
-                        ))}
-                      </div>
+                    {/* Calendar Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => handleMonthChange('prev')}
+                        disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0))}
+                        className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="text-sm font-bold text-slate-800 dark:text-white capitalize">
+                        {currentMonth.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                      </span>
+                      <button
+                        onClick={() => handleMonthChange('next')}
+                        disabled={isDateDisabled(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                        className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
 
-                      {/* Days Grid */}
-                      <div className="grid grid-cols-7 gap-1">
-                        {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() }).map((_, i) => (
-                          <div key={`empty-${i}`} />
-                        ))}
+                    {/* Week Days */}
+                    <div className="grid grid-cols-7 mb-2">
+                      {weekDays.map((d, i) => (
+                        <div key={i} className="text-center text-[10px] font-bold text-slate-400 uppercase">{d}</div>
+                      ))}
+                    </div>
 
-                        {calendarDays.map(date => {
-                          const dateStr = formatDateValue(date);
-                          const isSelected = selectedDates.includes(dateStr);
-                          const disabled = isDateDisabled(date);
-                          const isToday = new Date().toDateString() === date.toDateString();
+                    {/* Days Grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() }).map((_, i) => (
+                        <div key={`empty-${i}`} />
+                      ))}
 
-                          return (
-                            <button
-                              key={date.toISOString()}
-                              onClick={() => toggleDateSelection(date)}
-                              disabled={disabled}
-                              className={`
+                      {calendarDays.map(date => {
+                        const dateStr = formatDateValue(date);
+                        const isSelected = selectedDates.includes(dateStr);
+                        const disabled = isDateDisabled(date);
+                        const isToday = new Date().toDateString() === date.toDateString();
+
+                        return (
+                          <button
+                            key={date.toISOString()}
+                            onClick={() => toggleDateSelection(date)}
+                            disabled={disabled}
+                            className={`
                                 h-8 w-full rounded-lg text-xs font-medium transition-all flex items-center justify-center relative
                                 ${isSelected
-                                  ? 'bg-blue-600 text-white shadow-md'
-                                  : disabled
-                                    ? 'text-slate-300 dark:text-slate-600 opacity-50 cursor-not-allowed'
-                                    : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm'}
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : disabled
+                                  ? 'text-slate-300 dark:text-slate-600 opacity-50 cursor-not-allowed'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm'}
                                 ${isToday && !isSelected ? 'border border-blue-200 dark:border-blue-800 text-blue-600' : ''}
                               `}
-                            >
-                              {date.getDate()}
-                              {isSelected && <div className="absolute bottom-0.5 w-1 h-1 bg-white rounded-full" />}
-                            </button>
-                          );
-                        })}
-                      </div>
+                          >
+                            {date.getDate()}
+                            {isSelected && <div className="absolute bottom-0.5 w-1 h-1 bg-white rounded-full" />}
+                          </button>
+                        );
+                      })}
                     </div>
-
-                    {/* Time Input (Flexible) */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Horário do Disparo</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                          <Clock3 size={18} />
-                        </div>
-                        <input
-                          type="time"
-                          value={scheduleTime}
-                          onChange={(e) => setScheduleTime(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
                   </div>
 
-                  <button
-                    onClick={handleScheduleSubmit}
-                    disabled={selectedDates.length === 0 || !scheduleTime}
-                    className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Confirmar {selectedDates.length > 0 ? selectedDates.length : ''} Agendamento{selectedDates.length > 1 ? 's' : ''}
-                  </button>
+                  {/* Time Input (Flexible) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Horário do Disparo</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <Clock3 size={18} />
+                      </div>
+                      <input
+                        type="time"
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
                 </div>
-              )}
-            </div>
+
+                <button
+                  onClick={handleScheduleSubmit}
+                  disabled={selectedDates.length === 0 || !scheduleTime}
+                  className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Confirmar {selectedDates.length > 0 ? selectedDates.length : ''} Agendamento{selectedDates.length > 1 ? 's' : ''}
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )
-      }
+        </div>
+  )
+}
 
 
 
-      {
-        view === 'reports' && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
+{
+  view === 'reports' && (
+    <div className="space-y-8 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Histórico</h2>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Registros dos últimos 30 dias</p>
+        </div>
+        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
+          <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
+          <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <CheckCircle2 size={32} />
               </div>
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg">Todos</button>
-                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Sucesso</button>
-                <button className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors">Falhas</button>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
+                  <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
+                  <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
+                  <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
+                  <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:translate-x-2 transition-all">
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                      <CheckCircle2 size={32} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Mass Broadcast #{1020 + i}</h4>
-                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-md text-[8px] font-bold uppercase tracking-widest">Sucesso</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400 uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5"><CalendarIcon size={12} /> 22/05/2024</span>
-                        <span className="flex items-center gap-1.5"><Clock size={12} /> 14:30</span>
-                        <span className="flex items-center gap-1.5"><Users size={12} /> 5 Grupos Atingidos</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
-                    <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
-                      <Eye size={18} /> Detalhes
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-4" />
+              <button className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
+                <Eye size={18} /> Detalhes
+              </button>
             </div>
           </div>
-        )
-      }
+        ))}
+      </div>
+    </div>
+  )
+}
 
-      {/* Edit Modal */}
+{/* Edit Modal */ }
       <JobEditModal
         isOpen={isEditModalOpen}
         onClose={() => { setIsEditModalOpen(false); setEditingJob(null); }}

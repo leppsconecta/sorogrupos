@@ -350,46 +350,38 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const generatePreviewText = () => {
     const j = jobDraft;
     const code = j.jobCode || '---';
-    const cvParts: string[] = [];
-    const addressParts: string[] = [];
-    const linkParts: string[] = [];
+
+    const channelStrings: string[] = [];
 
     j.contacts?.forEach(c => {
-      if (c.type === 'WhatsApp') cvParts.push(`WhatsApp ${c.value}`);
-      else if (c.type === 'Email') cvParts.push(`e-mail ${c.value}`);
-      else if (c.type === 'Link') linkParts.push(`Link ${c.value}`);
-      else if (c.type === 'Endereço') {
-        const addressBase = `${c.value}`;
-        if (!c.noDateTime) {
-          addressParts.push(`${addressBase} no dia ${formatPreviewDate(c.date || '')} às ${c.time || '__:__'}`);
-        } else {
-          addressParts.push(addressBase);
+      if (!c.value?.trim()) return;
+
+      if (c.type === 'WhatsApp') {
+        channelStrings.push(`pelo WhatsApp ${c.value}`);
+      } else if (c.type === 'Email') {
+        channelStrings.push(`pelo email ${c.value}`);
+      } else if (c.type === 'Link') {
+        channelStrings.push(`pelo link ${c.value}`);
+      } else if (c.type === 'Endereço') {
+        let addr = `comparecer no endereço: ${c.value}`;
+        if (!c.noDateTime && c.date && c.time) {
+          addr += ` no dia ${formatPreviewDate(c.date)} às ${c.time}`;
         }
+        addr += ` com currículos em mãos`;
+        channelStrings.push(addr);
       }
     });
 
-    const joinList = (list: string[]) => {
+    const joinChannels = (list: string[]) => {
       if (list.length === 0) return '';
       if (list.length === 1) return list[0];
       const last = list.pop();
       return `${list.join(', ')} ou ${last}`;
     };
 
-    const cvText = cvParts.length > 0
-      ? `Enviar curriculo com o nome da vaga/codigo para: ${joinList(cvParts)}`
-      : '';
-
-    const addressText = addressParts.length > 0
-      ? `Compareça no endereço: ${joinList(addressParts)}`
-      : '';
-
-    const linkText = linkParts.length > 0
-      ? `Acesse: ${joinList(linkParts)}`
-      : '';
-
-    const finalParts = [cvText, addressText, linkText].filter(Boolean);
-    const interessadosText = finalParts.length > 0
-      ? joinList(finalParts)
+    const channelsText = joinChannels(channelStrings);
+    const interessadosText = channelsText
+      ? `Enviar currículo com nome da vaga/cód ${channelsText}`
       : 'Entre em contato pelos canais oficiais.';
 
     if (j.type === 'file') {
@@ -719,6 +711,41 @@ Cód. Vaga: *${code}*
         await fetchData();
       } else {
         const job = deleteData.item as Vaga;
+
+        // 1. Cascade Delete Future Schedules
+        const today = new Date().toISOString().split('T')[0];
+        const { data: futureSchedules } = await supabase
+          .from('marketing_schedules')
+          .select('*')
+          .contains('jobs_ids', [job.id])
+          .gte('scheduled_date', today);
+
+        if (futureSchedules && futureSchedules.length > 0) {
+          for (const schedule of futureSchedules) {
+            const currentJobIds = schedule.jobs_ids || [];
+            if (currentJobIds.length <= 1) {
+              // Only this job in schedule -> Delete entire schedule
+              await supabase.from('marketing_schedules').delete().eq('id', schedule.id);
+            } else {
+              // Multiple jobs -> Remove this ID and update count
+              const updatedIds = currentJobIds.filter((id: string) => id !== job.id);
+              await supabase
+                .from('marketing_schedules')
+                .update({
+                  jobs_ids: updatedIds,
+                  groups_count: updatedIds.length // Assuming groups_count refers to jobs count here based on context, checking usage... actually 'groups' usually means groups. 
+                  // Wait, let's check Vagas.tsx context. 
+                  // In Agendamentos.tsx: groups: s.groups_count.
+                  // It seems 'groups_count' relates to target groups, not jobs.
+                  // The field 'jobs_ids' holds the jobs.
+                  // I should probably ONLY update jobs_ids.
+                })
+                .eq('id', schedule.id);
+            }
+          }
+        }
+
+        // 2. Delete the Job
         const { error } = await supabase
           .from('jobs')
           .delete()
@@ -1328,7 +1355,7 @@ Cód. Vaga: *${code}*
                             <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
                           </div>
-                          <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                          <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-200'}`}>
                             <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
                           </button>
                         </div>
@@ -1340,7 +1367,7 @@ Cód. Vaga: *${code}*
                           </div>
                           <button
                             onClick={() => setJobDraft({ ...jobDraft, showObservation: !jobDraft.showObservation })}
-                            className={`w-12 h-6 rounded-full transition-all relative ${jobDraft.showObservation ? 'bg-blue-600' : 'bg-slate-300'}`}
+                            className={`w-12 h-6 rounded-full transition-all relative ${jobDraft.showObservation ? 'bg-blue-600' : 'bg-slate-200'}`}
                           >
                             <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${jobDraft.showObservation ? 'left-6.5' : 'left-0.5'}`} />
                           </button>

@@ -34,7 +34,8 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, o
   const getTabTitle = () => {
     const titles: Record<string, string> = {
       painel: 'Visão Geral',
-      marketing: 'Marketing ',
+      marketing: 'Anunciar Vaga',
+      agendamentos: 'Calendário',
       vagas: 'Gestão de Vagas',
       grupos: 'Gestão Grupos',
       plano: 'Meu Plano e Assinatura',

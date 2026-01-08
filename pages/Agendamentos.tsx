@@ -4,7 +4,8 @@ import {
     ChevronRight,
     Clock,
     CheckCircle2,
-    Plus
+    Plus,
+    AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,17 +27,36 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
     const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
-    // Generate week days starting from today
+    // Generate week days (7 days)
     const getWeekDays = () => {
         const days = [];
         const today = new Date(currentDate);
-        // Get start of week (Sunday)
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
 
         for (let i = 0; i < 7; i++) {
             const day = new Date(startOfWeek);
             day.setDate(startOfWeek.getDate() + i);
+            days.push(day);
+        }
+        return days;
+    };
+
+    // Generate month days (42 days - 6 weeks)
+    const getMonthDays = () => {
+        const days = [];
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const startDay = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+
+        const startDate = new Date(firstDayOfMonth);
+        startDate.setDate(firstDayOfMonth.getDate() - startDay);
+
+        for (let i = 0; i < 42; i++) {
+            const day = new Date(startDate);
+            day.setDate(startDate.getDate() + i);
             days.push(day);
         }
         return days;
@@ -152,7 +172,9 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
         };
     }, [currentDate, user]);
 
-    const weekDays = useMemo(() => getWeekDays(), [currentDate]);
+    const calendarDays = useMemo(() => {
+        return viewMode === 'week' ? getWeekDays() : getMonthDays();
+    }, [currentDate, viewMode]);
 
     const formatDate = (date: Date) => {
         // Correct timezone issue by using local parts
@@ -167,15 +189,23 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
         return schedules.filter(post => post.date === dateStr);
     };
 
-    const goToNextWeek = () => {
+    const handleNext = () => {
         const newDate = new Date(currentDate);
-        newDate.setDate(currentDate.getDate() + 7);
+        if (viewMode === 'week') {
+            newDate.setDate(currentDate.getDate() + 7);
+        } else {
+            newDate.setMonth(currentDate.getMonth() + 1);
+        }
         setCurrentDate(newDate);
     };
 
-    const goToPreviousWeek = () => {
+    const handlePrevious = () => {
         const newDate = new Date(currentDate);
-        newDate.setDate(currentDate.getDate() - 7);
+        if (viewMode === 'week') {
+            newDate.setDate(currentDate.getDate() - 7);
+        } else {
+            newDate.setMonth(currentDate.getMonth() - 1);
+        }
         setCurrentDate(newDate);
     };
 
@@ -321,7 +351,7 @@ Cód. Vaga: *${code}*
                         {/* Month/Year Display */}
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={goToPreviousWeek}
+                                onClick={handlePrevious}
                                 className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
                             >
                                 <ChevronLeft size={16} />
@@ -332,7 +362,7 @@ Cód. Vaga: *${code}*
                             </div>
 
                             <button
-                                onClick={goToNextWeek}
+                                onClick={handleNext}
                                 className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
                             >
                                 <ChevronRight size={16} />
@@ -374,29 +404,46 @@ Cód. Vaga: *${code}*
                     ))}
                 </div>
 
-                {/* Days Grid - Flex-1 to fill remaining space */}
-                <div className="flex-1 grid grid-cols-7 overflow-hidden">
-                    {weekDays.map((day, index) => {
+                {/* Calendar Grid (Days) */}
+                <div className={`flex-1 grid grid-cols-7 ${viewMode === 'month' ? 'grid-rows-6' : ''} overflow-hidden`}>
+                    {calendarDays.map((day, index) => {
                         const posts = getPostsForDate(day);
                         const isTodayDate = isToday(day);
+                        // Filter posts for viewing in Month mode (e.g., max 3)
+                        const displayedPosts = viewMode === 'month' ? posts.slice(0, 3) : posts;
+                        const hiddenCount = posts.length - displayedPosts.length;
+
+                        // Check if day belongs to current month (for styling dim days)
+                        const isCurrentMonth = day.getMonth() === currentDate.getMonth();
 
                         return (
                             <div
                                 key={index}
-                                className={`flex flex-col p-2 border-r border-slate-300 dark:border-slate-600 last:border-r-0 ${isTodayDate ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
-                                    } ${index === 0 || index === 6 ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''}`}
+                                onClick={() => {
+                                    if (viewMode === 'month') {
+                                        setCurrentDate(day);
+                                        setViewMode('week');
+                                    }
+                                }}
+                                className={`flex flex-col p-2 border-r border-b border-slate-300 dark:border-slate-600 
+                                    ${(index + 1) % 7 === 0 ? 'border-r-0' : ''} 
+                                    ${!isCurrentMonth && viewMode === 'month' ? 'bg-slate-50/80 dark:bg-slate-900/80 text-slate-400' : ''}
+                                    ${isTodayDate ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''} 
+                                    ${(index === 0 || index === 6 || (index) % 7 === 0 || (index + 1) % 7 === 0) && viewMode === 'week' ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''}
+                                    ${viewMode === 'month' ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors relative min-h-[80px]' : 'overflow-hidden'}
+                                `}
                             >
                                 {/* Day Number */}
-                                <div className="flex items-center justify-between mb-2 px-1 flex-shrink-0">
+                                <div className="flex items-center justify-between mb-1 flex-shrink-0">
                                     <span
                                         className={`text-xs font-bold ${isTodayDate
                                             ? 'w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-full'
-                                            : 'text-slate-700 dark:text-slate-300'
+                                            : !isCurrentMonth && viewMode === 'month' ? 'text-slate-300 dark:text-slate-600' : 'text-slate-700 dark:text-slate-300'
                                             }`}
                                     >
                                         {day.getDate()}
                                     </span>
-                                    {posts.length > 0 && (
+                                    {posts.length > 0 && viewMode === 'week' && (
                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                                             {posts.length}
                                         </span>
@@ -404,45 +451,80 @@ Cód. Vaga: *${code}*
                                 </div>
 
 
-                                {/* Posts for this day - Compact View + Scroll */}
-                                <div className="space-y-1.5 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1">
-                                    {posts.map(post => (
+                                {/* Posts List */}
+                                <div className={`space-y-1.5 flex-1 ${viewMode === 'week' ? 'overflow-y-auto overflow-x-hidden custom-scrollbar p-1' : 'overflow-hidden'}`}>
+                                    {displayedPosts.map(post => (
                                         <div
                                             key={post.id}
-                                            onClick={() => openPreview(post)}
-                                            className={`group relative p-2 rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
-                        ${post.publishStatus === 0
-                                                    ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' // 0 = Agendado = Verde
-                                                    : 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' // 1 = Publicado = Amarelo
+                                            onClick={(e) => {
+                                                if (viewMode === 'month') {
+                                                    // In month mode, let the parent click handle zooming into the week
+                                                    // OR optionally open modal directly? User said "open the day", so keeping parent click behavior is safer.
+                                                    // But clicking the item specifically implies interest in the item.
+                                                    // Let's stop propagation if we want item click to open modal, 
+                                                    // but for "Compact Month View", usually clicking day zooms in. 
+                                                    // Let's allow propagation so it zooms in to the day details.
+                                                    return;
+                                                }
+                                                // Week mode logic
+                                                e.stopPropagation();
+                                                if (post.publishStatus === -1) {
+                                                    // No alert, just open modal per recent request
+                                                }
+                                                openPreview(post);
+                                            }}
+                                            className={`group relative rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0
+                                                ${viewMode === 'month' ? 'p-1 py-0.5 text-[9px] truncate' : 'p-2'}
+                                                ${post.publishStatus === 0
+                                                    ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30'
+                                                    : post.publishStatus === 1
+                                                        ? 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30'
+                                                        : 'border-rose-500 bg-rose-50/80 dark:bg-rose-900/30'
                                                 }`}
                                         >
-
-                                            {/* Time & Icon */}
-                                            <div className="flex items-center gap-1 mb-1">
-                                                {post.publishStatus === 0 ? (
-                                                    <Clock size={10} className="text-emerald-600 dark:text-emerald-400" />
-                                                ) : (
-                                                    <CheckCircle2 size={10} className="text-yellow-600 dark:text-yellow-400" />
-                                                )}
-                                                <span className={`text-[10px] font-black tracking-tight ${post.publishStatus === 0
-                                                    ? 'text-emerald-700 dark:text-emerald-300'
-                                                    : 'text-yellow-700 dark:text-yellow-300'
-                                                    }`}>
-                                                    {post.time}
-                                                </span>
-                                            </div>
-
-                                            {/* Title */}
-                                            <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5 truncate">
-                                                {post.title}
-                                            </p>
-
-                                            {/* Company */}
-                                            <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                                                {post.company}
-                                            </p>
+                                            {viewMode === 'week' ? (
+                                                // Detailed Week Card
+                                                <>
+                                                    <div className="flex items-center gap-1 mb-1">
+                                                        {post.publishStatus === 0 ? (
+                                                            <Clock size={10} className="text-emerald-600 dark:text-emerald-400" />
+                                                        ) : post.publishStatus === 1 ? (
+                                                            <CheckCircle2 size={10} className="text-yellow-600 dark:text-yellow-400" />
+                                                        ) : (
+                                                            <AlertCircle size={10} className="text-rose-600 dark:text-rose-400" />
+                                                        )}
+                                                        <span className={`text-[10px] font-black tracking-tight ${post.publishStatus === 0
+                                                            ? 'text-emerald-700 dark:text-emerald-300'
+                                                            : post.publishStatus === 1
+                                                                ? 'text-yellow-700 dark:text-yellow-300'
+                                                                : 'text-rose-700 dark:text-rose-300'
+                                                            }`}>
+                                                            {post.publishStatus === -1 ? '( Erro )' : post.time}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5 truncate">
+                                                        {post.title}
+                                                    </p>
+                                                    <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                                                        {post.company}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                // Compact Month Card (Title Only)
+                                                <div className="flex items-center gap-1 text-slate-700 dark:text-slate-200">
+                                                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${post.publishStatus === 0 ? 'bg-emerald-500' :
+                                                            post.publishStatus === 1 ? 'bg-yellow-500' : 'bg-rose-500'
+                                                        }`} />
+                                                    <span className="truncate font-medium">{post.title}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
+                                    {viewMode === 'month' && hiddenCount > 0 && (
+                                        <div className="text-[9px] text-slate-400 font-bold pl-1">
+                                            +{hiddenCount} mais
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -468,13 +550,31 @@ Cód. Vaga: *${code}*
                                 <div className="bg-white dark:bg-[#202c33] p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
                                     {selectedSchedule.job ? (
                                         <>
+                                            {selectedSchedule.publishStatus === -1 && (
+                                                <div className="mb-4 bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-3">
+                                                    <div className="text-rose-500 mt-0.5"><AlertCircle size={16} /></div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-rose-700">Falha na Publicação</p>
+                                                        <p className="text-[11px] text-rose-600 leading-snug mt-0.5">Ocorreu um erro ao publicar esta vaga. Verifique a conexão ou tente novamente.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {selectedSchedule.job.image_url || selectedSchedule.job.file_url ? (
                                                 <div className="mb-3 rounded-lg overflow-hidden bg-slate-100">
                                                     <img src={selectedSchedule.job.image_url || selectedSchedule.job.file_url} alt="Vaga" className="w-full h-auto object-contain max-h-[200px]" />
                                                 </div>
                                             ) : null}
                                             <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium leading-snug">
-                                                {generateJobText(selectedSchedule.job)}
+                                                {(() => {
+                                                    const text = generateJobText(selectedSchedule.job);
+                                                    return text.split(/(\*[^*]+\*)/g).map((part, index) => {
+                                                        if (part.startsWith('*') && part.endsWith('*')) {
+                                                            return <strong key={index}>{part.slice(1, -1)}</strong>;
+                                                        }
+                                                        return part;
+                                                    });
+                                                })()}
                                             </div>
                                         </>
                                     ) : (
