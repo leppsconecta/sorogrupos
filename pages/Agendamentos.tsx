@@ -17,6 +17,7 @@ import {
     Search
 } from 'lucide-react';
 import { SuccessModal } from '../components/SuccessModal';
+import { AlertModal } from '../components/AlertModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -38,6 +39,10 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
 
     // Reschedule State
     const [editDate, setEditDate] = useState('');
+
+    // Alert Modal State
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [alertMessage, setAlertMessage] = useState('');
     const [editTime, setEditTime] = useState('');
     const [originalDate, setOriginalDate] = useState('');
     const [originalTime, setOriginalTime] = useState('');
@@ -455,8 +460,10 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
         if (!selectedBatch || selectedBatch.length === 0) return;
 
         // Validate
+        // Validate
         if (!validateReschedule(editDate, editTime)) {
-            alert('O novo horário deve ser pelo menos 30 minutos a partir de agora.');
+            setAlertMessage('O novo horário deve ser pelo menos 30 minutos a partir de agora.');
+            setIsAlertModalOpen(true);
             return;
         }
 
@@ -1200,6 +1207,13 @@ Cód. Vaga: *${code}*
                     </div>
                 </div>
             )}
+
+            {/* Custom Alert Modal */}
+            <AlertModal
+                isOpen={isAlertModalOpen}
+                onClose={() => setIsAlertModalOpen(false)}
+                message={alertMessage}
+            />
         </div>
     );
 };
