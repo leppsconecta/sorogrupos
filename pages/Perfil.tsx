@@ -60,6 +60,7 @@ const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onCh
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
+import { SuccessModal } from '../components/SuccessModal';
 // ... imports
 
 type ProfileTab = 'account' | 'company';
@@ -70,6 +71,7 @@ export const Perfil: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('account');
   const [activeSocials, setActiveSocials] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Local state for forms
   const [formDataAccount, setFormDataAccount] = useState({
@@ -90,6 +92,73 @@ export const Perfil: React.FC = () => {
     facebook: company?.facebook || '',
     linkedin: company?.linkedin || ''
   });
+
+  // Password Management State
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const [loadingPass, setLoadingPass] = useState(false);
+
+  // Check if user has a password set (Email provider present)
+  // If they have 'email' provider, they have a password.
+  const hasPassword = user?.app_metadata?.providers?.includes('email');
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (loadingPass) return; // Prevent double click
+
+    if (passwords.new.length < 6) {
+      toast({ type: 'warning', title: 'Atenção', message: 'A nova senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+
+    if (passwords.new !== passwords.confirm) {
+      toast({ type: 'error', title: 'Erro', message: 'As senhas não coincidem.' });
+      return;
+    }
+
+    setLoadingPass(true);
+    try {
+      // Logic: If user has a password, verify it first
+      if (hasPassword) {
+        if (!passwords.current) {
+          throw new Error('Por favor, informe sua senha atual.');
+        }
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email!,
+          password: passwords.current,
+        });
+
+        if (signInError) {
+          throw new Error('Senha atual incorreta.');
+        }
+      }
+
+      // Update Password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwords.new
+      });
+
+      if (updateError) throw updateError;
+
+      // Success
+      setShowSuccessModal(true);
+
+      // Clear fields
+      setPasswords({ current: '', new: '', confirm: '' });
+
+    } catch (err: any) {
+      console.error(err);
+      toast({ type: 'error', title: 'Erro', message: err.message || 'Erro ao atualizar senha.' });
+    } finally {
+      setLoadingPass(false);
+    }
+  };
 
   // Update state when context data loads
   // Initialize activeSocials based on existing data
@@ -194,6 +263,13 @@ export const Perfil: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn pb-12">
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        message="Sua senha foi atualizada com sucesso!"
+        subMessage="Use a nova senha no próximo login."
+        autoCloseDuration={3000}
+      />
       {!onboardingCompleted && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 p-6 rounded-2xl animate-shake">
           <h3 className="text-red-700 dark:text-red-400 font-bold mb-1 flex items-center gap-2">
@@ -267,22 +343,61 @@ export const Perfil: React.FC = () => {
                   <Lock size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">Redefinir Senha</h3>
-                  <p className="text-sm text-slate-500 font-medium">Mantenha sua conta protegida alterando sua senha regularmente.</p>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                    {!hasPassword ? 'Criar Senha' : 'Alterar Senha'}
+                  </h3>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {!hasPassword
+                      ? 'Defina uma senha para acessar sua conta sem o Google.'
+                      : 'Mantenha sua conta protegida alterando sua senha regularmente.'}
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <InputField label="Senha Atual" icon={Key} type="password" placeholder="••••••••" />
-                <InputField label="Nova Senha" icon={Lock} type="password" placeholder="••••••••" />
-                <InputField label="Confirmar Senha" icon={Check} type="password" placeholder="••••••••" />
-              </div>
+              <form onSubmit={handleUpdatePassword} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Only show Current Password if user has password (email provider) */}
+                {hasPassword && (
+                  <InputField
+                    label="Senha Atual"
+                    icon={Key}
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.current}
+                    onChange={(e: any) => setPasswords({ ...passwords, current: e.target.value })}
+                    required
+                  />
+                )}
 
-              <div className="flex justify-end pt-4">
-                <button className="flex items-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all active:scale-95">
-                  Atualizar Senha
-                </button>
-              </div>
+                <InputField
+                  label="Nova Senha"
+                  icon={Lock}
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwords.new}
+                  onChange={(e: any) => setPasswords({ ...passwords, new: e.target.value })}
+                  required
+                />
+
+                <InputField
+                  label="Confirmar Senha"
+                  icon={Check}
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwords.confirm}
+                  onChange={(e: any) => setPasswords({ ...passwords, confirm: e.target.value })}
+                  required
+                />
+
+                <div className="md:col-span-3 flex justify-end pt-4">
+                  <button
+                    type="submit"
+                    disabled={loadingPass}
+                    className="flex items-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {loadingPass ? 'Atualizando...' : (!hasPassword ? 'Criar Senha' : 'Atualizar Senha')}
+                  </button>
+                </div>
+              </form>
             </section>
           </div>
         ) : (

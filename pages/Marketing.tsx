@@ -27,6 +27,7 @@ import { supabase } from '../lib/supabase';
 import { JobEditModal } from '../components/JobEditModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { JobSelectorModal } from '../components/JobSelectorModal';
+import { AlertModal } from '../components/AlertModal';
 
 // Helper for date formatting
 const formatDateTime = (dateString: string) => {
@@ -149,6 +150,11 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Alert Modal State
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+
   const [editingJob, setEditingJob] = useState<any>(null);
 
   // Dropdown states & Refs for Click Outside
@@ -462,6 +468,12 @@ Cód. Vaga: *${code}*
   const handleSend = async () => {
     if (selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending) return;
 
+    if (!isWhatsAppConnected) {
+      setAlertMessage("Por favor, conecte seu WhatsApp para realizar envios.");
+      setAlertModalOpen(true);
+      return;
+    }
+
     try {
       setIsSending(true);
       // Save as "sent" (executed immediately)
@@ -494,6 +506,12 @@ Cód. Vaga: *${code}*
 
   const handleScheduleSubmit = async () => {
     if (selectedDates.length === 0 || !scheduleTime) return;
+
+    if (!isWhatsAppConnected) {
+      setAlertMessage("Por favor, conecte seu WhatsApp para programar envios.");
+      setAlertModalOpen(true);
+      return;
+    }
 
     const datePart = selectedDates[0]; // expect YYYY-MM-DD
     // Create Date from inputs
@@ -604,6 +622,11 @@ Cód. Vaga: *${code}*
 
   return (
     <div className="space-y-4">
+      <AlertModal
+        isOpen={alertModalOpen}
+        onClose={() => setAlertModalOpen(false)}
+        message={alertMessage}
+      />
 
 
       {view === 'broadcast' && (

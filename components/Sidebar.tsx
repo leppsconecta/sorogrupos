@@ -110,21 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
         ))}
       </nav>
 
-      {/* Create Group Action */}
-      <div className="px-4 pb-4">
-        <button
-          onClick={() => {
-            navigate('/grupos');
-            if (onCreateGroup) onCreateGroup();
-          }}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95 group"
-        >
-          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
-            <Plus size={16} />
-          </div>
-          <span>Criar Grupo</span>
-        </button>
-      </div>
+
 
       {/* Footer / Info */}
       <div className="p-5 border-t border-white/5 bg-blue-900/20 px-5">
