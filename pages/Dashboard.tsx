@@ -1,12 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Briefcase,
   TrendingUp,
   CalendarDays,
-  Smartphone,
-  AlertCircle,
   CheckCircle2
 } from 'lucide-react';
 import {
@@ -19,6 +17,8 @@ import {
   ResponsiveContainer,
   LabelList
 } from 'recharts';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 type TimeRange = 'semanal' | 'mensal' | 'anual';
 
@@ -28,75 +28,188 @@ interface DashboardProps {
   onOpenConnect: () => void;
 }
 
-const dataWeekly = [
-  { name: 'Seg', jobs: 40 },
-  { name: 'Ter', jobs: 35 },
-  { name: 'Qua', jobs: 75 },
-  { name: 'Qui', jobs: 80 },
-  { name: 'Sex', jobs: 55 },
-  { name: 'Sáb', jobs: 95 },
-  { name: 'Dom', jobs: 120 },
-];
-
-const dataMonthly = Array.from({ length: 30 }, (_, i) => ({
-  name: (i + 1).toString(),
-  jobs: Math.floor(Math.random() * 50) + 10,
-}));
-
-const dataYearly = [
-  { name: 'Jan', jobs: 1200 },
-  { name: 'Fev', jobs: 1400 },
-  { name: 'Mar', jobs: 1100 },
-  { name: 'Abr', jobs: 1800 },
-  { name: 'Mai', jobs: 2200 },
-  { name: 'Jun', jobs: 2100 },
-  { name: 'Jul', jobs: 1900 },
-  { name: 'Ago', jobs: 2050 },
-  { name: 'Set', jobs: 2300 },
-  { name: 'Out', jobs: 2500 },
-  { name: 'Nov', jobs: 2700 },
-  { name: 'Dez', jobs: 3000 },
-];
-
 export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab, isWhatsAppConnected, onOpenConnect }) => {
+  const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>('semanal');
+  const [stats, setStats] = useState({
+    scheduledBlast: 0,
+    publishedBlasts: 0, // New stat
+    activeJobs: 0,
+    totalGroups: 0,
+    totalParticipants: 0
+  });
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [allJobs, setAllJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    processChartData();
+  }, [timeRange, allJobs]);
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+
+    try {
+      // 1. Fetch Stats
+      const [
+        schedulesResponse,
+        publishedResponse,
+        activeJobsResponse,
+        groupsResponse,
+        jobsResponse
+      ] = await Promise.all([
+        supabase
+          .from('marketing_schedules')
+          .select('id', { count: 'exact', head: true })
+          .eq('publish_status', 0) // Changed to check publish_status = 0
+          .eq('user_id', user.id),
+        supabase
+          .from('marketing_schedules')
+          .select('id', { count: 'exact', head: true })
+          .eq('publish_status', 1) // New query for publish_status = 1
+          .eq('user_id', user.id),
+        supabase
+          .from('jobs')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'active')
+          .eq('user_id', user.id),
+        supabase
+          .from('whatsapp_groups')
+          .select('total')
+          .eq('user_id', user.id),
+        supabase
+          .from('jobs')
+          .select('created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+      ]);
+
+      // Calculate Total Participants
+      const totalParticipants = (groupsResponse.data || []).reduce((acc, curr) => acc + (curr.total || 0), 0);
+
+      setStats({
+        scheduledBlast: schedulesResponse.count || 0,
+        publishedBlasts: publishedResponse.count || 0,
+        activeJobs: activeJobsResponse.count || 0,
+        totalGroups: groupsResponse.data?.length || 0,
+        totalParticipants: totalParticipants
+      });
+
+      if (jobsResponse.data) {
+        setAllJobs(jobsResponse.data);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  const processChartData = () => {
+    if (!allJobs.length) return;
+
+    const now = new Date();
+    let processedData: any[] = [];
+
+    if (timeRange === 'semanal') {
+      const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(now.getDate() - (6 - i));
+        return d;
+      });
+
+      processedData = last7Days.map(date => {
+        const dayStr = date.toISOString().split('T')[0];
+        const count = allJobs.filter(j => j.created_at.startsWith(dayStr)).length;
+        return {
+          name: days[date.getDay()],
+          fullDate: dayStr,
+          jobs: count
+        };
+      });
+
+    } else if (timeRange === 'mensal') {
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      processedData = Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const count = allJobs.filter(j => {
+          const d = new Date(j.created_at);
+          return d.getDate() === day && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }).length;
+        return {
+          name: day.toString(),
+          jobs: count
+        };
+      });
+
+    } else if (timeRange === 'anual') {
+      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      processedData = months.map((month, index) => {
+        const count = allJobs.filter(j => {
+          const d = new Date(j.created_at);
+          return d.getMonth() === index && d.getFullYear() === now.getFullYear();
+        }).length;
+        return {
+          name: month,
+          jobs: count
+        };
+      });
+    }
+
+    setChartData(processedData);
+  };
 
   const getChartData = () => {
-    if (timeRange === 'semanal') return dataWeekly;
-    if (timeRange === 'mensal') return dataMonthly;
-    return dataYearly;
+    return chartData.length > 0 ? chartData : [
+      { name: 'Sem dados', jobs: 0 }
+    ];
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toString();
   };
 
   return (
     <div className="space-y-8 animate-fadeIn">
-
-
-
       {/* Stats Grid - 2x2 on Mobile, 4x1 on Desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         <StatCard
           title="Disparos agendados"
-          value="12"
+          value={stats.scheduledBlast.toString()}
           icon={<CalendarDays className="text-blue-600" size={24} />}
           onClick={() => setActiveTab('marketing')}
         />
         <StatCard
+          title="Vagas Publicadas"
+          value={stats.publishedBlasts.toString()}
+          icon={<CheckCircle2 className="text-emerald-500" size={24} />}
+          onClick={() => setActiveTab('marketing')}
+        />
+        <StatCard
           title="Vagas Ativas"
-          value="56"
+          value={stats.activeJobs.toString()}
           icon={<Briefcase className="text-blue-600" size={24} />}
           onClick={() => setActiveTab('vagas')}
         />
         <StatCard
           title="Total de Grupos"
-          value="142"
+          value={stats.totalGroups.toString()}
           icon={<Users className="text-blue-600" size={24} />}
           onClick={() => setActiveTab('grupos')}
         />
         <StatCard
           title="Geral Participantes"
-          value="48.2k"
+          value={formatNumber(stats.totalParticipants)}
           icon={<TrendingUp className="text-blue-600" size={24} />}
-          onClick={() => setActiveTab('marketing')}
+          onClick={() => setActiveTab('grupos')}
         />
       </div>
 
@@ -105,7 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab, isWhatsAppCo
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">Vagas Anunciadas</h3>
-            <p className="text-sm text-slate-500 font-medium">Histórico de disparos realizados</p>
+            <p className="text-sm text-slate-500 font-medium">Histórico de vagas criadas</p>
           </div>
           <div className="flex bg-slate-50 dark:bg-slate-800 p-1.5 rounded-2xl self-start md:self-auto">
             {(['semanal', 'mensal', 'anual'] as TimeRange[]).map((range) => (
