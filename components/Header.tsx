@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, o
   return (
     <header className="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-900 px-8 flex items-center justify-between sticky top-0 z-40">
       <div>
-        <h1 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">
+        <h1 className="hidden md:block text-xl font-black text-slate-800 dark:text-white tracking-tight">
           {getTabTitle()}
         </h1>
       </div>
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, o
             title={connectedPhone ? `Conectado: ${connectedPhone}` : 'WhatsApp Conectado'}
           >
             <OfficialWhatsAppIcon size={16} />
-            <div className="hidden sm:flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">
                 {connectedPhone ? connectedPhone : 'Conectado'}
               </span>

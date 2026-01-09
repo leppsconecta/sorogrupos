@@ -280,11 +280,9 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     return groups.filter(g => {
       const matchesSearch = g.name.toLowerCase().includes(groupSearch.toLowerCase());
       const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
-      // HIDE SELECTED GROUPS
-      const notSelected = !selectedGroupIds.includes(g.id);
-      return matchesSearch && matchesTag && notSelected;
+      return matchesSearch && matchesTag;
     });
-  }, [groups, groupSearch, selectedTag, selectedGroupIds]);
+  }, [groups, groupSearch, selectedTag]);
 
   const filteredVagasList = useMemo(() => {
     return vagas.filter(v =>
@@ -861,23 +859,39 @@ Cód. Vaga: *${code}*
 
           {/* Right Column: Grupos & Scheduling */}
           <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm h-full flex flex-col relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col relative overflow-hidden">
               {/* Selection Header */}
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Destinatários</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Selecione os grupos para disparo</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs text-slate-500 font-medium">Selecione os grupos</p>
+                    {selectedGroupIds.length > 0 && (
+                      <span className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
+                        {selectedGroupIds.length} selecionados
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+
+                <div className="flex flex-col items-end gap-1">
                   <button
                     onClick={selectAllGroups}
-                    className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors"
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                      : 'bg-white dark:bg-slate-800 text-slate-500 hover:text-blue-500 border-slate-200 dark:border-slate-700'
+                      }`}
                   >
-                    Selecionar Todos
+                    <span className="md:hidden">Todos</span><span className="hidden md:inline">Selecionar Todos</span>
                   </button>
-                  <div className="bg-blue-50/80 text-blue-600 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-blue-100">
-                    {selectedGroupIds.length} Selecionados
-                  </div>
+                  {selectedGroupIds.length > 0 && (
+                    <button
+                      onClick={() => setSelectedGroupIds([])}
+                      className="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider hover:underline pr-1"
+                    >
+                      Limpar
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -922,11 +936,12 @@ Cód. Vaga: *${code}*
                           : 'border-slate-100 dark:border-slate-800 hover:border-blue-200 bg-white dark:bg-slate-800/30'}`}
                     >
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors overflow-hidden ${isSelected ? 'bg-white border-2 border-blue-100' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                          {group.image ? (
+                        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-colors overflow-hidden ${isSelected ? 'bg-white border-2 border-blue-100' : 'bg-slate-100 dark:bg-slate-800'
+                          } ${(!group.image || group.image === 'sem_imagem' || group.image === 'sem_image') ? '!bg-slate-300 dark:!bg-slate-600' : ''}`}>
+                          {group.image && group.image !== 'sem_imagem' && group.image !== 'sem_image' ? (
                             <img src={group.image} alt={group.name} className="w-full h-full object-cover" />
                           ) : (
-                            <Users size={18} className="text-slate-300 dark:text-slate-600" />
+                            <Users size={18} className="text-slate-500 dark:text-slate-400" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -952,21 +967,20 @@ Cód. Vaga: *${code}*
 
               {/* Action Bar */}
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-                <button onClick={() => setSelectedGroupIds([])} className="hover:text-rose-500 transition-colors">Limpar Seleção</button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <button
                   onClick={() => setIsScheduling(!isScheduling)}
                   disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
-                  className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
+                  className="py-3.5 rounded-2xl font-bold text-[10px] md:text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
                 >
                   <CalendarDays size={18} /> Agendar
                 </button>
                 <button
                   onClick={handleSend}
                   disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending}
-                  className="py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
+                  className="py-3.5 rounded-2xl font-bold text-[10px] md:text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
                 >
                   {isSending ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

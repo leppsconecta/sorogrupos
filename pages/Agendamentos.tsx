@@ -697,14 +697,14 @@ Cód. Vaga: *${code}*
                         </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-7 border-b border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/20 flex-shrink-0">
+                <div className={`${viewMode === 'month' ? 'grid' : 'hidden'} md:grid grid-cols-7 border-b border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/20 flex-shrink-0`}>
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
                         <div key={day} className={`p-2 text-center border-r border-slate-300 dark:border-slate-600 last:border-r-0 ${index === 0 || index === 6 ? 'bg-slate-100/50 dark:bg-slate-800/50' : ''}`}>
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{day}</span>
                         </div>
                     ))}
                 </div>
-                <div className={`flex-1 grid grid-cols-7 ${viewMode === 'month' ? 'grid-rows-6' : ''} overflow-hidden`}>
+                <div className={`${viewMode === 'month' ? 'grid' : 'hidden'} md:grid flex-1 grid-cols-7 ${viewMode === 'month' ? 'grid-rows-6' : ''} overflow-hidden`}>
                     {calendarDays.map((day, index) => {
                         const batches = getBatchesForDate(day);
                         const isTodayDate = isToday(day);
@@ -765,6 +765,78 @@ Cód. Vaga: *${code}*
                                         );
                                     })}
                                     {viewMode === 'month' && hiddenCount > 0 && <div className="text-[9px] text-slate-400 font-bold pl-1">+{hiddenCount} mais</div>}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Mobile List View */}
+                <div className={`md:hidden flex-1 overflow-y-auto no-scrollbar p-4 space-y-6 pb-24 bg-white dark:bg-slate-900 ${viewMode === 'month' ? 'hidden' : 'block'}`}>
+                    {calendarDays.map((day, index) => {
+                        const batches = getBatchesForDate(day);
+                        const isTodayDate = isToday(day);
+                        const weekDayName = day.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+
+                        return (
+                            <div key={index} className="flex gap-4">
+                                {/* Date Column */}
+                                <div className="flex flex-col items-center min-w-[3rem] pt-1">
+                                    <div className={`text-2xl font-bold ${isTodayDate ? 'bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center -ml-2 shadow-md shadow-blue-500/20' : 'text-slate-700 dark:text-white'}`}>
+                                        {day.getDate()}
+                                    </div>
+                                    <span className={`text-xs font-medium capitalize mt-1 ${isTodayDate ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{weekDayName}</span>
+                                </div>
+
+                                {/* Content Column */}
+                                <div className="flex-1 space-y-3 pt-1">
+                                    {batches.length > 0 ? (
+                                        batches.map((batch, batchIndex) => {
+                                            const first = batch[0];
+                                            const { color, icon: Icon, label } = getBatchStatusInfo(batch);
+
+                                            // Handle case where we don't have job detail yet
+                                            const jobImage = first.job?.image_url;
+
+                                            return (
+                                                <div
+                                                    key={batchIndex}
+                                                    onClick={() => openPreview(batch)}
+                                                    className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex gap-3 active:scale-[0.98] transition-all"
+                                                >
+                                                    {/* Thumbnail */}
+                                                    <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-700 flex-shrink-0 overflow-hidden flex items-center justify-center relative">
+                                                        {jobImage ? (
+                                                            <img src={jobImage} alt="Job" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <FileText className="text-slate-400" size={20} />
+                                                        )}
+                                                        {/* Icon Badge */}
+                                                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 shadow-sm z-10`}>
+                                                            <Icon size={10} className={`text-${color}-500`} />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                        <div className="flex items-center justify-between mb-0.5">
+                                                            <span className={`text-[10px] font-bold uppercase tracking-widest text-${color}-600 dark:text-${color}-400`}>{label}</span>
+                                                            {first.job?.jobCode && <span className="text-[9px] font-mono text-slate-400">{first.job.jobCode}</span>}
+                                                        </div>
+                                                        <h4 className="font-bold text-sm text-slate-800 dark:text-white truncate leading-tight">{first.title}</h4>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{first.company}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <button
+                                            onClick={() => setActiveTab('marketing')}
+                                            className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                                        >
+                                            <Plus size={14} /> Agendar envio
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -939,7 +1011,7 @@ Cód. Vaga: *${code}*
                             </div>
                         </div>
 
-                        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
+                        <div className="p-5 pb-24 md:pb-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
                             <button
                                 onClick={handleCloseModal}
                                 className="px-6 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg active:scale-95"
