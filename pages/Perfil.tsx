@@ -24,7 +24,7 @@ import {
 const TabButton = ({ id, label, icon: Icon, active, onClick }: { id: ProfileTab, label: string, icon: any, active: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-sm transition-all shadow-sm active:scale-95 whitespace-nowrap
+    className={`flex items-center justify-center gap-2 px-4 py-2.5 md:gap-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm transition-all shadow-sm active:scale-95 whitespace-nowrap
     ${active
         ? 'bg-blue-600 text-white shadow-blue-600/20'
         : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
@@ -158,8 +158,6 @@ export const Perfil: React.FC = () => {
         owner_id: user.id,
         name: formDataCompany.name,
         cnpj: formDataCompany.cnpj,
-        name: formDataCompany.name,
-        cnpj: formDataCompany.cnpj,
         whatsapp: formDataCompany.whatsapp,
         zip_code: formDataCompany.zip_code,
         email: (formDataCompany as any).email,
@@ -208,7 +206,7 @@ export const Perfil: React.FC = () => {
       )}
 
       {/* Tab Switcher */}
-      <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-2">
+      <div className="flex items-center justify-center gap-2 w-full">
         <TabButton id="account" label="Perfil da Conta" icon={User} active={activeTab === 'account'} onClick={() => setActiveTab('account')} />
         <TabButton id="company" label="Perfil da Empresa" icon={Building2} active={activeTab === 'company'} onClick={() => setActiveTab('company')} />
       </div>
@@ -256,8 +254,8 @@ export const Perfil: React.FC = () => {
               </div>
 
               <div className="flex justify-end pt-4">
-                <button onClick={handleSaveAccount} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
-                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Alterações'}
+                <button onClick={handleSaveAccount} disabled={loading} className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
+                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </section>
@@ -416,8 +414,8 @@ export const Perfil: React.FC = () => {
               </div>
 
               <div className="flex justify-end pt-8">
-                <button onClick={handleSaveCompany} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
-                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Perfil da Empresa'}
+                <button onClick={handleSaveCompany} disabled={loading} className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
+                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </section>

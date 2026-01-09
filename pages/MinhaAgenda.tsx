@@ -8,7 +8,7 @@ export const MinhaAgenda = () => {
                 <Calendar size={40} className="text-blue-500 dark:text-blue-400" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Minha Agenda</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Em breve este recurso estará disponível</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto">Aqui você pode ver o agendamento de entrevistas dos candidatos.</p>
         </div>
     );
 };

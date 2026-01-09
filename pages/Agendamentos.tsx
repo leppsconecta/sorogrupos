@@ -34,6 +34,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
     // Modal State
     const [selectedBatch, setSelectedBatch] = useState<any[] | null>(null);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // Valid state for delete confirmation
 
     // Reschedule State
     const [editDate, setEditDate] = useState('');
@@ -231,7 +232,25 @@ export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
                 };
             });
 
-            setSchedules(processedSchedules);
+
+            // 6. Cleanup Orphaned Schedules (Cascade Delete Simulation)
+            const orphanedIds = processedSchedules.filter(s => !s.job).map(s => s.id);
+
+            if (orphanedIds.length > 0) {
+                console.log('Cleaning up orphaned schedules:', orphanedIds);
+                // Delete from DB without waiting
+                supabase.from('marketing_schedules').delete().in('id', orphanedIds).then(({ error }) => {
+                    if (error) console.error('Error deleting orphaned schedules:', error);
+                    else console.log('Orphaned schedules deleted successfully');
+                });
+
+                // Filter out from UI immediately
+                const validSchedules = processedSchedules.filter(s => s.job);
+                setSchedules(validSchedules);
+            } else {
+                setSchedules(processedSchedules);
+            }
+
         } catch (error) {
             console.error('Error fetching schedules:', error);
         } finally {
@@ -667,6 +686,35 @@ Cód. Vaga: *${code}*
 
     const monthYear = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
+    const handleDeleteBatch = () => {
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const executeDeleteBatch = async () => {
+        if (!selectedBatch || selectedBatch.length === 0) return;
+
+        setIsSaving(true);
+        try {
+            const idsToDelete = selectedBatch.map(s => s.id);
+            const { error } = await supabase
+                .from('marketing_schedules')
+                .delete()
+                .in('id', idsToDelete);
+
+            if (error) throw error;
+
+            // Update local state
+            setSchedules(prev => prev.filter(s => !idsToDelete.includes(s.id)));
+            setIsPreviewModalOpen(false);
+            setIsDeleteConfirmOpen(false);
+        } catch (error) {
+            console.error('Error deleting batch:', error);
+            alert('Erro ao excluir agendamento.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const getBatchStatusInfo = (batch: any[]) => {
         const first = batch[0];
         const allSent = batch.every(s => s.publishStatus === 1);
@@ -1011,10 +1059,17 @@ Cód. Vaga: *${code}*
                             </div>
                         </div>
 
-                        <div className="p-5 pb-24 md:pb-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
+                        <div className="p-5 pb-24 md:pb-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between gap-4">
+                            <button
+                                onClick={handleDeleteBatch}
+                                disabled={isSaving}
+                                className="px-4 py-2 md:px-6 md:py-3 bg-white dark:bg-slate-800 text-rose-500 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                            >
+                                {isSaving ? 'Excluindo...' : 'Excluir Agendamento'}
+                            </button>
                             <button
                                 onClick={handleCloseModal}
-                                className="px-6 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg active:scale-95"
+                                className="px-4 py-2 md:px-6 md:py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold text-[10px] md:text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg active:scale-95"
                             >
                                 Salvar e Fechar
                             </button>
@@ -1107,6 +1162,37 @@ Cód. Vaga: *${code}*
                 onClose={() => setShowSuccessModal(false)}
                 message={successMessage}
             />
+
+            {/* Delete Confirmation Modal */}
+            {isDeleteConfirmOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleUp p-6 text-center">
+                        <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle size={32} className="text-rose-500" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Confirmar Exclusão</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                            Tem certeza que deseja excluir todo este agendamento? Esta ação removerá o(s) grupo(s) desta data e não pode ser desfeita.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsDeleteConfirmOpen(false)}
+                                disabled={isSaving}
+                                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeDeleteBatch}
+                                disabled={isSaving}
+                                className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                            >
+                                {isSaving ? 'Apagando...' : 'Sim, Excluir'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
-}
+};

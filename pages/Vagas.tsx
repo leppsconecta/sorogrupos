@@ -120,6 +120,8 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [isEmojiModalOpen, setIsEmojiModalOpen] = useState(false);
   const [emojiInput, setEmojiInput] = useState('');
 
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Mobile Search State
+
   // Effect to handle initialJobId deep link
   useEffect(() => {
     if (initialJobId && vagas.length > 0) {
@@ -975,7 +977,7 @@ Cód. Vaga: *${code}*
             {/* Search Input & Filtering */}
             <div className="flex gap-2 w-full sm:w-auto">
               {/* Filter Select */}
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
+              <div className={`flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 transition-all duration-300 ease-in-out origin-left ${isSearchExpanded ? 'w-0 opacity-0 overflow-hidden p-0 sm:w-auto sm:opacity-100 sm:p-1' : 'w-auto opacity-100'}`}>
                 <button
                   onClick={() => setFilterStatus('all')}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
@@ -996,25 +998,38 @@ Cód. Vaga: *${code}*
                 </button>
               </div>
 
-              <div className="relative w-full sm:w-64 group">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <Search size={16} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <div className={`relative transition-all duration-300 ease-out ${isSearchExpanded ? 'flex-1' : 'w-10 sm:w-64'}`}>
+                {/* Mobile Trigger (Visible when collapsed on Mobile) */}
+                <button
+                  onClick={() => setIsSearchExpanded(true)}
+                  className={`absolute inset-0 flex sm:hidden items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-blue-600 transition-all ${isSearchExpanded ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100'}`}
+                >
+                  <Search size={16} />
+                </button>
+
+                {/* Input Field */}
+                <div className={`relative w-full transition-all duration-300 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto'}`}>
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <Search size={16} className="text-slate-400 focus-within:text-blue-500 transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar..."
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-8 py-2 text-xs outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
+                    onBlur={() => !searchTerm && setIsSearchExpanded(false)}
+                    autoFocus={isSearchExpanded} // Auto focus when expanded
+                  />
+                  {(searchTerm || isSearchExpanded) && (
+                    <button
+                      onClick={() => { setSearchTerm(''); setIsSearchExpanded(false); }}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por cargo ou código..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -1340,23 +1355,30 @@ Cód. Vaga: *${code}*
                           </div>
                         ) : (
                           <div className="text-center p-10">
-                            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                              <Upload size={32} />
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 text-white md:bg-blue-100 md:text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-blue-600/30 md:shadow-none">
+                              <Upload size={24} className="md:w-8 md:h-8" />
                             </div>
-                            <p className="font-bold text-slate-700 dark:text-slate-300">Carregar arte da vaga</p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">
+                              <span className="md:hidden">Toque para carregar</span>
+                              <span className="hidden md:block">Carregar arte da vaga</span>
+                            </p>
                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">Formatos suportados: JPG, PNG</p>
                           </div>
                         )}
                       </label>
 
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
+                      <div className="md:bg-slate-50 md:dark:bg-slate-800/50 md:p-6 md:rounded-3xl space-y-4 md:border md:border-slate-100 md:dark:border-slate-800">
+                        <div className="md:hidden w-full h-px bg-slate-100 dark:bg-slate-800 my-4" />
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center justify-center"><Smartphone size={18} /></div>
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Adicionar rodapé de contato na imagem?</span>
                           </div>
-                          <button onClick={() => setShowFooterInImage(!showFooterInImage)} className={`w-12 h-6 rounded-full transition-all relative ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-200'}`}>
-                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${showFooterInImage ? 'left-6.5' : 'left-0.5'}`} />
+                          <button
+                            onClick={() => setShowFooterInImage(!showFooterInImage)}
+                            className={`w-12 h-6 rounded-full transition-all relative flex-shrink-0 ${showFooterInImage ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                          >
+                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300 ${showFooterInImage ? 'translate-x-6' : 'translate-x-0.5'}`} />
                           </button>
                         </div>
 
@@ -1367,9 +1389,9 @@ Cód. Vaga: *${code}*
                           </div>
                           <button
                             onClick={() => setJobDraft({ ...jobDraft, showObservation: !jobDraft.showObservation })}
-                            className={`w-12 h-6 rounded-full transition-all relative ${jobDraft.showObservation ? 'bg-blue-600' : 'bg-slate-200'}`}
+                            className={`w-12 h-6 rounded-full transition-all relative flex-shrink-0 ${jobDraft.showObservation ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
                           >
-                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${jobDraft.showObservation ? 'left-6.5' : 'left-0.5'}`} />
+                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300 ${jobDraft.showObservation ? 'translate-x-6' : 'translate-x-0.5'}`} />
                           </button>
                         </div>
 

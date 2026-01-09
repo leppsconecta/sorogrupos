@@ -7,7 +7,10 @@ import {
   UserCircle,
   LifeBuoy,
   CreditCard,
-  CalendarDays
+  CalendarDays,
+  Users,
+  FileText,
+  Calendar
 } from 'lucide-react';
 
 interface BottomNavProps {
@@ -23,10 +26,13 @@ const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
 
 const menuItems = [
   { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={20} /> },
-  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={20} /> },
-  { id: 'agendamentos', label: 'Calendário', icon: <CalendarDays size={20} /> },
-  { id: 'vagas', label: 'Minhas vagas', icon: <Briefcase size={20} /> },
-  { id: 'grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={20} /> },
+  { id: 'marketing', label: 'Anunciar', icon: <Megaphone size={20} /> },
+  { id: 'agendamentos', label: 'Planner', icon: <CalendarDays size={20} /> },
+  { id: 'vagas', label: 'Vagas', icon: <Briefcase size={20} /> },
+  { id: 'grupos', label: 'Grupos', icon: <WhatsAppIcon size={20} /> },
+  { id: 'curriculos', label: 'Currículos', icon: <FileText size={20} /> },
+  { id: 'minha-agenda', label: 'Agenda', icon: <Calendar size={20} /> },
+  { id: 'candidatos', label: 'Candidatos', icon: <Users size={20} /> },
   { id: 'plano', label: 'Plano', icon: <CreditCard size={20} /> },
   { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={20} /> },
   { id: 'perfil', label: 'Perfil', icon: <UserCircle size={20} /> },
@@ -35,26 +41,22 @@ const menuItems = [
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-[60] px-4 safe-area-bottom shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.1)]">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#172554] backdrop-blur-xl border-t border-white/10 z-[60] px-4 safe-area-bottom shadow-[0_-10px_20px_-5px_rgba(23,37,84,0.4)]">
       <div className="flex items-center gap-6 overflow-x-auto no-scrollbar h-20">
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center justify-center gap-1 min-w-[64px] h-full transition-all relative
-              ${activeTab === item.id
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-slate-400 dark:text-slate-500'
-              }`}
+            className={`flex flex-col items-center justify-center gap-1 min-w-[64px] h-full transition-all relative text-white`}
           >
-            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-600/10 scale-110' : ''}`}>
+            <div className={`p-2 rounded-xl transition-all text-yellow-400 ${activeTab === item.id ? 'bg-white/10 scale-110' : ''}`}>
               {item.icon}
             </div>
             <span className={`text-[10px] font-bold uppercase tracking-widest ${activeTab === item.id ? 'opacity-100' : 'opacity-60'}`}>
               {item.label}
             </span>
             {activeTab === item.id && (
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 dark:bg-blue-400 rounded-b-full shadow-[0_0_10px_rgba(37,99,235,0.5)]" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-yellow-400 rounded-b-full shadow-[0_0_10px_rgba(250,204,21,0.5)]" />
             )}
           </button>
         ))}

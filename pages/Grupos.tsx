@@ -58,6 +58,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [isSyncing, setIsSyncing] = useState(false);
   const [taggingGroup, setTaggingGroup] = useState<Group | null>(null);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Mobile Search State
   const [editingTagValue, setEditingTagValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -621,11 +622,11 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-4 md:space-y-8 animate-fadeIn">
       {/* Search and Action Bar */}
       <div className="flex flex-col lg:flex-row items-center gap-4">
-        {/* Search Input - Expanding */}
-        <div ref={searchContainerRef} className="relative flex-1 w-full group">
+        {/* Search Input - Expanding (Desktop Only) */}
+        <div ref={searchContainerRef} className="hidden md:flex relative flex-1 w-full group">
           <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
             <Search className="text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
           </div>
@@ -648,7 +649,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
           <button
             onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
+            className="hidden md:flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
           >
             <Plus size={18} />
             <span>Criar</span>
@@ -657,7 +658,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       </div>
 
       {/* Filtering Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-4 no-scrollbar">
         <button
           onClick={() => { setSelectedTag(null); setShowMyGroups(false); }}
           className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
@@ -708,6 +709,51 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             </button>
           );
         })}
+      </div>
+
+      {/* Mobile Actions: Search + Create Button */}
+      <div className="md:hidden flex items-center justify-between gap-3 w-full px-2">
+        {/* Expandable Search */}
+        <div className={`relative transition-all duration-300 ease-out flex-1`}>
+          <button
+            onClick={() => setIsSearchExpanded(true)}
+            className={`absolute inset-0 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 hover:text-blue-600 transition-all ${isSearchExpanded ? 'opacity-0 pointer-events-none scale-90' : 'opacity-100 scale-100 shadow-sm'}`}
+          >
+            <Search size={20} />
+          </button>
+
+          <div className={`relative w-full transition-all duration-300 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search size={18} className="text-slate-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 transition-all"
+              onBlur={() => !searchQuery && setIsSearchExpanded(false)}
+              autoFocus={isSearchExpanded}
+            />
+            {(searchQuery || isSearchExpanded) && (
+              <button
+                onClick={() => { setSearchQuery(''); setIsSearchExpanded(false); }}
+                className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Create Button (Hidden when search expanded) */}
+        <button
+          onClick={openCreateModal}
+          className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm active:scale-95 whitespace-nowrap overflow-hidden ${isSearchExpanded ? 'w-0 px-0 opacity-0' : 'flex-1 opacity-100'}`}
+        >
+          <Plus size={16} className="flex-shrink-0" />
+          <span className="whitespace-nowrap">Criar Grupo</span>
+        </button>
       </div>
 
       {/* Groups Grid */}

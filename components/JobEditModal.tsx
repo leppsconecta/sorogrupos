@@ -602,7 +602,7 @@ Cód. Vaga: *${code}*
                                     </div>
                                 </div>
 
-                                <div className="text-red-500 font-bold p-4 bg-yellow-200">DEBUG: CAMPOS CIDADE/REGIAO AQUI</div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>

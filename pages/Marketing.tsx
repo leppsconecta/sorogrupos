@@ -867,7 +867,7 @@ Cód. Vaga: *${code}*
                   <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-slate-500 font-medium">Selecione os grupos</p>
                     {selectedGroupIds.length > 0 && (
-                      <span className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
+                      <span className="hidden md:inline-block text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
                         {selectedGroupIds.length} selecionados
                       </span>
                     )}
@@ -897,6 +897,7 @@ Cód. Vaga: *${code}*
 
               {/* Tag Filters */}
               <div className="mb-6">
+
                 <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 -mx-2 px-2">
                   <button
                     onClick={() => setSelectedTag(null)}
@@ -920,6 +921,14 @@ Cód. Vaga: *${code}*
                     </button>
                   ))}
                 </div>
+                {/* Mobile Count (Below Tags) */}
+                {selectedGroupIds.length > 0 && (
+                  <div className="md:hidden mt-3 px-1">
+                    <span className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">
+                      {selectedGroupIds.length} selecionados
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Group List */}
