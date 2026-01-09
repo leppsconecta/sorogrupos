@@ -50,8 +50,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
       className="hidden lg:flex h-screen bg-blue-950 text-white z-50 border-r border-white/5 shadow-2xl flex-col flex-shrink-0 w-72"
     >
       {/* Logo Area */}
-      <div className="h-24 flex items-center px-5 overflow-hidden flex-shrink-0">
-        <Logo size="md" />
+      <div className="h-24 flex items-center px-6 overflow-hidden flex-shrink-0">
+        <img src="/logo-sidebar.png" alt="Soro Empregos" className="h-16 w-auto object-contain" />
       </div>
 
       <div className="h-4" /> {/* Spacer */}
