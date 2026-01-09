@@ -10,13 +10,13 @@ import {
   CalendarDays,
   Users,
   FileText,
-  Calendar
+  Calendar,
+  Plus
 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from './Logo';
 
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   onCreateGroup?: () => void;
 }
 
@@ -27,23 +27,27 @@ const WhatsAppIcon = ({ size = 22 }: { size?: number }) => (
 );
 
 const menuItems = [
-  { id: 'painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
-  { id: 'agendamentos', label: 'Calendário', icon: <CalendarDays size={22} /> },
-  { id: 'marketing', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
-  { id: 'vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
-  { id: 'grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
-  { id: 'plano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
-  { id: 'suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
-  { id: 'perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
+  { path: '/painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
+  { path: '/calendario', label: 'Calendário', icon: <CalendarDays size={22} /> },
+  { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
+  { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
+  { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
+  { path: '/meuplano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
+  { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
+  { path: '/perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
 ];
 
 const comingSoonItems = [
-  { id: 'candidatos', label: 'Candidatos', icon: <Users size={22} /> },
-  { id: 'curriculos', label: 'Currículos', icon: <FileText size={22} /> },
-  { id: 'minha-agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
+  { path: '/candidatos', label: 'Candidatos', icon: <Users size={22} /> },
+  { path: '/curriculos', label: 'Currículos', icon: <FileText size={22} /> },
+  { path: '/agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <aside
@@ -59,11 +63,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
       {/* Navigation */}
       <nav className="flex-1 py-2 px-3 space-y-2 overflow-y-auto no-scrollbar">
         {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
+          <Link
+            key={item.path}
+            to={item.path}
             className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative
-              ${activeTab === item.id
+              ${isActive(item.path)
                 ? 'bg-blue-900/50 shadow-sm border border-white/5'
                 : 'hover:bg-white/5'
               }`}
@@ -71,14 +75,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
               {item.icon}
             </div>
-            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${activeTab === item.id ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
+            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
               {item.label}
             </span>
 
-            {activeTab === item.id && (
+            {isActive(item.path) && (
               <div className="absolute left-0 w-1 h-6 bg-yellow-400 rounded-r-full" />
             )}
-          </button>
+          </Link>
         ))}
 
         <div className="pt-6 pb-3 px-2">
@@ -87,11 +91,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </div>
 
         {comingSoonItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
+          <Link
+            key={item.path}
+            to={item.path}
             className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative opacity-70 hover:opacity-100
-              ${activeTab === item.id
+              ${isActive(item.path)
                 ? 'bg-blue-900/50 shadow-sm border border-white/5 opacity-100'
                 : 'hover:bg-white/5'
               }`}
@@ -99,12 +103,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
               {item.icon}
             </div>
-            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${activeTab === item.id ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
+            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
               {item.label}
             </span>
-          </button>
+          </Link>
         ))}
       </nav>
+
+      {/* Create Group Action */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={() => {
+            navigate('/grupos');
+            if (onCreateGroup) onCreateGroup();
+          }}
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95 group"
+        >
+          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+            <Plus size={16} />
+          </div>
+          <span>Criar Grupo</span>
+        </button>
+      </div>
 
       {/* Footer / Info */}
       <div className="p-5 border-t border-white/5 bg-blue-900/20 px-5">

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -23,12 +24,12 @@ import { useAuth } from '../contexts/AuthContext';
 type TimeRange = 'semanal' | 'mensal' | 'anual';
 
 interface DashboardProps {
-  setActiveTab: (tab: string) => void;
   isWhatsAppConnected: boolean;
   onOpenConnect: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab, isWhatsAppConnected, onOpenConnect }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ isWhatsAppConnected, onOpenConnect }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>('semanal');
   const [stats, setStats] = useState({
@@ -185,31 +186,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab, isWhatsAppCo
           title="Disparos agendados"
           value={stats.scheduledBlast.toString()}
           icon={<CalendarDays className="text-blue-600" size={24} />}
-          onClick={() => setActiveTab('marketing')}
+          onClick={() => navigate('/anunciar')}
         />
         <StatCard
           title="Vagas Publicadas"
           value={stats.publishedBlasts.toString()}
           icon={<CheckCircle2 className="text-emerald-500" size={24} />}
-          onClick={() => setActiveTab('marketing')}
+          onClick={() => navigate('/anunciar')}
         />
         <StatCard
           title="Vagas Ativas"
           value={stats.activeJobs.toString()}
           icon={<Briefcase className="text-blue-600" size={24} />}
-          onClick={() => setActiveTab('vagas')}
+          onClick={() => navigate('/vagas')}
         />
         <StatCard
           title="Total de Grupos"
           value={stats.totalGroups.toString()}
           icon={<Users className="text-blue-600" size={24} />}
-          onClick={() => setActiveTab('grupos')}
+          onClick={() => navigate('/grupos')}
         />
         <StatCard
           title="Geral Participantes"
           value={formatNumber(stats.totalParticipants)}
           icon={<TrendingUp className="text-blue-600" size={24} />}
-          onClick={() => setActiveTab('grupos')}
+          onClick={() => navigate('/grupos')}
         />
       </div>
 

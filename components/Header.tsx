@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { Sun, Moon, LogOut, CheckCircle2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { Theme } from '../types';
 
 interface HeaderProps {
   theme: Theme;
   toggleTheme: () => void;
-  activeTab: string;
   onLogout?: () => void;
   isWhatsAppConnected?: boolean;
   onOpenConnect?: () => void;
@@ -30,19 +30,24 @@ const OfficialWhatsAppIcon = ({ size = 20, color = "#25D366" }: { size?: number,
   </svg>
 );
 
-export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, activeTab, onLogout, isWhatsAppConnected, onOpenConnect, onOpenDisconnect, connectedPhone }) => {
+export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, isWhatsAppConnected, onOpenConnect, onOpenDisconnect, connectedPhone }) => {
+  const location = useLocation();
+
   const getTabTitle = () => {
     const titles: Record<string, string> = {
-      painel: 'Visão Geral',
-      marketing: 'Anunciar Vaga',
-      agendamentos: 'Calendário',
-      vagas: 'Gestão de Vagas',
-      grupos: 'Gestão Grupos',
-      plano: 'Meu Plano e Assinatura',
-      suporte: 'Suporte e Central de Ajuda',
-      perfil: 'Minha Conta',
+      '/painel': 'Visão Geral',
+      '/anunciar': 'Anunciar Vaga',
+      '/calendario': 'Calendário',
+      '/vagas': 'Gestão de Vagas',
+      '/grupos': 'Gestão Grupos',
+      '/meuplano': 'Meu Plano e Assinatura',
+      '/suporte': 'Suporte e Central de Ajuda',
+      '/perfil': 'Minha Conta',
+      '/candidatos': 'Candidatos',
+      '/curriculos': 'Currículos',
+      '/agenda': 'Minha Agenda'
     };
-    return titles[activeTab] || 'Sorogrupos';
+    return titles[location.pathname] || 'Sorogrupos';
   };
 
   const handleLogout = () => {

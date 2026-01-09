@@ -19,13 +19,14 @@ import {
 import { SuccessModal } from '../components/SuccessModal';
 import { AlertModal } from '../components/AlertModal';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AgendamentosProps {
-    setActiveTab: (tab: string) => void;
 }
 
-export const Agendamentos: React.FC<AgendamentosProps> = ({ setActiveTab }) => {
+export const Agendamentos: React.FC<AgendamentosProps> = () => {
+    const navigate = useNavigate();
     const { user, company } = useAuth();
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -748,7 +749,7 @@ Cód. Vaga: *${code}*
                         </div>
                         <div className="flex items-center gap-2">
                             <button onClick={goToToday} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700">Hoje</button>
-                            <button onClick={() => setActiveTab('marketing')} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"><Plus size={14} /> Anunciar Vaga</button>
+                            <button onClick={() => navigate('/anunciar')} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"><Plus size={14} /> Anunciar Vaga</button>
                         </div>
                     </div>
                 </div>
@@ -886,7 +887,7 @@ Cód. Vaga: *${code}*
                                         })
                                     ) : (
                                         <button
-                                            onClick={() => setActiveTab('marketing')}
+                                            onClick={() => navigate('/anunciar')}
                                             className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
                                         >
                                             <Plus size={14} /> Agendar envio

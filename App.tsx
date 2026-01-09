@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -16,16 +17,19 @@ import { Curriculos } from './pages/Curriculos';
 import { MinhaAgenda } from './pages/MinhaAgenda';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
-import { X, Smartphone, QrCode, RefreshCw, Key, ArrowLeft, CheckCircle2, LogOut } from 'lucide-react';
+import { X, Smartphone, QrCode, RefreshCw, ArrowLeft, LogOut } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { FeedbackProvider, useFeedback } from './contexts/FeedbackContext';
 import { supabase } from './lib/supabase';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
 
 const AppContent: React.FC = () => {
   const { session, signOut, onboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
   const isLoggedIn = !!session;
-  const [activeTab, setActiveTab] = useState('painel');
+
+  // Note: activeTab state removed as we now use URL routing
+
   const [theme, setTheme] = useState<Theme>('light');
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
 
@@ -33,11 +37,11 @@ const AppContent: React.FC = () => {
   const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
   // Connection Flow State
   const [connectionStep, setConnectionStep] = useState<'phone' | 'result'>('phone');
-  // const [connectionMethod, setConnectionMethod] = useState<'qrcode' | 'pairingCode'>('qrcode'); // Removed
-  const [phoneNumber, setPhoneNumber] = useState('+55'); // Default +55
+  const [phoneNumber, setPhoneNumber] = useState('+55');
   const [isProcessing, setIsProcessing] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
@@ -48,6 +52,8 @@ const AppContent: React.FC = () => {
     data: string | null;
     message: string;
   } | null>(null);
+
+  const [timeLeft, setTimeLeft] = useState(90);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -61,14 +67,13 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Function to check status
     const checkStatus = async () => {
       try {
         const { data, error } = await supabase
           .from('whatsapp_conections')
-          .select('status, id, phone') // Select phone
+          .select('status, id, phone')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }) // Get latest
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
@@ -79,13 +84,12 @@ const AppContent: React.FC = () => {
 
         if (data) {
           setConnectionId(data.id);
-          setConnectedPhone(data.phone); // Set phone
+          setConnectedPhone(data.phone);
           const currentStatus = data.status?.toLowerCase();
-          console.log('Fetched status:', currentStatus, 'Phone:', data.phone); // Debug log
+          console.log('Fetched status:', currentStatus, 'Phone:', data.phone);
 
           if (currentStatus === 'connected' || currentStatus === 'conectado') {
             setIsWhatsAppConnected(true);
-            // If modal is open and we just connected, close it and reload
             if (isConnectModalOpen) {
               setIsConnectModalOpen(false);
               showToast('WhatsApp conectado com sucesso!', 'success');
@@ -102,13 +106,9 @@ const AppContent: React.FC = () => {
       }
     };
 
-    // Initial check
     checkStatus();
-
-    // Polling fallback (every 5 seconds)
     const pollInterval = setInterval(checkStatus, 5000);
 
-    // Realtime subscription
     const channel = supabase
       .channel(`whatsapp_status_${user.id}`)
       .on(
@@ -121,7 +121,6 @@ const AppContent: React.FC = () => {
         },
         (payload: any) => {
           console.log('Realtime update received:', payload);
-          // Trigger immediate check on any change
           checkStatus();
         }
       )
@@ -133,22 +132,30 @@ const AppContent: React.FC = () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
+    useEffect(() => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsResetPasswordModalOpen(true);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }, []);
+
   }, [user, showToast, isConnectModalOpen]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const [timeLeft, setTimeLeft] = useState(90); // Changed from 30 to 90
-
-  // ... (existing state)
-
   // QR Code Scan Timeout (90s) & Timer
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
     if (connectionStep === 'result' && connectionData?.type === 'qrcode') {
-      setTimeLeft(90); // Reset timer, changed from 30 to 90
+      setTimeLeft(90);
 
       intervalId = setInterval(() => {
         setTimeLeft(prev => {
@@ -169,23 +176,21 @@ const AppContent: React.FC = () => {
     };
   }, [connectionStep, connectionData?.type]);
 
-
-
-
-
   const handleLogout = async () => {
     await signOut();
-    setActiveTab('painel');
-    window.location.reload(); // Ensure clean state
+    window.location.reload();
   };
 
   const handleCreateGroupShortcut = () => {
-    setActiveTab('grupos');
+    // Just trigger the effect, navigation is handled inside Sidebar component or via explicit navigation if needed
+    // But since Sidebar handles navigation now, we just need to increment this trigger 
+    // AND ensure we are on the groups page? 
+    // Sidebar's button does: navigate('/grupos'); onCreateGroup();
     setTriggerCreateGroup(prev => prev + 1);
   };
 
   const handleGenerateQRCode = async () => {
-    if (phoneNumber.length < 12) return; // Basic validation (+55 + 10 digits min)
+    if (phoneNumber.length < 12) return;
     if (!phoneNumber) return;
     if (isProcessing) return;
 
@@ -193,14 +198,12 @@ const AppContent: React.FC = () => {
     setConnectionData(null);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      // Clean phone: remove everything except numbers
       const cleanPhone = phoneNumber.replace(/\D/g, '');
-
-      // Ensure we have connectionId
       let currentConnectionId = connectionId;
+
       if (!currentConnectionId && user) {
         const { data } = await supabase
           .from('whatsapp_conections')
@@ -231,7 +234,6 @@ const AppContent: React.FC = () => {
       const data = await response.json();
 
       if (data.success && data.data?.base64) {
-        // Handle new response format: {success: true, data: {base64: "..." } }
         const base64Image = `data:image/png;base64,${data.data.base64}`;
         setConnectionData({
           type: 'qrcode',
@@ -280,7 +282,6 @@ const AppContent: React.FC = () => {
         setConnectedPhone(null);
         setIsDisconnectModalOpen(false);
         showToast('Desconectado com sucesso!', 'success');
-        // Optional: reload to ensure clean state
         setTimeout(() => window.location.reload(), 1000);
       } else {
         showToast('Erro ao desconectar. Tente novamente.', 'error');
@@ -300,57 +301,26 @@ const AppContent: React.FC = () => {
     setConnectionData(null);
   };
 
-  // Job Navigation State
-  const [targetJobId, setTargetJobId] = useState<string | null>(null);
-
-  const renderContent = () => {
-    // If onboarding is incomplete, force 'perfil' tab
-    if (isLoggedIn && !onboardingCompleted && activeTab !== 'perfil') {
-      // We can force set activeTab here, but better to just render Perfil
-      // However, to keep UI in sync, we should useEffect to set it, or just render Perfil content masking others
-    }
-
-    const commonProps = {
-      isWhatsAppConnected,
-      onOpenConnect: () => {
-        setConnectionStep('phone');
-        setIsConnectModalOpen(true);
-      }
-    };
-
-    switch (activeTab) {
-      case 'painel': return <Dashboard setActiveTab={setActiveTab} {...commonProps} />;
-      case 'marketing': return <Marketing setActiveTab={setActiveTab} setTargetJobId={setTargetJobId} {...commonProps} />;
-      case 'vagas': return <Vagas initialJobId={targetJobId} onClearTargetJob={() => setTargetJobId(null)} />;
-      case 'grupos': return <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />;
-      case 'agendamentos': return <Agendamentos setActiveTab={setActiveTab} />;
-      case 'plano': return <Plano />;
-      case 'suporte': return <Suporte />;
-      case 'perfil': return <Perfil />;
-      case 'candidatos': return <Candidatos />;
-      case 'curriculos': return <Curriculos />;
-      case 'minha-agenda': return <MinhaAgenda />;
-      default: return <Dashboard setActiveTab={setActiveTab} {...commonProps} />;
+  const commonProps = {
+    isWhatsAppConnected,
+    onOpenConnect: () => {
+      setConnectionStep('phone');
+      setIsConnectModalOpen(true);
     }
   };
-
-  useEffect(() => {
-    if (isLoggedIn && !onboardingCompleted) {
-      if (activeTab !== 'perfil') {
-        setActiveTab('perfil');
-      }
-    }
-  }, [isLoggedIn, onboardingCompleted, activeTab]);
 
   if (!isLoggedIn) {
     return <LandingPage />;
   }
 
+  // If logged in but onboarding incomplete, we redirect/show Perfil? 
+  // We can handle this via Route protection or just inside components. 
+  // App.tsx logic previously: force activeTab='perfil'.
+  // New logic: Use <Navigate> if necessary or let components handle.
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         onCreateGroup={handleCreateGroupShortcut}
       />
 
@@ -358,7 +328,6 @@ const AppContent: React.FC = () => {
         <Header
           theme={theme}
           toggleTheme={toggleTheme}
-          activeTab={activeTab}
           onLogout={handleLogout}
           isWhatsAppConnected={isWhatsAppConnected}
           connectedPhone={connectedPhone}
@@ -371,12 +340,38 @@ const AppContent: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 custom-scrollbar">
           <div className="w-full max-w-7xl mx-auto">
-            {renderContent()}
+            <Routes>
+              {/* Default redirect to painel */}
+              <Route path="/" element={<Navigate to="/painel" replace />} />
+
+              {/* Onboarding protection: render Perfil if incomplete? 
+                    For now, following previous logic: if !onboardingCompleted, force Perfil.
+                    We can redirect in useEffect or here. */}
+              {/* The previous logic was: useEffect -> setActiveTab('perfil'). */}
+              {/* We'll implement a simple redirect inside Routes or just rely on user flow. */}
+
+              <Route path="/painel" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Dashboard {...commonProps} />} />
+              <Route path="/anunciar" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Marketing {...commonProps} />} />
+              <Route path="/vagas" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Vagas />} />
+              <Route path="/grupos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
+              <Route path="/calendario" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Agendamentos />} /> {/* Note: Agendamentos prop removed */}
+              <Route path="/meuplano" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Plano />} />
+              <Route path="/suporte" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Suporte />} />
+
+              <Route path="/perfil" element={<Perfil />} />
+
+              <Route path="/candidatos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Candidatos />} />
+              <Route path="/curriculos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Curriculos />} />
+              <Route path="/agenda" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <MinhaAgenda />} />
+
+              {/* Catch all */}
+              <Route path="*" element={<Navigate to="/painel" replace />} />
+            </Routes>
           </div>
         </main>
       </div>
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav />
 
       {/* Shared WhatsApp Connection Modal */}
       {isConnectModalOpen && (
@@ -386,7 +381,6 @@ const AppContent: React.FC = () => {
 
             {/* Header */}
             <div className="bg-[#0f172a] p-5 flex items-center justify-between relative overflow-hidden">
-              {/* Decorative background blur in header */}
               <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
               <div className="flex items-center gap-3 relative z-10">
@@ -416,7 +410,6 @@ const AppContent: React.FC = () => {
 
             {/* Body */}
             <div className="p-5 bg-slate-50 dark:bg-slate-950/50">
-
               {/* STEP 1: Phone Input */}
               {connectionStep === 'phone' && (
                 <div className="space-y-4 animate-fadeIn">
@@ -427,8 +420,8 @@ const AppContent: React.FC = () => {
                         type="text"
                         value={phoneNumber}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                          setPhoneNumber(val ? '+' + val : '+'); // Keep + prefix
+                          const val = e.target.value.replace(/\D/g, '');
+                          setPhoneNumber(val ? '+' + val : '+');
                         }}
                         onFocus={() => {
                           if (!phoneNumber) setPhoneNumber('+55');
@@ -599,17 +592,23 @@ const AppContent: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Reset Password Modal */}
+      {isResetPasswordModalOpen && (
+        <ResetPasswordModal onClose={() => setIsResetPasswordModalOpen(false)} />
+      )}
     </div>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <FeedbackProvider>
-        <AppContent />
-      </FeedbackProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <FeedbackProvider>
+          <AppContent />
+        </FeedbackProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 

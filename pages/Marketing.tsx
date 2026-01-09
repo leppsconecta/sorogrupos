@@ -21,10 +21,12 @@ import {
   Edit2,
   Image as ImageIcon
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { JobEditModal } from '../components/JobEditModal';
 import { SuccessModal } from '../components/SuccessModal';
+import { JobSelectorModal } from '../components/JobSelectorModal';
 
 // Helper for date formatting
 const formatDateTime = (dateString: string) => {
@@ -107,11 +109,10 @@ const INITIAL_SCHEDULES: Schedule[] = []; // We can keep this empty or fetch fro
 interface MarketingProps {
   isWhatsAppConnected: boolean;
   onOpenConnect: () => void;
-  setActiveTab?: (tab: string) => void;
-  setTargetJobId?: (id: string | null) => void;
 }
 
-export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect, setActiveTab, setTargetJobId }) => {
+export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect }) => {
+  const navigate = useNavigate();
   const { company, user } = useAuth();
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
 
@@ -151,8 +152,9 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const [editingJob, setEditingJob] = useState<any>(null);
 
   // Dropdown states & Refs for Click Outside
-  const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
-  const jobDropdownRef = useRef<HTMLDivElement>(null);
+  // Modal State
+  const [isJobSelectorOpen, setIsJobSelectorOpen] = useState(false);
+
 
   const datePickerRef = useRef<HTMLDivElement>(null);
   const timePickerRef = useRef<HTMLDivElement>(null);
@@ -261,9 +263,6 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (jobDropdownRef.current && !jobDropdownRef.current.contains(event.target as Node)) {
-        setIsJobDropdownOpen(false);
-      }
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setShowDatePicker(false);
       }
@@ -622,105 +621,53 @@ Cód. Vaga: *${code}*
             </div>
 
             {/* Vaga Selection Card */}
-            <div className={`bg-white dark:bg-slate-900 rounded-[2rem] p-5 border transition-all duration-300 ${isJobDropdownOpen ? 'border-blue-500/50 shadow-lg shadow-blue-500/5' : 'border-slate-100 dark:border-slate-800 shadow-sm'}`}>
-              <div ref={jobDropdownRef} className="relative">
+            <div className={`bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:border-blue-500/30`}>
+              <div className="relative">
                 <button
-                  onClick={() => {
-                    setIsJobDropdownOpen(!isJobDropdownOpen);
-                    // Autofocus search on open
-                    setTimeout(() => {
-                      const input = jobDropdownRef.current?.querySelector('input');
-                      if (input) (input as HTMLInputElement).focus();
-                    }, 100);
-                  }}
-                  className="w-full text-left"
+                  onClick={() => setIsJobSelectorOpen(true)}
+                  className="w-full text-left group"
                 >
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 ml-1">Conteúdo do Envio</label>
-                  <div className="flex items-center justify-between p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors border border-transparent group-hover:border-blue-200 dark:group-hover:border-blue-800/50">
                     <div>
                       {selectedVagaIds.length === 0 ? (
-                        <h3 className="text-lg font-bold text-slate-400">Selecione as Vagas</h3>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                            <Search size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Selecionar Vagas</h3>
+                            <p className="text-[10px] text-slate-400 font-medium">Clique para buscar e adicionar</p>
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold text-slate-800 dark:text-white leading-none">{selectedVagaIds.length} Vagas Selecionadas</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <span className="font-black text-lg">{selectedVagaIds.length}</span>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-white">vagas selecionadas</h3>
+                            <p className="text-[10px] text-slate-400 font-medium">Clique para alterar seleção</p>
+                          </div>
                         </div>
                       )}
                     </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isJobDropdownOpen ? 'bg-blue-100 text-blue-600 rotate-180' : 'bg-slate-100 text-slate-400'}`}>
-                      <ChevronDown size={18} />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white dark:bg-slate-900 text-slate-400 shadow-sm group-hover:text-blue-500 transition-all`}>
+                      <ChevronRight size={18} />
                     </div>
                   </div>
                 </button>
-
-                {/* Dropdown Content */}
-                {isJobDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 rounded-b-[2rem] rounded-t-lg border-x border-b border-slate-100 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-scaleUp origin-top">
-                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
-                      <div className="relative group">
-                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                        <input
-                          type="text"
-                          autoFocus
-                          value={vagaSearch}
-                          onChange={(e) => setVagaSearch(e.target.value)}
-                          placeholder="Buscar cargo ou código..."
-                          className="w-full bg-slate-50 dark:bg-slate-800/50 pl-11 pr-4 py-3 rounded-xl border border-slate-100 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="max-h-64 overflow-y-auto custom-scrollbar p-2">
-                      {filteredVagasList.length > 0 ? (
-                        filteredVagasList.map(vaga => {
-                          const isSelected = selectedVagaIds.includes(vaga.id);
-                          if (!vagaItemRefs.current[vaga.id]) {
-                            vagaItemRefs.current[vaga.id] = createRef<HTMLDivElement>();
-                          }
-                          return (
-                            <div
-                              key={vaga.id}
-                              ref={vagaItemRefs.current[vaga.id]}
-                              onClick={() => toggleVagaSelection(vaga.id)}
-                              className={`p-3 rounded-2xl cursor-pointer mb-1 transition-all flex items-center justify-between group
-                                ${isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-900/20'
-                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            >
-                              <div>
-                                <div className="flex flex-col gap-0.5 mb-1">
-                                  <h4 className={`font-semibold text-xs ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{vaga.role}</h4>
-                                  <span className="text-[10px] font-medium text-slate-500">{vaga.companyName}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] font-medium text-slate-400 mt-1.5">
-                                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 font-bold tracking-wider">{vaga.jobCode}</span>
-                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-                                  <span>{vaga.type === 'file' ? 'Imagem' : 'Texto'}</span>
-                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-                                  <span>{formatDateTime(vaga.created_at)}</span>
-                                </div>
-                              </div>
-                              <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all
-                                ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-200 dark:border-slate-700 group-hover:border-blue-300'}`}>
-                                {isSelected && <Check size={10} className="text-white" />}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="py-8 text-center text-slate-400">
-                          <p className="text-xs font-bold">Nenhuma vaga encontrada</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                      <button onClick={() => setSelectedVagaIds([])} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 px-3 py-2 transition-colors uppercase tracking-widest">Limpar</button>
-                      <button onClick={() => setIsJobDropdownOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all">Pronto</button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
+
+            <JobSelectorModal
+              isOpen={isJobSelectorOpen}
+              onClose={() => setIsJobSelectorOpen(false)}
+              vagas={vagas}
+              selectedVagaIds={selectedVagaIds}
+              onToggleVaga={toggleVagaSelection}
+              onClearSelection={() => setSelectedVagaIds([])}
+            />
 
             {/* WhatsApp Preview Card */}
             <div className="bg-[#F0F2F5] dark:bg-[#0b141a] p-5 rounded-[2rem] shadow-inner relative overflow-hidden group">

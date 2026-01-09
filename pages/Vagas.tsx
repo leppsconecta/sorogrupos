@@ -38,6 +38,7 @@ import {
 import { Vaga, Folder, JobContact, SavedJobContact } from '../types';
 import { supabase } from '../lib/supabase';
 import { SavedContactsModal } from '../components/SavedContactsModal';
+import { useLocation } from 'react-router-dom';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
@@ -132,9 +133,12 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   // Effect to handle initialJobId deep link
+  const location = useLocation();
+  const effectiveInitialJobId = initialJobId || (location.state as any)?.jobId;
+
   useEffect(() => {
-    if (initialJobId && vagas.length > 0) {
-      const job = vagas.find(j => j.id === initialJobId);
+    if (effectiveInitialJobId && vagas.length > 0) {
+      const job = vagas.find(j => j.id === effectiveInitialJobId);
       if (job) {
         setEditingJobId(job.id);
         const folderId = job.folderId;
@@ -145,10 +149,13 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
         setIsJobModalOpen(true);
         setJobDraft(job);
 
+        // Clear state to avoid reopening on re-renders (optional, but good practice if using props)
         if (onClearTargetJob) onClearTargetJob();
+        // Note: For location.state, we can't easily "clear" it without navigating again, 
+        // but since this depends on [effectiveInitialJobId, vagas], it should be stable enough unless vagas reload.
       }
     }
-  }, [initialJobId, vagas, onClearTargetJob]);
+  }, [effectiveInitialJobId, vagas, onClearTargetJob]);
 
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);

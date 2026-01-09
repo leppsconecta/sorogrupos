@@ -17,7 +17,9 @@ import {
   X,
   MapPin,
   Send,
-  ChevronLeft
+  ChevronLeft,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
@@ -40,6 +42,13 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   const [password, setPassword] = useState('');
   const [recoveryInput, setRecoveryInput] = useState('');
   const [error, setError] = useState('');
+
+  // Register Form State
+  const [regCompany, setRegCompany] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -95,42 +104,86 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     setLoading(false);
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove tudo que não é dígito
+    const numbers = e.target.value.replace(/\D/g, '');
+    let charCode = numbers.length;
+    if (numbers.length > 11) charCode = 11; // max 11 digits
+
+    const numeric = numbers.slice(0, charCode);
+    let formatted = numeric;
+
+    // Formatação (XX) XXXXX-XXXX
+    if (numeric.length > 2) {
+      formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2)}`;
+    }
+    if (numeric.length > 7) {
+      formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2, 7)}-${numeric.slice(7)}`;
+    }
+
+    setRegPhone(formatted);
+  };
+
   const handleRegisterForm = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Na landing page o form de "Teste Grátis" tem email/senha e outros campos
-    // Vou pegar os inputs pelo name ou alterar o form para usar state se necessário.
-    // Como o form original usa inputs controlados apenas para "Empresa", "WhatsApp", "Email", "Senha" visualmente neste código não vejo state variables para este form específico além de onSubmit.
-    // Vou precisar adicionar estados para o form de registro ou usar FormData.
+    if (!regEmail || !regPassword || !regCompany || !regPhone) {
+      alert('Por favor, preencha todos os campos.');
+      return;
+    }
 
-    // UPDATE: O form original está usando inputs não controlados (sem value/onChange explícito no código que vi,
-    // mas o código original mostrava inputs controlados no modal de login, mas no "Teste Grátis" não parecia ter state).
-    // Analisando código anterior... lines 133-168 no LandingPage.tsx original.
-    // Os inputs têm placeholder mas não vejo onChange ou value. Vou usar FormData.
+    // Validação de senha: min 6 caracteres
+    if (regPassword.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
 
-    setLoading(true); // Start loading
+    // Validação: pelo menos 1 letra e 1 número
+    const hasLetter = /[a-zA-Z]/.test(regPassword);
+    const hasNumber = /[0-9]/.test(regPassword);
 
-    const form = e.target as HTMLFormElement;
-    const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
-    const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
-    const companyInput = form.querySelector('input[placeholder="Nome da sua empresa"]') as HTMLInputElement;
-    const whatsappInput = form.querySelector('input[placeholder="(15) 99999-9999"]') as HTMLInputElement;
+    if (!hasLetter && !hasNumber) {
+      // Fallback interpretation of "letter OR number" if user really meant that (which is just alphanumeric check vs special chars)
+      // But usually "letra E numero" is the standard requirement.
+      // User said "minimo 1 letra ou numero" (at least 1 letter OR number) in second prompt.
+      // First prompt "minimo 1 letra... e numeros".
+      // I will assume they want at least one letter AND at least one number.
+    }
 
-    if (!emailInput || !passwordInput) return;
+    // Strict interpretation of "At least 1 letter or number" means strings like "!!!!!" fail, but "a!!!!" passes.
+    // Ideally we want 1 letter AND 1 number.
+    if (!hasLetter && !hasNumber) {
+      alert('A senha deve conter letras ou números.');
+      return;
+    }
 
-    const regEmail = emailInput.value;
-    const regPass = passwordInput.value;
-    const regCompany = companyInput?.value;
-    const regPhone = whatsappInput?.value;
+    // Let's go with the safer "1 letter AND 1 number" logic first, or maybe allow just one if strictness is low
+    // User text: "deve ter no minimo 1 letra ou numero" -> literally "Must have at least 1 letter OR number".
+    // This allows "123456" and "abcdef".
+    // It disallows "@@@@@@".
+
+    if (!hasLetter && !hasNumber) {
+      alert('A senha deve conter pelo menos 1 letra ou 1 número.');
+      return;
+    }
+
+    // Validação básica de telefone (esperando 11 dígitos => formato com pelo menos 14 ou 15 chars)
+    // (XX) XXXXX-XXXX -> 15 chars
+    if (regPhone.replace(/\D/g, '').length < 10) {
+      alert('Por favor, insira um telefone válido com DDD.');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const { error, data } = await supabase.auth.signUp({
         email: regEmail,
-        password: regPass,
+        password: regPassword,
         options: {
           data: {
             company_name: regCompany,
-            whatsapp: regPhone
+            whatsapp: `+55${regPhone.replace(/\D/g, '')}`, // Persist with +55 prefix stripped of formatting
           }
         }
       });
@@ -139,23 +192,26 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
 
       if (data.session) {
         // Logado automaticamente
-        // Auth state change will handle redirect
       } else {
-        // Sucesso no cadastro, exibir modal amigável
+        // Sucesso no cadastro
         setIsLoginModalOpen(true);
         setModalView('register_success');
+        // Reset fields
+        setRegCompany('');
+        setRegPhone('');
+        setRegEmail('');
+        setRegPassword('');
       }
     } catch (err: any) {
       console.error('Erro detalhado no cadastro:', err);
       if (err.message === 'User already registered' || err.status === 422) {
-        // Exibir modal customizado de conta existente
         setIsLoginModalOpen(true);
         setModalView('account_exists');
       } else {
         alert('Erro ao cadastrar: ' + err.message);
       }
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
@@ -243,28 +299,65 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Empresa</label>
                 <div className="relative">
                   <Building size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="text" placeholder="Nome da sua empresa" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input
+                    required
+                    type="text"
+                    value={regCompany}
+                    onChange={(e) => setRegCompany(e.target.value)}
+                    placeholder="Nome da sua empresa"
+                    className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                  />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">WhatsApp</label>
                 <div className="relative">
                   <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="text" placeholder="(15) 99999-9999" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <span className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">+55</span>
+                  <input
+                    required
+                    type="text"
+                    inputMode="numeric"
+                    value={regPhone}
+                    onChange={handlePhoneChange}
+                    placeholder="(15) 99999-9999"
+                    className="w-full bg-white border-none rounded-2xl pl-20 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                  />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">E-mail</label>
                 <div className="relative">
                   <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="email" placeholder="seu@email.com" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input
+                    required
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                  />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">Senha</label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <input required type="password" placeholder="••••••••" className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800" />
+                  <input
+                    required
+                    type={showRegPassword ? "text" : "password"}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-white border-none rounded-2xl pl-12 pr-12 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-500 transition-colors"
+                  >
+                    {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
 
@@ -507,19 +600,19 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 </div>
 
                 <h3 className="text-2xl font-black text-white mb-2 text-center">Recuperar Senha</h3>
-                <p className="text-sm text-blue-300/60 mb-8 text-center">Informe seu e-mail ou telefone cadastrado para enviarmos os dados de acesso.</p>
+                <p className="text-sm text-blue-300/60 mb-8 text-center">Informe seu e-mail cadastrado para enviarmos os dados de acesso.</p>
 
                 <form onSubmit={handleRecoverPassword} className="space-y-6">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail ou Telefone</label>
+                    <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail</label>
                     <div className="relative">
-                      <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         required
-                        type="text"
+                        type="email"
                         value={recoveryInput}
                         onChange={e => setRecoveryInput(e.target.value)}
-                        placeholder="Ex: (15) 99999-9999 ou seu@email.com"
+                        placeholder="seu@email.com"
                         className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
                       />
                     </div>
