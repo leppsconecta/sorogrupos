@@ -1046,7 +1046,14 @@ Cód. Vaga: *${code}*
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => handleDelete(inst.id)} disabled={isPast} className={`p-2 rounded-lg transition-all flex-shrink-0 ${isPast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50'}`} title={isPast ? "Não é possível excluir agendamentos passados" : "Remover do agendamento"}><Trash2 size={16} /></button>
+                                                        <button
+                                                            onClick={() => handleDelete(inst.id)}
+                                                            disabled={isPast || selectedBatch.length <= 1}
+                                                            className={`p-2 rounded-lg transition-all flex-shrink-0 ${isPast || selectedBatch.length <= 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50'}`}
+                                                            title={isPast ? "Não é possível excluir agendamentos passados" : selectedBatch.length <= 1 ? "É necessário manter pelo menos um grupo" : "Remover do agendamento"}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </div>
                                                 );
                                             })}

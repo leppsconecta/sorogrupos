@@ -745,30 +745,61 @@ Cód. Vaga: *${code}*
                                 if (jobCreationStep === 'preview') handleSaveJob();
                                 else {
                                     if (jobCreationStep === 'form') {
-                                        if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
+                                        if (!jobDraft.role?.trim()) {
+                                            const input = document.querySelector('[name="role"], input[type="text"][placeholder*="Auxiliar"]') as HTMLInputElement;
+                                            if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                            return;
+                                        }
                                         if (jobDraft.type !== 'file') {
-                                            if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
-                                            if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
-                                            if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
-                                            if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
-                                            if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
-                                            if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
+                                            if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) {
+                                                const input = document.querySelector('[name="companyName"], input[placeholder*="nome da empresa"]') as HTMLInputElement;
+                                                if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
+                                            if (!jobDraft.city?.trim()) {
+                                                const input = document.querySelector('[name="city"], input[placeholder*="Sorocaba"]') as HTMLInputElement;
+                                                if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
+                                            if (!jobDraft.region?.trim()) {
+                                                const input = document.querySelector('[name="region"], input[placeholder*="Campolim"]') as HTMLInputElement;
+                                                if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
+                                            if (!jobDraft.requirements?.trim()) {
+                                                const textarea = document.querySelector('textarea[placeholder*="requisitos"]') as HTMLTextAreaElement;
+                                                if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
+                                            if (!jobDraft.benefits?.trim()) {
+                                                const textarea = document.querySelector('textarea[placeholder*="oferece"]') as HTMLTextAreaElement;
+                                                if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
+                                            if (!jobDraft.activities?.trim()) {
+                                                const textarea = document.querySelector('textarea[placeholder*="candidato"]') as HTMLTextAreaElement;
+                                                if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                                return;
+                                            }
                                         }
                                     }
 
                                     if (jobDraft.type === 'file' && !attachedFile && !jobDraft.imageUrl && jobCreationStep === 'upload') {
-                                        alert("Por favor, carregue a imagem da vaga.");
+                                        const fileLabel = document.querySelector('label[class*="aspect-video"]') as HTMLElement;
+                                        if (fileLabel) fileLabel.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                         return;
                                     }
 
                                     // Contact validation
                                     if ((jobCreationStep === 'form' || (jobCreationStep === 'upload' && showFooterInImage))) {
                                         if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
-                                            alert("Por favor, selecione ao menos 1 contato.");
+                                            const contactSection = document.querySelector('[class*="Contatos"]') as HTMLElement;
+                                            if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                             return;
                                         }
                                         if (jobDraft.contacts.some(c => !c.value.trim())) {
-                                            alert("Por favor, preencha as informações de todos os contatos selecionados.");
+                                            const emptyContactInput = Array.from(document.querySelectorAll('input[placeholder*="WhatsApp"], input[placeholder*="E-mail"], input[placeholder*="Link"], input[placeholder*="endereço"]')).find(input => !(input as HTMLInputElement).value.trim()) as HTMLInputElement;
+                                            if (emptyContactInput) { emptyContactInput.focus(); emptyContactInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
                                             return;
                                         }
                                         // Validate Address Date/Time if active
@@ -776,7 +807,8 @@ Cód. Vaga: *${code}*
                                         for (const ac of addressContacts) {
                                             if (!ac.noDateTime) {
                                                 if (!ac.date || !ac.time) {
-                                                    alert("Para contatos de Endereço, a Data e Hora são obrigatórias quando a opção 'Sem Data/Hora' está desativada.");
+                                                    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+                                                    if (dateInput) { dateInput.focus(); dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
                                                     return;
                                                 }
                                             }

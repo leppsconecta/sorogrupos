@@ -121,6 +121,15 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [emojiInput, setEmojiInput] = useState('');
 
   const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Mobile Search State
+  const [isFolderSearchExpanded, setIsFolderSearchExpanded] = useState(false); // Mobile Folder Search State
+  const [searchFolderTerm, setSearchFolderTerm] = useState(''); // Folder Search
+
+  // Validation Modal
+  const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
+
+  // Mobile Dropdown Menu
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   // Effect to handle initialJobId deep link
   useEffect(() => {
@@ -144,7 +153,13 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   // Auxiliares
   const currentFolder = folders.find(f => f.id === currentFolderId);
   const currentDepth = !currentFolder ? 0 : currentFolder.level === 'company' ? 1 : 2;
-  const filteredFolders = folders.filter(f => f.parentId === currentFolderId);
+  const filteredFolders = folders.filter(f => {
+    const matchesParent = f.parentId === currentFolderId;
+    const matchesSearch = searchFolderTerm
+      ? f.name.toLowerCase().includes(searchFolderTerm.toLowerCase())
+      : true;
+    return matchesParent && matchesSearch;
+  });
 
   const filteredJobs = vagas.filter(vaga => {
     const matchesFolder = currentFolderId ? vaga.folderId === currentFolderId : false;
@@ -349,9 +364,10 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
     e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const generatePreviewText = () => {
-    const j = jobDraft;
-    const code = j.jobCode || '---';
+  /* Refactored to accept optional job object for reuse */
+  const generatePreviewText = (job?: Vaga | Partial<Vaga>) => {
+    const j = job || jobDraft;
+    const code = j.jobCode || j.code || '---';
 
     const channelStrings: string[] = [];
 
@@ -359,17 +375,22 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
       if (!c.value?.trim()) return;
 
       if (c.type === 'WhatsApp') {
-        channelStrings.push(`pelo WhatsApp ${c.value}`);
+        channelStrings.push(`WhatsApp ${c.value}`);
       } else if (c.type === 'Email') {
-        channelStrings.push(`pelo email ${c.value}`);
+        channelStrings.push(`e-mail ${c.value}`);
       } else if (c.type === 'Link') {
-        channelStrings.push(`pelo link ${c.value}`);
+        channelStrings.push(`Link ${c.value}`);
       } else if (c.type === 'Endereço') {
-        let addr = `comparecer no endereço: ${c.value}`;
-        if (!c.noDateTime && c.date && c.time) {
-          addr += ` no dia ${formatPreviewDate(c.date)} às ${c.time}`;
+        let addr = `${c.value}`;
+        if (!c.noDateTime && !c.no_date_time) {
+          // Handle both camelCase (frontend) and snake_case (backend/mapped) props if mixed
+          const d = c.date;
+          const t = c.time;
+          if (d && t) {
+            // Simple format if formatPreviewDate isn't available or we want simple string
+            addr += ` no dia ${d.split('-').reverse().join('/')} às ${t}`;
+          }
         }
-        addr += ` com currículos em mãos`;
         channelStrings.push(addr);
       }
     });
@@ -382,27 +403,32 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
     };
 
     const channelsText = joinChannels(channelStrings);
+    // WhatsApp Format requires specific phrasing from previous requests:
+    // "Enviar curriculo com o nome da vaga/codigo para: ..."
     const interessadosText = channelsText
-      ? `Enviar currículo com nome da vaga/cód ${channelsText}`
+      ? (job?.type === 'file' ? channelsText : `Enviar curriculo com o nome da vaga/codigo para: ${channelsText}`)
       : 'Entre em contato pelos canais oficiais.';
+
+    // Fix: for image jobs, typically the "interessados" part is just the list of channels in the specific format users wanted previously
+    // But let's stick to the generated text logic that matches Marketing.tsx if possible.
 
     if (j.type === 'file') {
       const observationText = j.showObservation && j.observation ? `\nObs: ${j.observation}\n` : '';
-      return `*${company?.name || 'Sua Empresa'} Contrata* ${previewEmojis}
+      return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
-Função: *${j.role || ''}*
+Função: *${j.role || j.title || ''}*
 Cód. Vaga: *${code}*
 -----------------------------${observationText}
 *Interessados*
  ${interessadosText}`;
     }
 
-    return `*${company?.name || 'Sua Empresa'} Contrata* ${previewEmojis}
+    return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
-Função: *${j.role || ''}*
+Função: *${j.role || j.title || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
-*Vínculo:* ${j.bond || ''}
+*Vínculo:* ${j.bond || 'CLT'}
 *Empresa:* ${j.hideCompany ? '(Oculto)' : j.companyName || ''}
 *Cidade/Bairro:* ${j.city || ''} - ${j.region || ''}
 *Requisitos:* ${j.requirements || ''}
@@ -414,9 +440,9 @@ Cód. Vaga: *${code}*
 ----------------------------- 
 
 *Mais informações:*
-➞ ${company?.name || 'Agência Sync'}
-➞ ${company?.whatsapp || '5515996993021'}
-➞ ${company?.website || 'soroempregos.com.br'}`;
+➞ ${company?.name || 'Lepps | Conecta'}
+➞ ${company?.whatsapp || '11946610753'}
+➞ ${company?.website || 'leppsconecta.com.br'}`;
   };
 
   const handleSaveJob = async () => {
@@ -567,7 +593,8 @@ Cód. Vaga: *${code}*
 
     } catch (error: any) {
       console.error('Erro ao salvar vaga:', error);
-      alert(`Erro ao salvar vaga: ${error.message}`);
+      setValidationMessage(`Erro ao salvar vaga: ${error.message}`);
+      setIsValidationModalOpen(true);
     }
   };
 
@@ -592,7 +619,8 @@ Cód. Vaga: *${code}*
       .eq('id', jobId);
 
     if (error) {
-      alert("Erro ao atualizar status");
+      setValidationMessage("Erro ao atualizar status da vaga");
+      setIsValidationModalOpen(true);
       console.error(error);
       // Revert
       setVagas(prev => prev.map(v => v.id === jobId ? { ...v, status: job.status } : v));
@@ -616,7 +644,8 @@ Cód. Vaga: *${code}*
       .eq('id', vagaId);
 
     if (error) {
-      alert("Erro ao mover vaga");
+      setValidationMessage("Erro ao mover vaga para a pasta selecionada");
+      setIsValidationModalOpen(true);
       return;
     }
 
@@ -921,13 +950,71 @@ Cód. Vaga: *${code}*
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-3 ${isFolderSearchExpanded ? 'w-full md:w-auto' : ''}`}>
           {currentDepth < 2 && (
-            <button onClick={() => { setFolderNameInput(''); setIsFolderModalOpen(true); }} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-sm hover:bg-slate-50 shadow-sm">
-              <FolderPlus size={18} />
-              <span className="hidden sm:inline">{currentDepth === 0 ? 'Nova Empresa' : 'Novo Setor'}</span>
-              <span className="sm:hidden">{currentDepth === 0 ? 'Empresa' : 'Setor'}</span>
-            </button>
+            <>
+              {/* Desktop Button */}
+              <button
+                onClick={() => { setFolderNameInput(''); setIsFolderModalOpen(true); }}
+                className={`hidden md:flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95`}
+              >
+                <FolderPlus size={18} />
+                <span>{currentDepth === 0 ? 'Criar Empresa' : 'Criar Setor'}</span>
+              </button>
+
+              {/* Mobile Layout */}
+              <div className="md:hidden flex items-center gap-3 w-full transition-all duration-300">
+                {!isFolderSearchExpanded ? (
+                  <>
+                    <button
+                      onClick={() => { setFolderNameInput(''); setIsFolderModalOpen(true); }}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-blue-600/20 active:scale-95"
+                    >
+                      <FolderPlus size={18} />
+                      <span>{currentDepth === 0 ? 'Empresa' : 'Setor'}</span>
+                    </button>
+                    {(filteredFolders.length > 0 || searchFolderTerm) && (
+                      <button
+                        onClick={() => setIsFolderSearchExpanded(true)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-sm hover:bg-slate-50 shadow-sm active:scale-95"
+                      >
+                        <Search size={18} />
+                        <span>Pesquisar</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full relative animate-fadeIn">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={searchFolderTerm}
+                      onChange={(e) => setSearchFolderTerm(e.target.value)}
+                      onBlur={() => {
+                        // Delay slighty to allow clearing to work if clicked
+                        setTimeout(() => {
+                          if (!searchFolderTerm) {
+                            setIsFolderSearchExpanded(false);
+                          }
+                        }, 200);
+                      }}
+                      placeholder={currentDepth === 0 ? "Buscar empresa..." : "Buscar setor..."}
+                      className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-blue-500 dark:border-blue-500 rounded-xl text-sm outline-none ring-2 ring-blue-500/20"
+                    />
+                    <button
+                      onClick={() => {
+                        setSearchFolderTerm('');
+                        setIsFolderSearchExpanded(false);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
           {currentFolderId && (
             <button onClick={startJobCreation} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95">
@@ -938,8 +1025,32 @@ Cód. Vaga: *${code}*
         </div>
       </div>
 
+      {/* Folder Search - Only show when viewing folders - DESKTOP ONLY */}
+      {(!currentFolderId || filteredFolders.length > 0) && (
+        <div className="hidden md:flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchFolderTerm}
+              onChange={(e) => setSearchFolderTerm(e.target.value)}
+              placeholder={currentDepth === 0 ? "Buscar empresa..." : "Buscar setor..."}
+              className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+            />
+            {searchFolderTerm && (
+              <button
+                onClick={() => setSearchFolderTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Grid de Pastas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredFolders.map(folder => (
           <div
             key={folder.id}
@@ -1033,14 +1144,109 @@ Cód. Vaga: *${code}*
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          {/* Mobile List View */}
+          <div className="md:hidden space-y-3 px-2">
+            {filteredJobs.length === 0 ? (
+              <div className="text-center py-12 text-sm text-slate-500">
+                {searchTerm ? 'Nenhum resultado para a busca.' : 'Nenhuma vaga cadastrada nesta pasta.'}
+              </div>
+            ) : (
+              filteredJobs.map(vaga => (
+                <div
+                  key={vaga.id}
+                  className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4"
+                >
+                  {/* Header: Title + Actions */}
+                  <div className="flex items-start gap-3">
+                    {/* Left: Job Info */}
+                    <div className="flex-1 min-w-0" onClick={() => handleViewJob(vaga)}>
+                      <h3 className="font-bold text-base text-slate-900 dark:text-white truncate">
+                        {vaga.role || vaga.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                        {vaga.city || ''}{vaga.city && vaga.region ? ' - ' : ''}{vaga.region || ''}
+                        {!vaga.city && !vaga.region && '—'}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                        {vaga.date}
+                      </p>
+                      <span className="inline-block bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase mt-2">
+                        {vaga.jobCode || '---'}
+                      </span>
+                    </div>
+
+                    {/* Right: Toggle + Menu */}
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      {/* Status Toggle */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleJobStatus(vaga.id); }}
+                        className={`w-14 h-7 rounded-full transition-colors relative ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                      >
+                        <div className={`w-6 h-6 rounded-full bg-white absolute top-0.5 transition-all shadow ${vaga.status === 'Ativa' ? 'left-[30px]' : 'left-0.5'}`} />
+                      </button>
+
+                      {/* 3-dot Menu */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === vaga.id ? null : vaga.id); }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-slate-100"
+                        >
+                          <MoreVertical size={20} />
+                        </button>
+
+                        {openDropdownId === vaga.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenDropdownId(null)} />
+                            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-20 min-w-[160px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleViewJob(vaga); setOpenDropdownId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors"
+                              >
+                                <Eye size={16} className="text-blue-600" />
+                                Visualizar
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditJob(vaga); setOpenDropdownId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors"
+                              >
+                                <Edit2 size={16} className="text-yellow-600" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setJobToMove(vaga); setIsMoveJobModalOpen(true); setOpenDropdownId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors"
+                              >
+                                <FolderInput size={16} className="text-indigo-600" />
+                                Mover
+                              </button>
+                              <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteJob(vaga.id); setOpenDropdownId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center gap-3 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                                Excluir
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse table-fixed">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50">
                   <th className="w-1/3 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Cargo / Código</th>
-                  <th className="hidden sm:table-cell w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Tipo</th>
-                  <th className="hidden md:table-cell w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Data</th>
-                  <th className="w-1/4 sm:w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                  <th className="w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Tipo</th>
+                  <th className="w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Data</th>
+                  <th className="w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">Status</th>
                   <th className="w-1/6 px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">Ações</th>
                 </tr>
               </thead>
@@ -1063,14 +1269,13 @@ Cód. Vaga: *${code}*
                           e.preventDefault();
                         }
                       }}
-                      className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group ${(currentDepth === 1 && filteredFolders.length > 0) ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+                      className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group ${(currentDepth === 1 && filteredFolders.length > 0) ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${vaga.type === 'file' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
                             {vaga.type === 'file' ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
-
                           <div className="overflow-hidden">
                             <span className="font-bold text-base text-slate-800 dark:text-white block truncate text-ellipsis max-w-[220px]" title={vaga.role || vaga.title}>{vaga.role || vaga.title}</span>
                             <div className="flex items-center gap-2 mt-1">
@@ -1084,18 +1289,18 @@ Cód. Vaga: *${code}*
                           </div>
                         </div>
                       </td>
-                      <td className="hidden sm:table-cell px-6 py-4">
+                      <td className="px-6 py-4">
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase ${vaga.type === 'file' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
                           {vaga.type === 'file' ? 'Imagem' : 'Texto'}
                         </span>
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 text-sm font-medium text-slate-600 whitespace-nowrap">{vaga.date}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-600 whitespace-nowrap">{vaga.date}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button onClick={(e) => { e.stopPropagation(); toggleJobStatus(vaga.id); }} className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${vaga.status === 'Ativa' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                             <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${vaga.status === 'Ativa' ? 'left-[18px]' : 'left-0.5'}`} />
                           </button>
-                          <span className="hidden sm:inline text-[11px] font-bold uppercase whitespace-nowrap text-slate-500">{vaga.status}</span>
+                          <span className="text-[11px] font-bold uppercase whitespace-nowrap text-slate-500">{vaga.status}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1422,24 +1627,85 @@ Cód. Vaga: *${code}*
 
                 {jobCreationStep === 'preview' && (
                   <div className="space-y-6">
-                    <div className="bg-slate-50 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative">
-                      <div className="absolute top-6 right-8 flex items-center gap-3">
-                        <button
-                          onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm transition-all"
-                        >
-                          Alterar Emojis
-                        </button>
-                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Prévia do Texto</span>
-                      </div>
-                      {(attachedFile || jobDraft.imageUrl) && (
-                        <div className="mb-6 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-sm mx-auto shadow-xl">
-                          <img src={attachedFile ? URL.createObjectURL(attachedFile) : jobDraft.imageUrl} className="w-full h-auto" alt="Job Visual" />
+                    <div
+                      className="bg-[#F0F2F5] dark:bg-[#0b141a] p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative min-h-[400px]"
+                      style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '20px 20px' }}
+                    >
+
+                      <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-sm shadow-sm max-w-lg mx-auto mt-8 border border-slate-100 dark:border-slate-700 relative">
+                        {/* Triangle Tail */}
+                        <svg viewBox="0 0 8 13" height="13" width="8" className="absolute top-0 -left-2 text-white dark:text-[#202c33] fill-current"><path opacity="0.13" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
+
+                        {/* Content */}
+                        {jobDraft.type === 'file' ? (
+                          <div className="space-y-3">
+                            {(attachedFile || jobDraft.imageUrl) ? (
+                              <div className="rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 relative shadow-sm">
+                                <img
+                                  src={attachedFile ? URL.createObjectURL(attachedFile) : jobDraft.imageUrl}
+                                  alt="Vaga"
+                                  className="w-full h-auto object-contain max-h-[400px]"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-40 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400 border border-dashed border-slate-300 dark:border-slate-700">
+                                <ImageIcon size={32} className="opacity-50 mb-1" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Sem Imagem</span>
+                              </div>
+                            )}
+
+                            <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap">
+                              {generatePreviewText().split('\n').map((line, i) => (
+                                <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
+                                  {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                                    part.startsWith('*') && part.endsWith('*') ? (
+                                      <strong key={j} className="font-semibold">{part.slice(1, -1)}</strong>
+                                    ) : (
+                                      <span key={j}>{part}</span>
+                                    )
+                                  ))}
+                                  {i === 0 && (
+                                    <button
+                                      onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
+                                      className="ml-1 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
+                                    >
+                                      Alterar Emoji
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap">
+                            {generatePreviewText().split('\n').map((line, i) => (
+                              <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
+                                {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                                  part.startsWith('*') && part.endsWith('*') ? (
+                                    <strong key={j} className="font-semibold">{part.slice(1, -1)}</strong>
+                                  ) : (
+                                    <span key={j}>{part}</span>
+                                  )
+                                ))}
+                                {i === 0 && (
+                                  <button
+                                    onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
+                                    className="ml-1 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
+                                  >
+                                    Alterar Emoji
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex justify-end mt-2 gap-1 items-center opacity-60">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <Check size={14} className="text-blue-500" />
                         </div>
-                      )}
-                      <pre className="whitespace-pre-wrap font-mono text-[11px] font-medium leading-relaxed text-slate-700 dark:text-slate-300">
-                        {generatePreviewText()}
-                      </pre>
+
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1464,26 +1730,58 @@ Cód. Vaga: *${code}*
                       if (jobCreationStep === 'preview') handleSaveJob();
                       else {
                         // Validação: obrigar o nome da vaga, cidade e região
-                        if (!jobDraft.role?.trim()) { alert("Por favor, informe a Função / Cargo."); return; }
-                        if (!jobDraft.city?.trim()) { alert("Por favor, informe a Cidade."); return; }
-                        if (!jobDraft.region?.trim()) { alert("Por favor, informe a Região / Bairro."); return; }
+                        if (!jobDraft.role?.trim()) {
+                          const input = document.querySelector('[name="role"], input[type="text"][placeholder*="Auxiliar"]') as HTMLInputElement;
+                          if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                          return;
+                        }
+                        if (!jobDraft.city?.trim()) {
+                          const input = document.querySelector('[name="city"], input[placeholder*="Sorocaba"]') as HTMLInputElement;
+                          if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                          return;
+                        }
+                        if (!jobDraft.region?.trim()) {
+                          const input = document.querySelector('[name="region"], input[placeholder*="Campolim"]') as HTMLInputElement;
+                          if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                          return;
+                        }
 
                         // Para Vaga Imagem (file), apenas Função, Cidade, Região e Imagem são obrigatórios (e contatos)
                         // Para Vaga Texto (scratch), todos os campos são obrigatórios
                         if (jobDraft.type !== 'file') {
-                          if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) { alert("Por favor, informe o nome da Empresa."); return; }
-                          if (!jobDraft.requirements?.trim()) { alert("Por favor, informe os Requisitos."); return; }
-                          if (!jobDraft.benefits?.trim()) { alert("Por favor, informe os Benefícios."); return; }
-                          if (!jobDraft.activities?.trim()) { alert("Por favor, informe as Atividades."); return; }
+                          if (!jobDraft.hideCompany && !jobDraft.companyName?.trim()) {
+                            const input = document.querySelector('[name="companyName"], input[placeholder*="nome da empresa"]') as HTMLInputElement;
+                            if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                            return;
+                          }
+                          if (!jobDraft.requirements?.trim()) {
+                            const textarea = document.querySelector('textarea[placeholder*="requisitos"]') as HTMLTextAreaElement;
+                            if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                            return;
+                          }
+                          if (!jobDraft.benefits?.trim()) {
+                            const textarea = document.querySelector('textarea[placeholder*="oferece"]') as HTMLTextAreaElement;
+                            if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                            return;
+                          }
+                          if (!jobDraft.activities?.trim()) {
+                            const textarea = document.querySelector('textarea[placeholder*="candidato"]') as HTMLTextAreaElement;
+                            if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                            return;
+                          }
                         }
 
                         if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
-                          alert("Por favor, selecione ao menos 1 contato.");
+                          // Scroll to contacts section
+                          const contactSection = document.querySelector('[class*="Contatos"]') as HTMLElement;
+                          if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           return;
                         }
 
                         if (jobDraft.contacts.some(c => !c.value.trim())) {
-                          alert("Por favor, preencha as informações de todos os contatos selecionados.");
+                          // Focus on first empty contact field
+                          const emptyContactInput = Array.from(document.querySelectorAll('input[placeholder*="WhatsApp"], input[placeholder*="E-mail"], input[placeholder*="Link"], input[placeholder*="endereço"]')).find(input => !(input as HTMLInputElement).value.trim()) as HTMLInputElement;
+                          if (emptyContactInput) { emptyContactInput.focus(); emptyContactInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
                           return;
                         }
 
@@ -1492,7 +1790,9 @@ Cód. Vaga: *${code}*
                         for (const ac of addressContacts) {
                           if (!ac.noDateTime) {
                             if (!ac.date || !ac.time) {
-                              alert("Para contatos de Endereço, a Data e Hora são obrigatórias quando a opção 'Sem Data/Hora' está desativada.");
+                              // Focus on date or time input
+                              const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+                              if (dateInput) { dateInput.focus(); dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
                               return;
                             }
                           }
@@ -1500,7 +1800,9 @@ Cód. Vaga: *${code}*
 
                         if (jobDraft.type === 'file') {
                           if (!attachedFile && !jobDraft.imageUrl) {
-                            alert("Por favor, carregue a imagem da vaga.");
+                            // Scroll to file upload area
+                            const fileLabel = document.querySelector('label[class*="aspect-video"]') as HTMLElement;
+                            if (fileLabel) fileLabel.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             return;
                           }
                         }
@@ -1564,100 +1866,102 @@ Cód. Vaga: *${code}*
       />
 
 
-      {/* Modal de Visualização Rápida */}
       {
         isViewModalOpen && viewingJob && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsViewModalOpen(false)} />
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl p-8 animate-scaleUp max-h-[90vh] overflow-y-auto no-scrollbar">
-              <div className="flex items-start justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">{viewingJob.role || viewingJob.title}</h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[10px] font-bold text-slate-400">COD: <span className="text-slate-600 dark:text-slate-300">{viewingJob.jobCode || viewingJob.code}</span></span>
-                    <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${viewingJob.status === 'Ativa' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                      {viewingJob.status}
-                    </span>
+            <div className="relative bg-[#F0F2F5] dark:bg-[#0b141a] w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+
+              {/* WhatsApp Header Mock */}
+              <div className="bg-[#008069] dark:bg-[#202c33] h-16 px-4 flex items-center justify-between shadow-sm relative z-10">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setIsViewModalOpen(false)} className="text-white">
+                    <ArrowLeft size={24} />
+                  </button>
+                  <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-white/10">
+                    <img src="https://ui-avatars.com/api/?name=Sorogrupos&background=random" alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-white font-semibold text-sm leading-tight line-clamp-1">{company?.name || 'Lepps Conecta'}</span>
+                    <span className="text-white/80 text-[10px] truncate max-w-[120px]">Verificado</span>
                   </div>
                 </div>
-                <button onClick={() => setIsViewModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X size={20} /></button>
-              </div>
-
-              <div className="space-y-6">
-                {/* Content Section */}
-                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400">
-                  {viewingJob.type === 'file' ? (
-                    <div className="space-y-4">
-                      {viewingJob.imageUrl ? (
-                        <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-inner">
-                          <img
-                            src={viewingJob.imageUrl}
-                            alt={viewingJob.role || viewingJob.title}
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                      ) : (
-                        <div className="aspect-video rounded-xl flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 text-slate-400">
-                          <ImageIcon size={40} className="mb-2 opacity-50" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Sem imagem vinculada</span>
-                        </div>
-                      )}
-
-                      {viewingJob.showObservation && viewingJob.observation && (
-                        <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <strong className="text-slate-800 dark:text-slate-200 block mb-1">Observação:</strong>
-                          <p className="text-slate-500 dark:text-slate-400">{viewingJob.observation}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Empresa:</strong>
-                      <p className="mb-4">{viewingJob.companyName || '(Oculta)'}</p>
-
-                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Requisitos:</strong>
-                      <p className="mb-4">{viewingJob.requirements}</p>
-
-                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Benefícios:</strong>
-                      <p className="mb-4">{viewingJob.benefits}</p>
-
-                      <strong className="text-slate-800 dark:text-slate-200 block mb-1">Atividades:</strong>
-                      <p className="mb-4">{viewingJob.activities}</p>
-                    </>
-                  )}
-
-                  {/* Contacts Section - Integrated */}
-                  {viewingJob.contacts && viewingJob.contacts.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
-                      <strong className="text-slate-800 dark:text-slate-200 block mb-2 text-xs uppercase tracking-wide">Contatos</strong>
-                      <div className="space-y-2">
-                        {viewingJob.contacts.map((contact, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                            <div className="w-6 h-6 rounded bg-white dark:bg-slate-800 flex items-center justify-center text-blue-500 shadow-sm border border-slate-100 dark:border-slate-700">
-                              {contact.type === 'WhatsApp' && <OfficialWhatsAppIcon size={12} />}
-                              {contact.type === 'Email' && <Mail size={12} />}
-                              {contact.type === 'Endereço' && <MapPin size={12} />}
-                              {contact.type === 'Link' && <LinkIcon size={12} />}
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-medium block">{contact.value}</span>
-                              {contact.type === 'Endereço' && (
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mt-0.5">
-                                  {contact.noDateTime
-                                    ? 'sem data e hora'
-                                    : contact.date && contact.time
-                                      ? `${formatPreviewDate(contact.date)} às ${contact.time}`
-                                      : 'sem data e hora'}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="flex gap-4 text-white opacity-80">
+                  <div className="w-1 h-1 bg-white rounded-full"></div>
                 </div>
               </div>
+
+              {/* Message Area */}
+              <div className="p-4 pt-6 relative min-h-[400px] max-h-[80vh] overflow-y-auto custom-scrollbar" style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+                <div className="flex justify-center mb-4">
+                  <span className="bg-[#FFF5C4] dark:bg-[#202c33] text-[10px] text-slate-500 dark:text-slate-400 px-2 py-1 rounded-lg shadow-sm font-medium uppercase tracking-wide">
+                    Visualização da Vaga
+                  </span>
+                </div>
+
+                <div className="flex justify-start">
+                  <div className="bg-white dark:bg-[#202c33] p-3 rounded-lg rounded-tl-none shadow-sm max-w-[95%] relative w-full">
+                    {/* Triangle Tail */}
+                    <svg viewBox="0 0 8 13" height="13" width="8" className="absolute top-0 -left-2 text-white dark:text-[#202c33] fill-current"><path opacity="0.13" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
+
+                    {/* Content */}
+                    {viewingJob.type === 'file' ? (
+                      <div className="space-y-2">
+                        {viewingJob.imageUrl ? (
+                          <div className="rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 mb-2 relative">
+                            <img
+                              src={viewingJob.imageUrl}
+                              alt="Vaga"
+                              className="w-full h-auto object-contain max-h-[400px]"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-40 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400 mb-2">
+                            <ImageIcon size={32} className="opacity-50 mb-1" />
+                            <span className="text-[10px] font-bold uppercase">Sem Imagem</span>
+                          </div>
+                        )}
+
+                        <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug whitespace-pre-wrap">
+                          {generatePreviewText(viewingJob).split('\n').map((line, i) => (
+                            <React.Fragment key={i}>
+                              {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                                part.startsWith('*') && part.endsWith('*') ? (
+                                  <strong key={j}>{part.slice(1, -1)}</strong>
+                                ) : (
+                                  <span key={j}>{part}</span>
+                                )
+                              ))}
+                              <br />
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-snug whitespace-pre-wrap">
+                        {generatePreviewText(viewingJob).split('\n').map((line, i) => (
+                          <React.Fragment key={i}>
+                            {line.split(/(\*[^*]+\*)/g).map((part, j) => (
+                              part.startsWith('*') && part.endsWith('*') ? (
+                                <strong key={j}>{part.slice(1, -1)}</strong>
+                              ) : (
+                                <span key={j}>{part}</span>
+                              )
+                            ))}
+                            <br />
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end mt-1 gap-1 items-center opacity-60">
+                      <span className="text-[10px] text-slate-500 font-medium">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <Check size={14} className="text-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )
@@ -1808,7 +2112,8 @@ Cód. Vaga: *${code}*
                       .upsert({ user_id: user.id, emojis: emojiInput });
 
                     if (error) {
-                      alert("Erro ao salvar emojis");
+                      setValidationMessage("Erro ao salvar emojis personalizados");
+                      setIsValidationModalOpen(true);
                     } else {
                       setPreviewEmojis(emojiInput);
                       setIsEmojiModalOpen(false);
@@ -1817,6 +2122,43 @@ Cód. Vaga: *${code}*
                   className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
                 >
                   Salvar Preferência
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Modal de Validação/Notificação */}
+      {
+        isValidationModalOpen && (
+          <div className="fixed inset-0 z-[170] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsValidationModalOpen(false)} />
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-scaleUp">
+
+              {/* Header */}
+              <div className="bg-gradient-to-r from-rose-500 to-rose-600 p-6 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                  <AlertCircle size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Atenção</h3>
+                  <p className="text-xs text-white/80">Ocorreu um problema</p>
+                </div>
+              </div>
+
+              {/* Message */}
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {validationMessage}
+                </p>
+
+                {/* Button */}
+                <button
+                  onClick={() => setIsValidationModalOpen(false)}
+                  className="w-full py-3 px-6 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg active:scale-95"
+                >
+                  Entendi
                 </button>
               </div>
             </div>

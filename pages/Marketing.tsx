@@ -556,6 +556,16 @@ Cód. Vaga: *${code}*
       if (direction === 'prev') {
         newDate.setMonth(prev.getMonth() - 1);
       } else {
+        // Updated Logic: Prevent navigation if next month is completely out of range
+        const today = new Date();
+        const maxDate = new Date();
+        maxDate.setDate(today.getDate() + 30);
+
+        // Check if the FIRST day of next month is beyond maxDate
+        const nextMonthFirstDay = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+        if (nextMonthFirstDay > maxDate) {
+          return prev;
+        }
         newDate.setMonth(prev.getMonth() + 1);
       }
       return newDate;
