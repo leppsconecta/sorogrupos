@@ -26,7 +26,9 @@ import { Logo } from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
-interface LandingPageProps { }
+interface LandingPageProps {
+  autoOpenLogin?: boolean;
+}
 
 const WhatsAppIcon = ({ size = 20, className = "" }: { size?: number, className?: string }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className={className}>
@@ -34,8 +36,8 @@ const WhatsAppIcon = ({ size = 20, className = "" }: { size?: number, className?
   </svg>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = () => {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false }) => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(autoOpenLogin);
   const [modalView, setModalView] = useState<'login' | 'forgot' | 'success' | 'register_success' | 'account_exists'>('login');
 
   const [email, setEmail] = useState('');

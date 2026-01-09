@@ -11,9 +11,11 @@ import {
   Users,
   FileText,
   Calendar,
-  Plus
+  Plus,
+  Settings
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Logo } from './Logo';
 
 interface SidebarProps {
@@ -32,9 +34,8 @@ const menuItems = [
   { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
-  { path: '/meuplano', label: 'Meu Plano', icon: <CreditCard size={22} /> },
+
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
-  { path: '/perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
 ];
 
 const comingSoonItems = [
@@ -44,6 +45,7 @@ const comingSoonItems = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -112,18 +114,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
 
 
 
-      {/* Footer / Info */}
-      <div className="p-5 border-t border-white/5 bg-blue-900/20 px-5">
+
+      {/* Footer / User Profile */}
+      <Link to="/perfil" className="p-5 border-t border-white/5 bg-blue-900/20 px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-900 border border-blue-800 overflow-hidden flex-shrink-0">
-            <img src="https://picsum.photos/seed/admin/40/40" alt="Admin" />
+          <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+            <Settings size={24} />
           </div>
           <div className="overflow-hidden">
-            <p className="text-xs font-bold text-white truncate">Admin Sorogrupos</p>
-            <p className="text-[10px] text-blue-400 font-medium truncate">Versão 2.4.0</p>
+            <p className="text-xs font-bold text-white truncate group-hover:text-blue-200 transition-colors">Configurações</p>
+            <p className="text-[10px] text-blue-400 font-medium truncate group-hover:text-blue-300 transition-colors">{user?.email}</p>
           </div>
         </div>
-      </div>
+      </Link>
     </aside>
   );
 };

@@ -178,7 +178,7 @@ const AppContent: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
-    window.location.reload();
+    window.location.href = '/';
   };
 
   const handleCreateGroupShortcut = () => {
@@ -309,69 +309,63 @@ const AppContent: React.FC = () => {
     }
   };
 
-  if (!isLoggedIn) {
-    return <LandingPage />;
+  // Redirect to painel if logged in and trying to access public routes
+  if (isLoggedIn && (location.pathname === '/' || location.pathname === '/login')) {
+    return <Navigate to="/painel" replace />;
   }
-
-  // If logged in but onboarding incomplete, we redirect/show Perfil? 
-  // We can handle this via Route protection or just inside components. 
-  // App.tsx logic previously: force activeTab='perfil'.
-  // New logic: Use <Navigate> if necessary or let components handle.
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      <Sidebar
-        onCreateGroup={handleCreateGroupShortcut}
-      />
+      {isLoggedIn && (
+        <Sidebar
+          onCreateGroup={handleCreateGroupShortcut}
+        />
+      )}
 
       <div className="flex flex-col flex-1 w-full overflow-hidden">
-        <Header
-          theme={theme}
-          toggleTheme={toggleTheme}
-          onLogout={handleLogout}
-          isWhatsAppConnected={isWhatsAppConnected}
-          connectedPhone={connectedPhone}
-          onOpenConnect={() => {
-            setConnectionStep('phone');
-            setIsConnectModalOpen(true);
-          }}
-          onOpenDisconnect={() => setIsDisconnectModalOpen(true)}
-        />
+        {isLoggedIn && (
+          <Header
+            theme={theme}
+            toggleTheme={toggleTheme}
+            onLogout={handleLogout}
+            isWhatsAppConnected={isWhatsAppConnected}
+            connectedPhone={connectedPhone}
+            onOpenConnect={() => {
+              setConnectionStep('phone');
+              setIsConnectModalOpen(true);
+            }}
+            onOpenDisconnect={() => setIsDisconnectModalOpen(true)}
+          />
+        )}
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 custom-scrollbar">
-          <div className="w-full max-w-7xl mx-auto">
+        <main className={`flex-1 overflow-y-auto ${isLoggedIn ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}>
+          <div className={isLoggedIn ? "w-full max-w-7xl mx-auto" : "w-full h-full"}>
             <Routes>
-              {/* Default redirect to painel */}
-              <Route path="/" element={<Navigate to="/painel" replace />} />
+              {/* Public Routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
 
-              {/* Onboarding protection: render Perfil if incomplete? 
-                    For now, following previous logic: if !onboardingCompleted, force Perfil.
-                    We can redirect in useEffect or here. */}
-              {/* The previous logic was: useEffect -> setActiveTab('perfil'). */}
-              {/* We'll implement a simple redirect inside Routes or just rely on user flow. */}
-
-              <Route path="/painel" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Dashboard {...commonProps} />} />
-              <Route path="/anunciar" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Marketing {...commonProps} />} />
-              <Route path="/vagas" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Vagas />} />
-              <Route path="/grupos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
-              <Route path="/calendario" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Agendamentos />} /> {/* Note: Agendamentos prop removed */}
-              <Route path="/meuplano" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Plano />} />
-              <Route path="/suporte" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Suporte />} />
-
-              <Route path="/perfil" element={<Perfil />} />
-
-              <Route path="/candidatos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Candidatos />} />
-              <Route path="/curriculos" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <Curriculos />} />
-              <Route path="/agenda" element={!onboardingCompleted ? <Navigate to="/perfil" /> : <MinhaAgenda />} />
+              {/* Protected Routes */}
+              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Dashboard {...commonProps} />)} />
+              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Marketing {...commonProps} />)} />
+              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Vagas />)} />
+              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />)} />
+              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Agendamentos />)} />
+              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Plano />)} />
+              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Suporte />)} />
+              <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/login" /> : <Perfil />} />
+              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Candidatos />)} />
+              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Curriculos />)} />
+              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <MinhaAgenda />)} />
 
               {/* Catch all */}
-              <Route path="*" element={<Navigate to="/painel" replace />} />
+              <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />
             </Routes>
           </div>
         </main>
       </div>
 
-      <BottomNav />
+      {isLoggedIn && <BottomNav />}
 
       {/* Shared WhatsApp Connection Modal */}
       {isConnectModalOpen && (

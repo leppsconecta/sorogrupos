@@ -32,7 +32,7 @@ const menuItems = [
   { path: '/curriculos', label: 'Currículos', icon: <FileText size={20} /> },
   { path: '/agenda', label: 'Agenda', icon: <Calendar size={20} /> },
   { path: '/candidatos', label: 'Candidatos', icon: <Users size={20} /> },
-  { path: '/meuplano', label: 'Plano', icon: <CreditCard size={20} /> },
+
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={20} /> },
   { path: '/perfil', label: 'Perfil', icon: <UserCircle size={20} /> },
 ];

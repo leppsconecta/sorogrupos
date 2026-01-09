@@ -146,6 +146,9 @@ export const Perfil: React.FC = () => {
 
       if (updateError) throw updateError;
 
+      // Force session refresh to update user.app_metadata (adding 'email' provider if it was Google-only)
+      await supabase.auth.refreshSession();
+
       // Success
       setShowSuccessModal(true);
 
