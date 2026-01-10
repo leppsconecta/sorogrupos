@@ -477,7 +477,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
         // Validate
         // Validate
         if (!validateReschedule(editDate, editTime)) {
-            setAlertMessage('O novo horário deve ser pelo menos 30 minutos a partir de agora.');
+            setAlertMessage('Selecione um horário pelo menos 30 minutos após o horário atual.');
             setIsAlertModalOpen(true);
             return;
         }

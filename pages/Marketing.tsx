@@ -169,6 +169,15 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   const timePickerRef = useRef<HTMLDivElement>(null);
   const vagaItemRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
   const groupItemRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
+  const scheduleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isScheduling && scheduleRef.current) {
+      setTimeout(() => {
+        scheduleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [isScheduling]);
 
   useEffect(() => {
     fetchData();
@@ -543,7 +552,8 @@ Cód. Vaga: *${code}*
     const diffMins = diffMs / 60000;
 
     if (diffMins < 30) {
-      alert("Selecione um horário pelo menos 30 minutos após o horário atual.");
+      setAlertMessage("Selecione um horário pelo menos 30 minutos após o horário atual.");
+      setAlertModalOpen(true);
       return;
     }
 
@@ -998,7 +1008,7 @@ Cód. Vaga: *${code}*
 
             {/* Inline Scheduling Drawer */}
             {isScheduling && (
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-fadeIn">
+              <div ref={scheduleRef} className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-fadeIn">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-slate-800 dark:text-white font-bold uppercase tracking-tight flex items-center gap-2 text-sm">
                     <CalendarDays className="text-blue-600" size={18} /> Configurar Agendamento
