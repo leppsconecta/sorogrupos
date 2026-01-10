@@ -59,6 +59,9 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
+    // Emojis State
+    const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🔵');
+
     const handleCloseModal = () => {
         setIsPreviewModalOpen(false);
     };
@@ -279,9 +282,20 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
         }
     };
 
+    const fetchUserEmojis = async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from('user_job_emojis')
+            .select('emojis')
+            .eq('user_id', user.id)
+            .single();
+        if (data) setPreviewEmojis(data.emojis);
+    };
+
     useEffect(() => {
         fetchSchedules();
         fetchAllGroups();
+        fetchUserEmojis();
 
         if (!user) return;
 
@@ -660,7 +674,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
 
         if (job.type === 'file') {
             const observationText = job.showObservation && job.observation ? `\nObs: ${job.observation}\n` : '';
-            return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+            return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
@@ -669,7 +683,7 @@ Cód. Vaga: *${code}*
  ${interessadosText}`;
         }
 
-        return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+        return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*

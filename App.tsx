@@ -17,11 +17,14 @@ import { Curriculos } from './pages/Curriculos';
 import { MinhaAgenda } from './pages/MinhaAgenda';
 import { LandingPage } from './pages/LandingPage';
 import { Theme } from './types';
-import { X, Smartphone, QrCode, RefreshCw, ArrowLeft, LogOut } from 'lucide-react';
+import { X, Smartphone, QrCode, RefreshCw, ArrowLeft, LogOut, CheckCircle2 } from 'lucide-react';
+
+
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { FeedbackProvider, useFeedback } from './contexts/FeedbackContext';
 import { supabase } from './lib/supabase';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
+import { OnboardingModal } from './components/OnboardingModal';
 
 const AppContent: React.FC = () => {
   const { session, signOut, onboardingCompleted, user } = useAuth();
@@ -40,7 +43,7 @@ const AppContent: React.FC = () => {
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
   // Connection Flow State
-  const [connectionStep, setConnectionStep] = useState<'phone' | 'result'>('phone');
+  const [connectionStep, setConnectionStep] = useState<'phone' | 'result' | 'success'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('+55');
   const [isProcessing, setIsProcessing] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
@@ -90,12 +93,8 @@ const AppContent: React.FC = () => {
 
           if (currentStatus === 'connected' || currentStatus === 'conectado') {
             setIsWhatsAppConnected(true);
-            if (isConnectModalOpen) {
-              setIsConnectModalOpen(false);
-              showToast('WhatsApp conectado com sucesso!', 'success');
-              setTimeout(() => {
-                window.location.reload();
-              }, 1000);
+            if (isConnectModalOpen && connectionStep !== 'success') {
+              setConnectionStep('success');
             }
           } else {
             setIsWhatsAppConnected(false);
@@ -144,7 +143,7 @@ const AppContent: React.FC = () => {
       };
     }, []);
 
-  }, [user, showToast, isConnectModalOpen]);
+  }, [user, showToast, isConnectModalOpen, connectionStep]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
@@ -346,17 +345,17 @@ const AppContent: React.FC = () => {
               <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
 
               {/* Protected Routes */}
-              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Dashboard {...commonProps} />)} />
-              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Marketing {...commonProps} />)} />
-              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Vagas />)} />
-              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />)} />
-              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Agendamentos />)} />
-              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Plano />)} />
-              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Suporte />)} />
+              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/login" /> : <Dashboard {...commonProps} />} />
+              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/login" /> : <Marketing {...commonProps} />} />
+              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/login" /> : <Vagas />} />
+              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/login" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
+              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/login" /> : <Agendamentos />} />
+              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/login" /> : <Plano />} />
+              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/login" /> : <Suporte />} />
               <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/login" /> : <Perfil />} />
-              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Candidatos />)} />
-              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <Curriculos />)} />
-              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/login" /> : (!onboardingCompleted ? <Navigate to="/perfil" /> : <MinhaAgenda />)} />
+              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/login" /> : <Candidatos />} />
+              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/login" /> : <Curriculos />} />
+              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/login" /> : <MinhaAgenda />} />
 
               {/* Catch all */}
               <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />
@@ -366,6 +365,9 @@ const AppContent: React.FC = () => {
       </div>
 
       {isLoggedIn && <BottomNav />}
+
+      {/* Onboarding Modal */}
+      {isLoggedIn && !onboardingCompleted && <OnboardingModal />}
 
       {/* Shared WhatsApp Connection Modal */}
       {isConnectModalOpen && (
@@ -502,6 +504,32 @@ const AppContent: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* STEP 3: Success */}
+              {connectionStep === 'success' && (
+                <div className="animate-fadeIn text-center space-y-6 py-4">
+                  <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-100">
+                    <CheckCircle2 size={40} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black text-slate-800 dark:text-white leading-tight">
+                      WhatsApp Conectado!
+                    </h4>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium px-4">
+                      WhatsApp conectado com sucesso!<br />
+                      Iniciando carregamento dos grupos...
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    Confirmar e Iniciar
+                  </button>
                 </div>
               )}
 

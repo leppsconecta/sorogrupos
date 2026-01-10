@@ -146,6 +146,9 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Schedules state
   const [schedules, setSchedules] = useState(INITIAL_SCHEDULES);
 
+  // Emojis State
+  const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🔵');
+
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -207,7 +210,19 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
       const { data: tagsData } = await supabase
         .from('tags_group')
         .select('name')
+        .select('name')
         .eq('user_id', user.id);
+
+      // Fetch User Emojis
+      const { data: emojiData } = await supabase
+        .from('user_job_emojis')
+        .select('emojis')
+        .eq('user_id', user.id)
+        .single();
+
+      if (emojiData) {
+        setPreviewEmojis(emojiData.emojis);
+      }
 
       if (jobsData) {
         const mappedVagas = jobsData.map(j => ({
@@ -399,7 +414,7 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     // Image Job Text Structure (Simpler)
     if (job.type === 'file') {
       const observationText = job.showObservation && job.observation ? `\nObs: ${job.observation}\n` : '';
-      return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+      return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
       -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
@@ -409,7 +424,7 @@ Cód. Vaga: *${code}*
     }
 
     // Text Job Structure (Full)
-    return `*${company?.name || 'Sua Empresa'}* 🟡🔴🤣
+    return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*

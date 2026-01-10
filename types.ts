@@ -10,6 +10,29 @@ export interface Folder {
   level: 'company' | 'sector';
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role?: string;
+  status_created: number;
+  full_name?: string;
+  whatsapp?: string;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  status_created: number;
+  email?: string;
+  whatsapp?: string;
+  zip_code?: string;
+  site?: string;
+  instagram?: string;
+  facebook?: string;
+  linkedin?: string;
+  owner_id?: string;
+}
+
 export interface JobContact {
   type: 'WhatsApp' | 'Email' | 'Endereço' | 'Link';
   value: string;

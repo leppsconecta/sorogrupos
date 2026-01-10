@@ -50,32 +50,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             let completed = true;
 
             // 1. Profile Check
-            if (!profileData) {
-                console.log('Onboarding Check: Profile null');
-                completed = false;
-            } else if (!profileData.full_name) {
-                console.log('Onboarding Check: Profile Name missing');
-                completed = false;
-            } else if (!profileData.whatsapp) {
-                console.log('Onboarding Check: Profile WhatsApp missing');
+            if (!profileData || !profileData.status_created) {
+                console.log('Onboarding Check: Profile status_created is 0 or null');
                 completed = false;
             }
 
             // 2. Company Check
-            if (!companyData) {
-                console.log('Onboarding Check: Company null');
-                completed = false;
-            } else if (!companyData.name) {
-                console.log('Onboarding Check: Company Name missing');
-                completed = false;
-            } else if (!companyData.zip_code) {
-                console.log('Onboarding Check: Company ZipCode missing');
-                completed = false;
-            } else if (!companyData.whatsapp) {
-                console.log('Onboarding Check: Company WhatsApp missing');
-                completed = false;
-            } else if (!companyData.email) {
-                console.log('Onboarding Check: Company Email missing');
+            if (!companyData || !companyData.status_created) {
+                console.log('Onboarding Check: Company status_created is 0 or null');
                 completed = false;
             }
 

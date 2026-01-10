@@ -192,6 +192,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
       if (error) throw error;
 
+      if (data.user) {
+        // Create default emojis
+        await supabase.from('user_job_emojis').insert({
+          user_id: data.user.id,
+          emojis: '🟡🔴🔵'
+        });
+      }
+
       if (data.session) {
         // Logado automaticamente
       } else {
@@ -260,7 +268,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
         <button
           onClick={() => setIsLoginModalOpen(true)}
-          className="px-8 py-2.5 bg-yellow-400 text-blue-950 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
+          className="px-8 py-2.5 bg-yellow-400 text-blue-950 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-yellow-300 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
         >
           Login
         </button>
@@ -269,10 +277,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
       {/* Hero Section */}
       <section className="flex flex-col lg:flex-row items-center justify-center px-6 md:px-12 lg:px-24 py-8 lg:py-12 gap-10 max-w-7xl mx-auto w-full relative">
         <div className="flex-1 space-y-6 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-100 text-yellow-700 rounded-full text-[11px] font-black uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-100 text-yellow-700 rounded-full text-[11px] font-bold uppercase tracking-widest">
             <Zap size={14} /> Automação Inteligente de Vagas
           </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-blue-950 leading-[1.1] tracking-tight">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-blue-950 leading-[1.1] tracking-tight">
             Gerencie suas vagas e grupos de <span className="text-green-500">WhatsApp</span>.
           </h2>
           <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed">
@@ -281,11 +289,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
           <div className="flex flex-wrap items-center gap-4 justify-center lg:justify-start">
             <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
               <WhatsAppIcon size={24} className="text-green-500" />
-              <span className="text-sm font-bold text-slate-700">Integrado ao WhatsApp</span>
+              <span className="text-sm font-semibold text-slate-700">Integrado ao WhatsApp</span>
             </div>
             <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
               <CheckCircle2 size={24} className="text-blue-600" />
-              <span className="text-sm font-bold text-slate-700">Recrutamento Escalável</span>
+              <span className="text-sm font-semibold text-slate-700">Recrutamento Escalável</span>
             </div>
           </div>
         </div>
@@ -295,10 +303,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
           <div className="bg-blue-950 p-8 rounded-[3rem] shadow-3xl shadow-blue-900/50 border border-blue-900 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-48 h-48 bg-blue-800 rounded-full blur-3xl opacity-20 -mr-24 -mt-24"></div>
 
-            <h3 className="text-2xl font-black text-white mb-6 text-center relative z-10">Teste Grátis Agora</h3>
+            <h3 className="text-2xl font-bold text-white mb-6 text-center relative z-10">Teste Grátis Agora</h3>
             <form onSubmit={handleRegisterForm} className="space-y-4 relative z-10">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Empresa</label>
+                <label className="text-[10px] font-bold text-blue-300 uppercase tracking-widest ml-1">Qual seu nome</label>
                 <div className="relative">
                   <Building size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
                   <input
@@ -306,16 +314,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                     type="text"
                     value={regCompany}
                     onChange={(e) => setRegCompany(e.target.value)}
-                    placeholder="Nome da sua empresa"
+                    placeholder="Seu nome"
                     className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3.5 text-sm outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">WhatsApp</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-semibold">Qual seu WhatsApp?</label>
                 <div className="relative">
                   <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
-                  <span className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">+55</span>
+                  <span className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-semibold">+55</span>
                   <input
                     required
                     type="text"
@@ -328,7 +336,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">E-mail</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-semibold">Qual o email de login para a conta ?</label>
                 <div className="relative">
                   <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
                   <input
@@ -342,7 +350,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-bold">Senha</label>
+                <label className="text-[10px] text-blue-300 uppercase tracking-widest ml-1 font-semibold">Senha</label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/40" />
                   <input
@@ -364,7 +372,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
               </div>
 
               <div className="pt-2">
-                <button disabled={loading} className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-2xl shadow-yellow-400/40 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse-scale disabled:opacity-70 disabled:pointer-events-none">
+                <button disabled={loading} className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-2xl shadow-yellow-400/40 active:scale-95 transition-all flex items-center justify-center gap-2 animate-pulse-scale disabled:opacity-70 disabled:pointer-events-none">
                   {loading ? (
                     <>Criando conta...</>
                   ) : (
@@ -374,7 +382,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
                 <div className="relative flex py-4 items-center">
                   <div className="flex-grow border-t border-blue-800"></div>
-                  <span className="flex-shrink-0 mx-4 text-blue-300/40 text-[10px] font-black uppercase tracking-widest">Ou continue com</span>
+                  <span className="flex-shrink-0 mx-4 text-blue-300/40 text-[10px] font-bold uppercase tracking-widest">Ou continue com</span>
                   <div className="flex-grow border-t border-blue-800"></div>
                 </div>
 
@@ -401,7 +409,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
       <section id="beneficios" className="bg-white py-12 px-6 md:px-12 lg:px-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10">
-            <h3 className="text-3xl font-black text-blue-950 mb-2">Potencialize sua Gestão</h3>
+            <h3 className="text-3xl font-bold text-blue-950 mb-2">Potencialize sua Gestão</h3>
             <p className="text-slate-500 font-medium text-base">Tudo o que você precisa para dominar o recrutamento digital.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -424,7 +432,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             <div className="space-y-8">
               <div>
-                <h3 className="text-3xl font-black text-blue-950 mb-4">Fale Conosco</h3>
+                <h3 className="text-3xl font-bold text-blue-950 mb-4">Fale Conosco</h3>
                 <p className="text-slate-500 text-base font-medium leading-relaxed">
                   Dúvidas sobre o funcionamento ou precisa de uma demonstração personalizada? Nossa equipe está pronta para te atender.
                 </p>
@@ -436,7 +444,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                     <WhatsAppIcon size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">WhatsApp</p>
                     <p className="text-base font-medium text-blue-950 tracking-tight">011 94661-7052</p>
                   </div>
                 </div>
@@ -446,7 +454,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                     <MapPin size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Localização</p>
                     <p className="text-base font-medium text-blue-950 tracking-tight">Sorocaba São Paulo, Brazil</p>
                   </div>
                 </div>
@@ -456,7 +464,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                     <Mail size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-mail</p>
                     <p className="text-base font-medium text-blue-950 tracking-tight">contato@soroempregos.com</p>
                   </div>
                 </div>
@@ -464,21 +472,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
             </div>
 
             <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-slate-100">
-              <h4 className="text-xl font-black text-blue-950 mb-6">Solicitar Contato</h4>
+              <h4 className="text-xl font-bold text-blue-950 mb-6">Solicitar Contato</h4>
               <form className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome</label>
-                  <input type="text" placeholder="Seu nome completo" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-bold outline-none focus:ring-2 ring-blue-500 transition-all" />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
+                  <input type="text" placeholder="Seu nome completo" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
-                  <input type="email" placeholder="seu@email.com" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-bold outline-none focus:ring-2 ring-blue-500 transition-all" />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
+                  <input type="email" placeholder="seu@email.com" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensagem</label>
-                  <textarea rows={3} placeholder="Como podemos te ajudar?" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-bold outline-none focus:ring-2 ring-blue-500 transition-all resize-none"></textarea>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Mensagem</label>
+                  <textarea rows={3} placeholder="Como podemos te ajudar?" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all resize-none"></textarea>
                 </div>
-                <button type="button" className="w-full py-4 bg-blue-950 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-900 shadow-xl shadow-blue-900/20 active:scale-95 transition-all flex items-center justify-center gap-3">
+                <button type="button" className="w-full py-4 bg-blue-950 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-900 shadow-xl shadow-blue-900/20 active:scale-95 transition-all flex items-center justify-center gap-3">
                   Enviar <Send size={18} />
                 </button>
               </form>
