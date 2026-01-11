@@ -1,27 +1,28 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
-import { Dashboard } from './pages/Dashboard';
-import { Marketing } from './pages/Marketing';
-import { Vagas } from './pages/Vagas';
-import { Grupos } from './pages/Grupos';
-import { Perfil } from './pages/Perfil';
-import { Suporte } from './pages/Suporte';
-import { Plano } from './pages/Plano';
-import { Agendamentos } from './pages/Agendamentos';
-import { Candidatos } from './pages/Candidatos';
-import { Curriculos } from './pages/Curriculos';
-import { MinhaAgenda } from './pages/MinhaAgenda';
-import { LandingPage } from './pages/LandingPage';
+// Lazy Load Pages for Performance
+const Dashboard = React.lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Marketing = React.lazy(() => import('./pages/Marketing').then(module => ({ default: module.Marketing })));
+const Vagas = React.lazy(() => import('./pages/Vagas').then(module => ({ default: module.Vagas })));
+const Grupos = React.lazy(() => import('./pages/Grupos').then(module => ({ default: module.Grupos })));
+const Perfil = React.lazy(() => import('./pages/Perfil').then(module => ({ default: module.Perfil })));
+const Suporte = React.lazy(() => import('./pages/Suporte').then(module => ({ default: module.Suporte })));
+const Plano = React.lazy(() => import('./pages/Plano').then(module => ({ default: module.Plano })));
+const Agendamentos = React.lazy(() => import('./pages/Agendamentos').then(module => ({ default: module.Agendamentos })));
+const Candidatos = React.lazy(() => import('./pages/Candidatos').then(module => ({ default: module.Candidatos })));
+const Curriculos = React.lazy(() => import('./pages/Curriculos').then(module => ({ default: module.Curriculos })));
+const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda').then(module => ({ default: module.MinhaAgenda })));
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, ArrowLeft, LogOut, CheckCircle2 } from 'lucide-react';
 
-
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { FeedbackProvider, useFeedback } from './contexts/FeedbackContext';
+import { WhatsAppProvider, useWhatsApp } from './contexts/WhatsAppContext'; // NEW IMPORT
 import { supabase } from './lib/supabase';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -29,34 +30,32 @@ import { OnboardingModal } from './components/OnboardingModal';
 const AppContent: React.FC = () => {
   const { session, signOut, onboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
-  const isLoggedIn = !!session;
 
-  // Note: activeTab state removed as we now use URL routing
+  // Use Context
+  const {
+    isWhatsAppConnected,
+    connectedPhone,
+    isConnectModalOpen,
+    isDisconnectModalOpen,
+    connectionStep,
+    phoneNumber,
+    isProcessing,
+    connectionData,
+    timeLeft,
+    openConnectModal,
+    closeConnectModal,
+    openDisconnectModal,
+    closeDisconnectModal,
+    setPhoneNumber,
+    handleGenerateQRCode,
+    handleDisconnect
+  } = useWhatsApp();
+
+  const isLoggedIn = !!session;
 
   const [theme, setTheme] = useState<Theme>('light');
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
-
-  // WhatsApp Global State
-  const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
-
-  // Connection Flow State
-  const [connectionStep, setConnectionStep] = useState<'phone' | 'result' | 'success'>('phone');
-  const [phoneNumber, setPhoneNumber] = useState('+55');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [connectionId, setConnectionId] = useState<string | null>(null);
-  const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
-
-  // Webhook Response Data
-  const [connectionData, setConnectionData] = useState<{
-    type: 'qrcode' | 'code' | 'error';
-    data: string | null;
-    message: string;
-  } | null>(null);
-
-  const [timeLeft, setTimeLeft] = useState(90);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -66,114 +65,22 @@ const AppContent: React.FC = () => {
     }
   }, [theme]);
 
-  // Realtime Connection Status Monitoring + Polling Fallback
+  // Handle password recovery event
   useEffect(() => {
-    if (!user) return;
-
-    const checkStatus = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('whatsapp_conections')
-          .select('status, id, phone')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching connection status:', error);
-          return;
-        }
-
-        if (data) {
-          setConnectionId(data.id);
-          setConnectedPhone(data.phone);
-          const currentStatus = data.status?.toLowerCase();
-          console.log('Fetched status:', currentStatus, 'Phone:', data.phone);
-
-          if (currentStatus === 'connected' || currentStatus === 'conectado') {
-            setIsWhatsAppConnected(true);
-            if (isConnectModalOpen && connectionStep !== 'success') {
-              setConnectionStep('success');
-            }
-          } else {
-            setIsWhatsAppConnected(false);
-          }
-        }
-      } catch (err) {
-        console.error('Unexpected error checking status:', err);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResetPasswordModalOpen(true);
       }
-    };
-
-    checkStatus();
-    const pollInterval = setInterval(checkStatus, 5000);
-
-    const channel = supabase
-      .channel(`whatsapp_status_${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'whatsapp_conections',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload: any) => {
-          console.log('Realtime update received:', payload);
-          checkStatus();
-        }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+    });
 
     return () => {
-      clearInterval(pollInterval);
-      supabase.removeChannel(channel);
+      subscription.unsubscribe();
     };
-    useEffect(() => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          setIsResetPasswordModalOpen(true);
-        }
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }, []);
-
-  }, [user, showToast, isConnectModalOpen, connectionStep]);
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
-
-  // QR Code Scan Timeout (90s) & Timer
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    if (connectionStep === 'result' && connectionData?.type === 'qrcode') {
-      setTimeLeft(90);
-
-      intervalId = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(intervalId);
-            setConnectionData(prevData =>
-              prevData ? { ...prevData, type: 'error', message: 'Tempo limite excedido. Tente novamente.' } : null
-            );
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [connectionStep, connectionData?.type]);
 
   const handleLogout = async () => {
     await signOut();
@@ -181,131 +88,12 @@ const AppContent: React.FC = () => {
   };
 
   const handleCreateGroupShortcut = () => {
-    // Just trigger the effect, navigation is handled inside Sidebar component or via explicit navigation if needed
-    // But since Sidebar handles navigation now, we just need to increment this trigger 
-    // AND ensure we are on the groups page? 
-    // Sidebar's button does: navigate('/grupos'); onCreateGroup();
     setTriggerCreateGroup(prev => prev + 1);
-  };
-
-  const handleGenerateQRCode = async () => {
-    if (phoneNumber.length < 12) return;
-    if (!phoneNumber) return;
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-    setConnectionData(null);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      const cleanPhone = phoneNumber.replace(/\D/g, '');
-      let currentConnectionId = connectionId;
-
-      if (!currentConnectionId && user) {
-        const { data } = await supabase
-          .from('whatsapp_conections')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-        if (data?.id) {
-          currentConnectionId = data.id;
-          setConnectionId(data.id);
-        }
-      }
-
-      const response = await fetch('https://webhook.leppsconecta.com.br/webhook/dd3c18ed-9015-4066-b994-ed5865b880ac', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: cleanPhone,
-          method: 'qrcode',
-          user_id: user?.id,
-          connection_id: currentConnectionId
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-      const data = await response.json();
-
-      if (data.success && data.data?.base64) {
-        const base64Image = `data:image/png;base64,${data.data.base64}`;
-        setConnectionData({
-          type: 'qrcode',
-          data: base64Image,
-          message: 'Escaneie o QR Code abaixo com seu WhatsApp'
-        });
-        setConnectionStep('result');
-      } else {
-        showToast(`${data.message || 'Erro ao gerar QR Code'}. Tente novamente.`, 'error');
-      }
-
-    } catch (error: any) {
-      console.error('Webhook error:', error);
-      if (error.name === 'AbortError') {
-        showToast('A operação demorou muito. Tente novamente.', 'error');
-      } else {
-        showToast('Erro de comunicação com o servidor', 'error');
-      }
-    } finally {
-      setIsProcessing(false);
-      clearTimeout(timeoutId);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!user) return;
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    try {
-      const response = await fetch('https://webhook.leppsconecta.com.br/webhook/405917eb-1478-45e1-800d-f7e67569575b', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          solicitacao: 'desconectar',
-          id_user: user.id
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.status === true) {
-        setIsWhatsAppConnected(false);
-        setConnectedPhone(null);
-        setIsDisconnectModalOpen(false);
-        showToast('Desconectado com sucesso!', 'success');
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        showToast('Erro ao desconectar. Tente novamente.', 'error');
-      }
-    } catch (error) {
-      console.error('Disconnect error:', error);
-      showToast('Erro ao desconectar.', 'error');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const resetModal = () => {
-    setIsConnectModalOpen(false);
-    setConnectionStep('phone');
-    setPhoneNumber('+55');
-    setConnectionData(null);
   };
 
   const commonProps = {
     isWhatsAppConnected,
-    onOpenConnect: () => {
-      setConnectionStep('phone');
-      setIsConnectModalOpen(true);
-    }
+    onOpenConnect: openConnectModal
   };
 
   // Redirect to painel if logged in and trying to access public routes
@@ -329,37 +117,41 @@ const AppContent: React.FC = () => {
             onLogout={handleLogout}
             isWhatsAppConnected={isWhatsAppConnected}
             connectedPhone={connectedPhone}
-            onOpenConnect={() => {
-              setConnectionStep('phone');
-              setIsConnectModalOpen(true);
-            }}
-            onOpenDisconnect={() => setIsDisconnectModalOpen(true)}
+            onOpenConnect={openConnectModal}
+            onOpenDisconnect={openDisconnectModal}
           />
         )}
 
         <main className={`flex-1 overflow-y-auto ${isLoggedIn ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}>
           <div className={isLoggedIn ? "w-full max-w-7xl mx-auto" : "w-full h-full"}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
+            <React.Suspense fallback={
+              <div className="flex h-full w-full items-center justify-center min-h-[50vh] text-slate-400 gap-3">
+                <RefreshCw className="animate-spin text-blue-500" size={32} />
+                <span className="text-sm font-medium animate-pulse">Carregando painel...</span>
+              </div>
+            }>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
 
-              {/* Protected Routes */}
-              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/" /> : <Dashboard {...commonProps} />} />
-              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/" /> : <Marketing {...commonProps} />} />
-              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/" /> : <Vagas />} />
-              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
-              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/" /> : <Agendamentos />} />
-              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/" /> : <Plano />} />
-              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/" /> : <Suporte />} />
-              <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/" /> : <Perfil />} />
-              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/" /> : <Candidatos />} />
-              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/" /> : <Curriculos />} />
-              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/" /> : <MinhaAgenda />} />
+                {/* Protected Routes */}
+                <Route path="/painel" element={!isLoggedIn ? <Navigate to="/" /> : <Dashboard {...commonProps} />} />
+                <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/" /> : <Marketing {...commonProps} />} />
+                <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/" /> : <Vagas />} />
+                <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
+                <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/" /> : <Agendamentos />} />
+                <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/" /> : <Plano />} />
+                <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/" /> : <Suporte />} />
+                <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/" /> : <Perfil />} />
+                <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/" /> : <Candidatos />} />
+                <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/" /> : <Curriculos />} />
+                <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/" /> : <MinhaAgenda />} />
 
-              {/* Catch all */}
-              <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />
-            </Routes>
+                {/* Catch all */}
+                <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />
+              </Routes>
+            </React.Suspense>
           </div>
         </main>
       </div>
@@ -369,10 +161,10 @@ const AppContent: React.FC = () => {
       {/* Onboarding Modal */}
       {isLoggedIn && !onboardingCompleted && <OnboardingModal />}
 
-      {/* Shared WhatsApp Connection Modal */}
+      {/* Shared WhatsApp Connection Modal used via Context logic */}
       {isConnectModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={resetModal} />
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={closeConnectModal} />
           <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl overflow-hidden animate-scaleUp">
 
             {/* Header */}
@@ -397,7 +189,7 @@ const AppContent: React.FC = () => {
               </div>
 
               <button
-                onClick={resetModal}
+                onClick={closeConnectModal}
                 className="text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-white/5 rounded-lg z-10"
               >
                 <X size={20} />
@@ -454,10 +246,7 @@ const AppContent: React.FC = () => {
                 <div className="animate-fadeIn">
                   <div className="flex items-center justify-between mb-4">
                     <button
-                      onClick={() => {
-                        setConnectionStep('phone');
-                        setConnectionData(null);
-                      }}
+                      onClick={openConnectModal} // resets to phone
                       className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm"
                     >
                       <ArrowLeft size={16} />
@@ -486,10 +275,7 @@ const AppContent: React.FC = () => {
                           {connectionData.message}
                         </div>
                         <button
-                          onClick={() => {
-                            setConnectionStep('phone');
-                            setConnectionData(null);
-                          }}
+                          onClick={openConnectModal}
                           className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
                         >
                           Gerar Novo Código
@@ -538,7 +324,7 @@ const AppContent: React.FC = () => {
             {/* Footer */}
             <div className="bg-white dark:bg-slate-900 p-4 border-t border-slate-100 dark:border-slate-800">
               <button
-                onClick={resetModal}
+                onClick={closeConnectModal}
                 className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Cancelar Operação
@@ -552,7 +338,7 @@ const AppContent: React.FC = () => {
       {/* Disconnect Modal */}
       {isDisconnectModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDisconnectModalOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={closeDisconnectModal} />
           <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl overflow-hidden animate-scaleUp">
 
             <div className="bg-rose-600 p-5 flex items-center justify-between relative overflow-hidden">
@@ -569,7 +355,7 @@ const AppContent: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setIsDisconnectModalOpen(false)}
+                onClick={closeDisconnectModal}
                 className="text-white/70 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg z-10"
               >
                 <X size={20} />
@@ -605,7 +391,7 @@ const AppContent: React.FC = () => {
 
             <div className="bg-white dark:bg-slate-900 p-4 border-t border-slate-100 dark:border-slate-800">
               <button
-                onClick={() => setIsDisconnectModalOpen(false)}
+                onClick={closeDisconnectModal}
                 className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Cancelar
@@ -627,11 +413,13 @@ const App: React.FC = () => {
     <BrowserRouter>
       <AuthProvider>
         <FeedbackProvider>
-          <AppContent />
+          <WhatsAppProvider>
+            <AppContent />
+          </WhatsAppProvider>
         </FeedbackProvider>
       </AuthProvider>
     </BrowserRouter>
   );
 };
 
-export default App;
+export default App; // Ensure default export if used elsewhere, though typically it's named or default via main.tsx

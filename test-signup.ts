@@ -17,8 +17,8 @@ async function testSignup() {
         password,
         options: {
             data: {
-                company_name: 'Minha Empresa Teste',
-                whatsapp: '11999999999'
+                company_name: 'Minha Empresa Teste'
+                // whatsapp: '11999999999' - Testing if removal fixes 500 error
             }
         }
     });

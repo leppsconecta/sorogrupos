@@ -13,6 +13,7 @@ interface ActionsModalProps {
     confirmText?: string;
     cancelText?: string;
     isLoading?: boolean;
+    autoCloseDuration?: number;
 }
 
 export const ActionsModal: React.FC<ActionsModalProps> = ({
@@ -24,17 +25,24 @@ export const ActionsModal: React.FC<ActionsModalProps> = ({
     onConfirm,
     confirmText = 'Confirmar',
     cancelText = 'Cancelar',
-    isLoading = false
+    isLoading = false,
+    autoCloseDuration
 }) => {
     const [show, setShow] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setShow(true);
+            if (autoCloseDuration) {
+                const timer = setTimeout(() => {
+                    handleClose();
+                }, autoCloseDuration);
+                return () => clearTimeout(timer);
+            }
         } else {
             setShow(false);
         }
-    }, [isOpen]);
+    }, [isOpen, autoCloseDuration]);
 
     const handleClose = () => {
         if (isLoading) return;

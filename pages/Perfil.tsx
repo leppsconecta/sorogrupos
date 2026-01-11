@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
-import { SuccessModal } from '../components/SuccessModal';
+import { ActionsModal } from '../components/ActionsModal';
 import { PlansSection } from '../components/PlansSection';
 
 // Styled Components / Reusable Parts
@@ -234,12 +234,21 @@ export const Perfil: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-fadeIn">
-      <SuccessModal
+      <ActionsModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        message="Sua senha foi atualizada com sucesso!"
-        subMessage="Use a nova senha no próximo login."
+        type="success"
+        title="Sucesso!"
+        message={(
+          <div className="space-y-2">
+            <p>Sua senha foi atualizada com sucesso!</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Use a nova senha no próximo login.
+            </p>
+          </div>
+        )}
         autoCloseDuration={3000}
+        confirmText="Entendido"
       />
 
       {!onboardingCompleted && (

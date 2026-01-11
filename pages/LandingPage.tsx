@@ -239,6 +239,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
         password: regPassword,
         options: {
           data: {
+            full_name: regCompany,
+            name: regCompany,
             company_name: regCompany,
             whatsapp: `+55${regPhone.replace(/\D/g, '')}`, // Persist with +55 prefix stripped of formatting
           }

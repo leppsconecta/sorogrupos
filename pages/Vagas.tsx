@@ -67,6 +67,7 @@ const formatPreviewDate = (dateStr: string) => {
 };
 
 import { useAuth } from '../contexts/AuthContext';
+import { useFeedback } from '../contexts/FeedbackContext';
 
 interface VagasProps {
   initialJobId?: string | null;
@@ -76,6 +77,7 @@ interface VagasProps {
 export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) => {
   const { user, company, accountStatus } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useFeedback();
 
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -797,8 +799,9 @@ Cód. Vaga: *${code}*
       }
       setIsDeleteModalOpen(false);
       setDeleteData(null);
+      toast({ type: 'success', title: 'Sucesso', message: 'Item excluído com sucesso!' });
     } catch (error: any) {
-      alert(`Erro ao excluir: ${error.message}`);
+      toast({ type: 'error', title: 'Erro', message: `Erro ao excluir: ${error.message}` });
     }
   };
 

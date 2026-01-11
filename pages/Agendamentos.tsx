@@ -17,11 +17,11 @@ import {
     Search,
     Lock
 } from 'lucide-react';
-import { SuccessModal } from '../components/SuccessModal';
-import { AlertModal } from '../components/AlertModal';
+import { ActionsModal } from '../components/ActionsModal';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeedback } from '../contexts/FeedbackContext';
 
 interface AgendamentosProps {
 }
@@ -29,7 +29,8 @@ interface AgendamentosProps {
 export const Agendamentos: React.FC<AgendamentosProps> = () => {
     const navigate = useNavigate();
     const { user, company, accountStatus } = useAuth();
-    const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+    const [viewMode, setViewMode] = useState<'week' | 'month' | 'list'>('week');
+    const { toast } = useFeedback();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [schedules, setSchedules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -760,9 +761,10 @@ Cód. Vaga: *${code}*
             setSchedules(prev => prev.filter(s => !idsToDelete.includes(s.id)));
             setIsPreviewModalOpen(false);
             setIsDeleteConfirmOpen(false);
+            toast({ type: 'success', title: 'Sucesso', message: 'Agendamento excluído com sucesso!' });
         } catch (error) {
             console.error('Error deleting batch:', error);
-            alert('Erro ao excluir agendamento.');
+            toast({ type: 'error', title: 'Erro', message: 'Erro ao excluir agendamento.' });
         } finally {
             setIsSaving(false);
         }
@@ -1231,47 +1233,33 @@ Cód. Vaga: *${code}*
                 </div>
             )}
 
-            <SuccessModal
+            <ActionsModal
                 isOpen={showSuccessModal}
                 onClose={() => setShowSuccessModal(false)}
+                type="success"
+                title="Sucesso"
                 message={successMessage}
             />
 
             {/* Delete Confirmation Modal */}
-            {isDeleteConfirmOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleUp p-6 text-center">
-                        <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <AlertCircle size={32} className="text-rose-500" />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Confirmar Exclusão</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                            Tem certeza que deseja excluir todo este agendamento? Esta ação removerá o(s) grupo(s) desta data e não pode ser desfeita.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsDeleteConfirmOpen(false)}
-                                disabled={isSaving}
-                                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={executeDeleteBatch}
-                                disabled={isSaving}
-                                className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 active:scale-95 disabled:opacity-50 disabled:shadow-none"
-                            >
-                                {isSaving ? 'Apagando...' : 'Sim, Excluir'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ActionsModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                type="delete"
+                title="Confirmar Exclusão"
+                message="Tem certeza que deseja excluir todo este agendamento? Esta ação removerá o(s) grupo(s) desta data e não pode ser desfeita."
+                onConfirm={executeDeleteBatch}
+                isLoading={isSaving}
+                confirmText="Sim, Excluir"
+                cancelText="Cancelar"
+            />
 
             {/* Custom Alert Modal */}
-            <AlertModal
+            <ActionsModal
                 isOpen={isAlertModalOpen}
                 onClose={() => setIsAlertModalOpen(false)}
+                type="warning"
+                title="Atenção"
                 message={alertMessage}
             />
         </div>
