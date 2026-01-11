@@ -800,19 +800,15 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 </>
               ) : (
                 <>
-                  <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-                    <Users size={48} />
+                  <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-900/10 rounded-full flex items-center justify-center mx-auto text-emerald-600 mb-4 relative">
+                    <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900/40 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    <Users size={32} className="opacity-50" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Carregando Grupos</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Seus grupos serão carregados aqui automaticamente. Isso pode levar alguns instantes.</p>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Sincronizando Grupos...</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Aguarde, estamos identificando seus grupos.</p>
                   </div>
-                  <button
-                    onClick={handleSyncGroups}
-                    className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-colors flex items-center gap-2 mx-auto"
-                  >
-                    <CheckCircle2 size={14} /> Atualizar Lista
-                  </button>
                 </>
               )}
             </div>

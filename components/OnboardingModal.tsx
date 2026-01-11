@@ -30,10 +30,18 @@ export const OnboardingModal: React.FC = () => {
     const [companyLinkedin, setCompanyLinkedin] = useState('');
 
     useEffect(() => {
+        const metadata = user?.user_metadata || {};
+        const metaPhone = metadata.whatsapp ? metadata.whatsapp.replace(/^\+55/, '') : '';
+
         if (profile) {
-            setFullName(profile.full_name || '');
-            setPersonalPhone(profile.whatsapp || '');
+            setFullName(profile.full_name || metadata.full_name || metadata.name || '');
+            setPersonalPhone(profile.whatsapp || metaPhone || '');
+        } else {
+            // Fallback if profile is not yet loaded
+            setFullName(metadata.full_name || metadata.name || '');
+            setPersonalPhone(metaPhone || '');
         }
+
         if (company) {
             setCompanyName(company.name || '');
             setCompanyEmail(company.email || '');
@@ -49,7 +57,7 @@ export const OnboardingModal: React.FC = () => {
                 setCompanyLinkedin(company.linkedin || '');
             }
         }
-    }, [profile, company]);
+    }, [profile, company, user]);
 
     const handlePhoneChange = (value: string, setter: (val: string) => void) => {
         const numbers = value.replace(/\D/g, '');
