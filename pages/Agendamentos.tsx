@@ -14,7 +14,8 @@ import {
     Smartphone,
     Mail,
     X,
-    Search
+    Search,
+    Lock
 } from 'lucide-react';
 import { SuccessModal } from '../components/SuccessModal';
 import { AlertModal } from '../components/AlertModal';
@@ -27,7 +28,7 @@ interface AgendamentosProps {
 
 export const Agendamentos: React.FC<AgendamentosProps> = () => {
     const navigate = useNavigate();
-    const { user, company } = useAuth();
+    const { user, company, accountStatus } = useAuth();
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
     const [currentDate, setCurrentDate] = useState(new Date());
     const [schedules, setSchedules] = useState<any[]>([]);
@@ -739,6 +740,10 @@ Cód. Vaga: *${code}*
 
     const getBatchStatusInfo = (batch: any[]) => {
         const first = batch[0];
+
+        // Locked if inactive
+        if (accountStatus === 'inactive') return { color: 'red', icon: Lock, label: first.time };
+
         const allSent = batch.every(s => s.publishStatus === 1);
 
         // Verde: Enviado | Amarelo: Agendado
@@ -763,7 +768,9 @@ Cód. Vaga: *${code}*
                         </div>
                         <div className="flex items-center gap-2">
                             <button onClick={goToToday} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700">Hoje</button>
-                            <button onClick={() => navigate('/anunciar')} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"><Plus size={14} /> Anunciar Vaga</button>
+                            <button onClick={() => {
+                                navigate('/anunciar');
+                            }} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"><Plus size={14} /> Anunciar Vaga</button>
                         </div>
                     </div>
                 </div>
@@ -803,27 +810,35 @@ Cód. Vaga: *${code}*
                                                 onClick={(e) => {
                                                     if (viewMode === 'month') return;
                                                     e.stopPropagation();
+                                                    if (accountStatus === 'inactive') return; // Prevent opening
                                                     openPreview(batch);
                                                 }}
-                                                className={`group relative rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0 ${viewMode === 'month' ? 'p-1 py-0.5 text-[9px] truncate' : 'p-2'} ${color === 'emerald' ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' : color === 'yellow' ? 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' : 'border-rose-500 bg-rose-50/80 dark:bg-rose-900/30'}`}
+                                                className={`group relative rounded-lg border-l-2 transition-all hover:brightness-95 cursor-pointer shadow-sm flex-shrink-0 ${viewMode === 'month' ? 'p-1 py-0.5 text-[9px] truncate' : 'p-2'} ${color === 'emerald' ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30' : color === 'yellow' ? 'border-yellow-500 bg-yellow-50/80 dark:bg-yellow-900/30' : color === 'slate' ? 'border-slate-400 bg-slate-50/80 dark:bg-slate-800/30 opacity-75' : 'border-rose-500 bg-rose-50/80 dark:bg-rose-900/30'}`}
                                             >
                                                 {viewMode === 'week' ? (
                                                     <>
-                                                        <>
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <div className="flex items-center gap-1">
-                                                                    <Icon size={10} className={`text-${color}-600 dark:text-${color}-400`} />
-                                                                    <span className={`text-[10px] font-black tracking-tight text-${color}-700 dark:text-${color}-300`}>{label}</span>
-                                                                </div>
-                                                                {first.job?.jobCode && (
-                                                                    <span className={`text-[9px] font-bold text-${color}-700 dark:text-${color}-300 opacity-80`}>
-                                                                        {first.job.jobCode}
-                                                                    </span>
-                                                                )}
+                                                        {color === 'red' ? (
+                                                            <div className="flex flex-col items-center justify-center h-full min-h-[50px] gap-1 opacity-70">
+                                                                <Lock size={20} className="text-red-500" />
+                                                                <span className="text-[9px] font-black uppercase text-red-500 tracking-widest">BLOQUEADO</span>
                                                             </div>
-                                                            <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5 truncate">{first.title}</p>
-                                                            <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate">{first.company}</p>
-                                                        </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex items-center justify-between mb-1">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Icon size={10} className={`text-${color}-600 dark:text-${color}-400`} />
+                                                                        <span className={`text-[10px] font-black tracking-tight text-${color}-700 dark:text-${color}-300`}>{label}</span>
+                                                                    </div>
+                                                                    {first.job?.jobCode && (
+                                                                        <span className={`text-[9px] font-bold text-${color}-700 dark:text-${color}-300 opacity-80`}>
+                                                                            {first.job.jobCode}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5 truncate">{first.title}</p>
+                                                                <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate">{first.company}</p>
+                                                            </>
+                                                        )}
                                                     </>
                                                 ) : (
                                                     <div className="flex items-center gap-1 text-slate-700 dark:text-slate-200">

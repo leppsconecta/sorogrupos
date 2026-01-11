@@ -2,13 +2,17 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { Profile, Company } from '../types';
+import { Profile, Company, AccountStatus, UserAccount, UserSubscription } from '../types';
 
 interface AuthContextType {
     session: Session | null;
     user: User | null;
     profile: Profile | null;
     company: Company | null;
+    account: UserAccount | null;
+    accountStatus: AccountStatus;
+    planType: string | null;
+    subscription: UserSubscription | null;
     onboardingCompleted: boolean;
     refreshProfile: () => Promise<void>;
     signOut: () => Promise<void>;
@@ -23,7 +27,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [company, setCompany] = useState<Company | null>(null);
-    const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default true mainly to avoid flash of blocked state before load
+    const [account, setAccount] = useState<UserAccount | null>(null);
+    const [accountStatus, setAccountStatus] = useState<AccountStatus>('trial');
+    const [planType, setPlanType] = useState<string | null>(null);
+    const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+    const [onboardingCompleted, setOnboardingCompleted] = useState(true);
     const [loading, setLoading] = useState(true);
 
     const fetchProfileData = async (userId: string) => {
@@ -46,18 +54,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             setCompany(companyData);
 
+            // Get Account Status
+            const { data: accountData } = await supabase
+                .from('user_accounts')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (accountData) {
+                setAccount(accountData);
+                setAccountStatus(accountData.status as AccountStatus);
+            }
+
+            // Get Subscription Plan
+            const { data: subData } = await supabase
+                .from('user_subscriptions')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (subData) {
+                setSubscription(subData);
+                setPlanType(subData.plan_type);
+            }
+
             // Check Onboarding Logic
             let completed = true;
 
-            // 1. Profile Check
             if (!profileData || !profileData.status_created) {
-                console.log('Onboarding Check: Profile status_created is 0 or null');
                 completed = false;
             }
 
-            // 2. Company Check
             if (!companyData || !companyData.status_created) {
-                console.log('Onboarding Check: Company status_created is 0 or null');
                 completed = false;
             }
 
@@ -65,7 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         } catch (error) {
             console.error('Error fetching profile:', error);
-            // Default to incomplete if error
             setOnboardingCompleted(false);
         }
     };
@@ -86,10 +113,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(session?.user ?? null);
             if (session?.user) {
                 fetchProfileData(session.user.id).then(() => setLoading(false));
-                // If it's a SIGNED_IN event, we might want to ensure fetching happens
             } else {
                 setProfile(null);
                 setCompany(null);
+                setAccount(null);
+                setAccountStatus('trial');
+                setPlanType(null);
+                setSubscription(null);
                 setLoading(false);
             }
         });
@@ -118,7 +148,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ session, user, profile, company, onboardingCompleted, refreshProfile, signOut, signInWithGoogle, loading }}>
+        <AuthContext.Provider value={{
+            session,
+            user,
+            profile,
+            company,
+            account,
+            accountStatus,
+            planType,
+            subscription,
+            onboardingCompleted,
+            refreshProfile,
+            signOut,
+            signInWithGoogle,
+            loading
+        }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -39,7 +39,7 @@ export const OnboardingModal: React.FC = () => {
             setCompanyEmail(company.email || '');
             setCompanyPhone(company.whatsapp || '');
             setCompanyCep(company.zip_code || '');
-            setCompanySite(company.site || '');
+            setCompanySite(company.website || '');
 
             // Check if any social is present to auto-open toggle
             if (company.instagram || company.facebook || company.linkedin) {
@@ -83,12 +83,13 @@ export const OnboardingModal: React.FC = () => {
             // Update Profile
             const { error: profileError } = await supabase
                 .from('profiles')
-                .update({
+                .upsert({
+                    id: user.id,
                     full_name: fullName,
                     whatsapp: personalPhone.replace(/\D/g, ''),
-                    status_created: 1
-                })
-                .eq('id', user.id);
+                    status_created: 1,
+                    updated_at: new Date().toISOString()
+                });
 
             if (profileError) throw profileError;
 
@@ -134,7 +135,7 @@ export const OnboardingModal: React.FC = () => {
 
         } catch (err: any) {
             console.error('Error updating onboarding:', err);
-            setError('Erro ao salvar dados. Tente novamente.');
+            setError(`Erro ao salvar: ${err.message || 'Verifique os dados e tente novamente.'}`);
         } finally {
             setLoading(false);
         }
@@ -154,9 +155,8 @@ export const OnboardingModal: React.FC = () => {
                         Crie sua primeira vaga e divulgue automaticamente nos grupos de WhatsApp.
                     </p>
                     <button
-                        onClick={async () => {
-                            await refreshProfile();
-                            navigate('/vagas');
+                        onClick={() => {
+                            window.location.href = '/vagas';
                         }}
                         className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                     >

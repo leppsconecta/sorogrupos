@@ -26,7 +26,7 @@ export interface Company {
   email?: string;
   whatsapp?: string;
   zip_code?: string;
-  site?: string;
+  website?: string;
   instagram?: string;
   facebook?: string;
   linkedin?: string;
@@ -102,4 +102,28 @@ export interface Payment {
   amount: string;
   method: string;
   status: 'Pago' | 'Pendente' | 'Cancelado';
+}
+
+export type AccountStatus = 'trial' | 'active' | 'inactive';
+
+export interface UserAccount {
+  id: string;
+  user_id: string;
+  status: AccountStatus;
+  trial_start_at: string;
+  trial_end_at: string;
+  created_at: string;
+}
+
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  plan_type?: string;
+  status?: string;
+  current_period_end?: string;
+  plan_amount?: number;
+  plan_interval?: string;
+  plan_currency?: string;
 }

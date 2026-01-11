@@ -114,7 +114,7 @@ interface MarketingProps {
 
 export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpenConnect }) => {
   const navigate = useNavigate();
-  const { company, user } = useAuth();
+  const { company, user, accountStatus } = useAuth();
   const [view, setView] = useState<'broadcast' | 'reports' | 'schedules'>('broadcast');
 
   // Data States
@@ -157,6 +157,9 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Alert Modal State
   const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+
+  // Inactive Account Modal
+  const [inactiveModalOpen, setInactiveModalOpen] = useState(false);
 
   const [editingJob, setEditingJob] = useState<any>(null);
 
@@ -513,8 +516,12 @@ Cód. Vaga: *${code}*
       const success = await saveScheduleToDB('sent', dateStr, timeStr);
 
       if (success) {
-        setSuccessMessage("O envio será processado em breve");
-        setSuccessModalOpen(true);
+        if (accountStatus === 'inactive') {
+          setInactiveModalOpen(true);
+        } else {
+          setSuccessMessage("O envio será processado em breve");
+          setSuccessModalOpen(true);
+        }
 
         // Reset selection
         setSelectedVagaIds([]);
@@ -564,8 +571,12 @@ Cód. Vaga: *${code}*
     );
 
     if (success) {
-      setSuccessMessage("O envio foi programado, aguarde para verificar status");
-      setSuccessModalOpen(true);
+      if (accountStatus === 'inactive') {
+        setInactiveModalOpen(true);
+      } else {
+        setSuccessMessage("O envio foi programado, aguarde para verificar status");
+        setSuccessModalOpen(true);
+      }
       setIsScheduling(false);
       // Reset form
       setSelectedDates([]);
@@ -652,6 +663,37 @@ Cód. Vaga: *${code}*
         onClose={() => setAlertModalOpen(false)}
         message={alertMessage}
       />
+
+      {/* Inactive Alert Modal */}
+      {inactiveModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl p-8 max-w-sm w-full text-center animate-scaleUp border border-slate-100 dark:border-slate-800">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Atenção!</h3>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              As vagas serão agendadas, mas <strong className="text-slate-700 dark:text-slate-300">não serão disparadas</strong>.
+              <br /><br />
+              Ative seu plano para liberar os envios automáticos! 😍
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate('/meuplano')}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase text-xs tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+              >
+                Ativar Plano Agora
+              </button>
+              <button
+                onClick={() => setInactiveModalOpen(false)}
+                className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 rounded-xl font-bold uppercase text-xs tracking-widest transition-all"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {view === 'broadcast' && (
@@ -985,14 +1027,18 @@ Cód. Vaga: *${code}*
 
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <button
-                  onClick={() => setIsScheduling(!isScheduling)}
+                  onClick={() => {
+                    setIsScheduling(!isScheduling);
+                  }}
                   disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0}
                   className="py-3.5 rounded-2xl font-bold text-[10px] md:text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 border border-slate-200 dark:border-slate-700"
                 >
                   <CalendarDays size={18} /> Agendar
                 </button>
                 <button
-                  onClick={handleSend}
+                  onClick={() => {
+                    handleSend();
+                  }}
                   disabled={selectedVagaIds.length === 0 || selectedGroupIds.length === 0 || isSending}
                   className="py-3.5 rounded-2xl font-bold text-[10px] md:text-xs uppercase tracking-widest bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100"
                 >

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   User,
@@ -15,32 +14,27 @@ import {
   Check,
   Instagram,
   Facebook,
-  Linkedin
+  Linkedin,
+  CreditCard,
+  Shield,
+  Zap,
+  Camera
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useFeedback } from '../contexts/FeedbackContext';
+import { supabase } from '../lib/supabase';
+import { SuccessModal } from '../components/SuccessModal';
+import { PlansSection } from '../components/PlansSection';
 
-// Custom Icons
+// Styled Components / Reusable Parts
 
-
-const TabButton = ({ id, label, icon: Icon, active, onClick }: { id: ProfileTab, label: string, icon: any, active: boolean, onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center justify-center gap-2 px-4 py-2.5 md:gap-3 md:px-8 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm transition-all shadow-sm active:scale-95 whitespace-nowrap
-    ${active
-        ? 'bg-blue-600 text-white shadow-blue-600/20'
-        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-  >
-    <Icon size={20} />
-    {label}
-  </button>
-);
-
-const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onChange, required = false, disabled = false }: any) => (
-  <div className="space-y-1.5">
-    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">
-      {label} {required && <span className="text-red-500">*</span>}
+const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onChange, required = false, disabled = false, helper }: any) => (
+  <div className="space-y-2">
+    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+      <span>{label} {required && <span className="text-red-500">*</span>}</span>
     </label>
     <div className="relative group">
-      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
         <Icon size={18} />
       </div>
       <input
@@ -49,26 +43,24 @@ const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onCh
         onChange={onChange}
         disabled={disabled}
         placeholder={placeholder}
-        className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
-        ${required && !value ? 'border-red-300 dark:border-red-900/50' : 'border-slate-100 dark:border-slate-800'}
-        ${disabled ? 'opacity-70 cursor-not-allowed select-none' : ''}`}
+        className={`w-full bg-white dark:bg-slate-900 border rounded-xl pl-12 pr-5 py-3.5 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
+        ${required && !value && !disabled ? 'border-red-300 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800'}
+        ${disabled ? 'bg-slate-50 dark:bg-slate-950/50 opacity-70 cursor-not-allowed select-none' : 'hover:border-blue-400/50'}
+        `}
       />
     </div>
+    {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium ml-1">{helper}</p>}
   </div>
 );
 
-import { useAuth } from '../contexts/AuthContext';
-import { useFeedback } from '../contexts/FeedbackContext';
-import { supabase } from '../lib/supabase';
-import { SuccessModal } from '../components/SuccessModal';
-// ... imports
-
-type ProfileTab = 'account' | 'company';
+type ProfileTab = 'personal' | 'company' | 'security' | 'billing';
 
 export const Perfil: React.FC = () => {
   const { user, profile, company, refreshProfile, onboardingCompleted } = useAuth();
   const { toast } = useFeedback();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('account');
+
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
   const [activeSocials, setActiveSocials] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -77,8 +69,6 @@ export const Perfil: React.FC = () => {
   const [formDataAccount, setFormDataAccount] = useState({
     full_name: profile?.full_name || '',
     whatsapp: profile?.whatsapp || '',
-    // city: profile?.city || '' // Assuming city is not in DB schema yet, map to address or ignore for now? 
-    // Schema only has full_name, whatsapp. I'll stick to schema for Account.
   });
 
   const [formDataCompany, setFormDataCompany] = useState({
@@ -101,70 +91,9 @@ export const Perfil: React.FC = () => {
   });
   const [loadingPass, setLoadingPass] = useState(false);
 
-  // Check if user has a password set (Email provider present)
-  // If they have 'email' provider, they have a password.
   const hasPassword = user?.app_metadata?.providers?.includes('email');
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    if (loadingPass) return; // Prevent double click
-
-    if (passwords.new.length < 6) {
-      toast({ type: 'warning', title: 'Atenção', message: 'A nova senha deve ter pelo menos 6 caracteres.' });
-      return;
-    }
-
-    if (passwords.new !== passwords.confirm) {
-      toast({ type: 'error', title: 'Erro', message: 'As senhas não coincidem.' });
-      return;
-    }
-
-    setLoadingPass(true);
-    try {
-      // Logic: If user has a password, verify it first
-      if (hasPassword) {
-        if (!passwords.current) {
-          throw new Error('Por favor, informe sua senha atual.');
-        }
-
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: user.email!,
-          password: passwords.current,
-        });
-
-        if (signInError) {
-          throw new Error('Senha atual incorreta.');
-        }
-      }
-
-      // Update Password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: passwords.new
-      });
-
-      if (updateError) throw updateError;
-
-      // Force session refresh to update user.app_metadata (adding 'email' provider if it was Google-only)
-      await supabase.auth.refreshSession();
-
-      // Success
-      setShowSuccessModal(true);
-
-      // Clear fields
-      setPasswords({ current: '', new: '', confirm: '' });
-
-    } catch (err: any) {
-      console.error(err);
-      toast({ type: 'error', title: 'Erro', message: err.message || 'Erro ao atualizar senha.' });
-    } finally {
-      setLoadingPass(false);
-    }
-  };
-
-  // Update state when context data loads
-  // Initialize activeSocials based on existing data
+  // Load Data Effect
   React.useEffect(() => {
     if (profile) {
       setFormDataAccount({
@@ -186,7 +115,6 @@ export const Perfil: React.FC = () => {
         linkedin: company.linkedin || ''
       }));
 
-      // Set active socials if they have content
       const active = [];
       if (company.linkedin) active.push('linkedin');
       setActiveSocials(active);
@@ -197,6 +125,51 @@ export const Perfil: React.FC = () => {
     setActiveSocials(prev =>
       prev.includes(social) ? prev.filter(s => s !== social) : [...prev, social]
     );
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (loadingPass) return;
+
+    if (passwords.new.length < 6) {
+      toast({ type: 'warning', title: 'Atenção', message: 'A nova senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+
+    if (passwords.new !== passwords.confirm) {
+      toast({ type: 'error', title: 'Erro', message: 'As senhas não coincidem.' });
+      return;
+    }
+
+    setLoadingPass(true);
+    try {
+      if (hasPassword) {
+        if (!passwords.current) {
+          throw new Error('Por favor, informe sua senha atual.');
+        }
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email!,
+          password: passwords.current,
+        });
+        if (signInError) throw new Error('Senha atual incorreta.');
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwords.new
+      });
+      if (updateError) throw updateError;
+
+      await supabase.auth.refreshSession();
+      setShowSuccessModal(true);
+      setPasswords({ current: '', new: '', confirm: '' });
+
+    } catch (err: any) {
+      console.error(err);
+      toast({ type: 'error', title: 'Erro', message: err.message || 'Erro ao atualizar senha.' });
+    } finally {
+      setLoadingPass(false);
+    }
   };
 
   const handleSaveAccount = async () => {
@@ -240,9 +213,6 @@ export const Perfil: React.FC = () => {
         updated_at: new Date().toISOString()
       };
 
-      // Check if company exists to update or insert
-      // Since we might not have ID if not created yet (though fetchProfile gets it).
-      // If we have company object, update. Else insert.
       let query;
       if (company && company.id) {
         query = supabase.from('companies').update(dataToUpsert).eq('id', company.id);
@@ -262,10 +232,8 @@ export const Perfil: React.FC = () => {
     }
   };
 
-  // Removed internal component definitions to different scope to fix re-render focus loss
-
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn pb-12">
+    <div className="max-w-5xl mx-auto pb-20 animate-fadeIn">
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
@@ -273,92 +241,261 @@ export const Perfil: React.FC = () => {
         subMessage="Use a nova senha no próximo login."
         autoCloseDuration={3000}
       />
+
       {!onboardingCompleted && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 p-6 rounded-2xl animate-shake">
-          <h3 className="text-red-700 dark:text-red-400 font-bold mb-1 flex items-center gap-2">
-            <Lock size={18} /> Perfil Incompleto
-          </h3>
-          <p className="text-sm text-red-600/80 dark:text-red-400/70">
-            Você precisa preencher todos os campos obrigatórios (Perfil e Empresa) para desbloquear o acesso ao sistema.
-          </p>
+        <div className="mb-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/50 p-6 rounded-2xl animate-shake">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+              <Lock size={20} />
+            </div>
+            <div>
+              <h3 className="text-amber-800 dark:text-amber-200 font-bold mb-1">Passos Iniciais Pendentes</h3>
+              <p className="text-sm text-amber-700/80 dark:text-amber-300/70">
+                Para aproveitar todos os recursos, por favor complete seu cadastro preenchendo as abas <span className="font-bold">Dados Pessoais</span> e <span className="font-bold">Empresa</span>.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Tab Switcher */}
-      <div className="flex items-center justify-center gap-2 w-full">
-        <TabButton id="account" label="Perfil da Conta" icon={User} active={activeTab === 'account'} onClick={() => setActiveTab('account')} />
-        <TabButton id="company" label="Perfil da Empresa" icon={Building2} active={activeTab === 'company'} onClick={() => setActiveTab('company')} />
+      {/* Header Section */}
+      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Configurações da Conta</h1>
+          <p className="text-slate-500 font-medium">Gerencie seus dados, informações da empresa e segurança.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {activeTab === 'account' ? (
-          <div className="space-y-8">
-            {/* Account Info */}
-            <section className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-8">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Dados da Conta</h3>
-                <p className="text-sm text-slate-500 font-medium">Informações de acesso e contato pessoal do administrador.</p>
+      {/* Modern Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar mb-8 border-b border-slate-200 dark:border-slate-800">
+        <button
+          onClick={() => setActiveTab('personal')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
+           ${activeTab === 'personal' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <User size={16} /> Dados Pessoais
+        </button>
+        <button
+          onClick={() => setActiveTab('company')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
+           ${activeTab === 'company' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <Building2 size={16} /> Empresa
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
+           ${activeTab === 'security' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <Shield size={16} /> Segurança
+        </button>
+        <button
+          onClick={() => setActiveTab('billing')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
+           ${activeTab === 'billing' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <CreditCard size={16} /> Plano e Fatura
+        </button>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="min-h-[400px]">
+
+        {/* === TAB: PERSONAL === */}
+        {activeTab === 'personal' && (
+          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
+            <div className="max-w-2xl space-y-8">
+              <div className="border-l-4 border-blue-500 pl-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Informações Pessoais</h3>
+                <p className="text-sm text-slate-500">Dados para identificação e contato direto com o administrador da conta.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-10 gap-6 items-start">
-                <div className="md:col-span-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
                   <InputField
                     label="Nome Completo"
                     icon={User}
                     required
+                    placeholder="Seu nome completo"
                     value={formDataAccount.full_name}
                     onChange={(e: any) => setFormDataAccount({ ...formDataAccount, full_name: e.target.value })}
                   />
                 </div>
 
-                <div className="md:col-span-4">
-                  <InputField
-                    label="Email"
-                    icon={Mail}
-                    value={user?.email || ''}
-                    disabled // User's email is fixed from auth
-                  />
-                </div>
+                <InputField
+                  label="Email de Login"
+                  icon={Mail}
+                  value={user?.email || ''}
+                  disabled
+                  helper="O email não pode ser alterado."
+                />
 
-                <div className="md:col-span-3">
-                  <InputField
-                    label="WhatsApp Pessoal"
-                    icon={Smartphone}
-                    required
-                    placeholder="15 9 9999-9999"
-                    value={formDataAccount.whatsapp}
-                    onChange={(e: any) => setFormDataAccount({ ...formDataAccount, whatsapp: e.target.value })}
-                  />
-                </div>
+                <InputField
+                  label="WhatsApp Pessoal"
+                  icon={Smartphone}
+                  required
+                  placeholder="(15) 9 9999-9999"
+                  value={formDataAccount.whatsapp}
+                  onChange={(e: any) => setFormDataAccount({ ...formDataAccount, whatsapp: e.target.value })}
+                />
               </div>
 
-              <div className="flex justify-end pt-4">
-                <button onClick={handleSaveAccount} disabled={loading} className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
-                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar'}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button
+                  onClick={handleSaveAccount}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
+                  Salvar Alterações
                 </button>
               </div>
-            </section>
+            </div>
+          </div>
+        )}
 
-            {/* Password Reset */}
-            <section className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center">
-                  <Lock size={20} />
-                </div>
+        {/* === TAB: COMPANY === */}
+        {activeTab === 'company' && (
+          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
+            <div className="space-y-8">
+              <div className="border-l-4 border-emerald-500 pl-4 flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">
-                    {!hasPassword ? 'Criar Senha' : 'Alterar Senha'}
-                  </h3>
-                  <p className="text-sm text-slate-500 font-medium">
-                    {!hasPassword
-                      ? 'Defina uma senha para acessar sua conta sem o Google.'
-                      : 'Mantenha sua conta protegida alterando sua senha regularmente.'}
-                  </p>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">Dados da Empresa</h3>
+                  <p className="text-sm text-slate-500">Informações públicas que aparecerão nas suas vagas.</p>
                 </div>
               </div>
 
-              <form onSubmit={handleUpdatePassword} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Only show Current Password if user has password (email provider) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <InputField
+                  label="Nome da Empresa"
+                  icon={Building2}
+                  required
+                  placeholder="Nome Fantasia"
+                  value={formDataCompany.name}
+                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, name: e.target.value })}
+                />
+                <InputField
+                  label="CNPJ"
+                  icon={Hash}
+                  placeholder="00.000.000/0000-00"
+                  value={formDataCompany.cnpj}
+                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, cnpj: e.target.value })}
+                />
+
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="md:col-span-2 mb-2">
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                      <Phone size={16} className="text-blue-500" /> Contato Comercial
+                    </h4>
+                  </div>
+
+                  <InputField
+                    label="WhatsApp Comercial"
+                    icon={Smartphone}
+                    placeholder="(15) 99999-9999"
+                    required
+                    value={formDataCompany.whatsapp}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
+                    helper="Este número aparecerá no botão de contato das vagas."
+                  />
+
+                  <InputField
+                    label="Email Corporativo"
+                    icon={Mail}
+                    placeholder="contato@empresa.com"
+                    required
+                    value={(formDataCompany as any).email}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <InputField
+                    label="CEP (Endereço)"
+                    icon={MapPin}
+                    required
+                    placeholder="18000-000"
+                    value={formDataCompany.zip_code}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, zip_code: e.target.value })}
+                    helper="Apenas o CEP é necessário para geolocalização básica."
+                  />
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                    <Globe size={16} /> Redes Sociais e Site
+                  </h4>
+
+                  {/* Social Toggles */}
+                  <div className="flex gap-2">
+                    <button onClick={() => toggleSocial('linkedin')} className={`p-2 rounded-lg transition-colors ${activeSocials.includes('linkedin') ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+                      <Linkedin size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputField
+                    label="Website"
+                    icon={Globe}
+                    placeholder="https://www.site.com.br"
+                    value={formDataCompany.website}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, website: e.target.value })}
+                  />
+                  <InputField
+                    label="Instagram"
+                    icon={Instagram}
+                    placeholder="@usuario"
+                    value={formDataCompany.instagram}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, instagram: e.target.value })}
+                  />
+                  <InputField
+                    label="Facebook"
+                    icon={Facebook}
+                    placeholder="facebook.com/pagina"
+                    value={(formDataCompany as any).facebook}
+                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, facebook: e.target.value })}
+                  />
+                  {activeSocials.includes('linkedin') && (
+                    <div className="animate-fadeIn">
+                      <InputField
+                        label="LinkedIn"
+                        icon={Linkedin}
+                        placeholder="linkedin.com/in/perfil"
+                        value={formDataCompany.linkedin}
+                        onChange={(e: any) => setFormDataCompany({ ...formDataCompany, linkedin: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-6 flex justify-end">
+                <button
+                  onClick={handleSaveCompany}
+                  disabled={loading}
+                  className="bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
+                  Salvar Dados da Empresa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === TAB: SECURITY === */}
+        {activeTab === 'security' && (
+          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
+            <div className="max-w-2xl space-y-8">
+              <div className="border-l-4 border-amber-500 pl-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Segurança da Conta</h3>
+                <p className="text-sm text-slate-500">Gerencie a senha de acesso ao painel.</p>
+              </div>
+
+              <form onSubmit={handleUpdatePassword} className="space-y-6">
                 {hasPassword && (
                   <InputField
                     label="Senha Atual"
@@ -371,175 +508,50 @@ export const Perfil: React.FC = () => {
                   />
                 )}
 
-                <InputField
-                  label="Nova Senha"
-                  icon={Lock}
-                  type="password"
-                  placeholder="••••••••"
-                  value={passwords.new}
-                  onChange={(e: any) => setPasswords({ ...passwords, new: e.target.value })}
-                  required
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputField
+                    label="Nova Senha"
+                    icon={Lock}
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.new}
+                    onChange={(e: any) => setPasswords({ ...passwords, new: e.target.value })}
+                    required
+                  />
+                  <InputField
+                    label="Confirmar Nova Senha"
+                    icon={Check}
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.confirm}
+                    onChange={(e: any) => setPasswords({ ...passwords, confirm: e.target.value })}
+                    required
+                  />
+                </div>
 
-                <InputField
-                  label="Confirmar Senha"
-                  icon={Check}
-                  type="password"
-                  placeholder="••••••••"
-                  value={passwords.confirm}
-                  onChange={(e: any) => setPasswords({ ...passwords, confirm: e.target.value })}
-                  required
-                />
-
-                <div className="md:col-span-3 flex justify-end pt-4">
+                <div className="pt-6 flex justify-start">
                   <button
                     type="submit"
                     disabled={loadingPass}
-                    className="flex items-center gap-2 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 disabled:opacity-50"
+                    className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                   >
-                    {loadingPass ? 'Atualizando...' : (!hasPassword ? 'Criar Senha' : 'Atualizar Senha')}
+                    {loadingPass ? 'Processando...' : <><Lock size={16} /> Atualizar Senha</>}
                   </button>
                 </div>
               </form>
-            </section>
-          </div>
-        ) : (
-          <div className="space-y-8 animate-fadeIn">
-            {/* Company Info */}
-            <section className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-8">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Dados da Empresa</h3>
-                <p className="text-sm text-slate-500 font-medium">Informações institucionais e de faturamento.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputField
-                  label="Nome da Empresa"
-                  icon={Building2}
-                  required
-                  value={formDataCompany.name}
-                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, name: e.target.value })}
-                />
-                <InputField
-                  label="CNPJ"
-                  icon={Hash}
-                  value={formDataCompany.cnpj}
-                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, cnpj: e.target.value })}
-                />
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-10 gap-6 items-start">
-                  <div className="md:col-span-3">
-                    <InputField
-                      label="WhatsApp Comercial"
-                      icon={Smartphone}
-                      placeholder="(15) 99999-9999"
-                      required
-                      value={formDataCompany.whatsapp}
-                      onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
-                    />
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-1.5 ml-1">
-                      Este contato que será utilizado no rodapé das suas vagas
-                    </p>
-                  </div>
-
-                  <div className="md:col-span-4">
-                    <InputField
-                      label="Email Corporativo"
-                      icon={Mail}
-                      placeholder="contato@empresa.com"
-                      required
-                      value={(formDataCompany as any).email}
-                      onChange={(e: any) => setFormDataCompany({ ...formDataCompany, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="md:col-span-3">
-                    <InputField
-                      label="CEP"
-                      icon={Hash}
-                      required
-                      value={formDataCompany.zip_code}
-                      onChange={(e: any) => setFormDataCompany({ ...formDataCompany, zip_code: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Section Removed as per request, CEP moved above */}
-
-              {/* Perfis Digitais */}
-              <div className="pt-4 space-y-6 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Globe size={18} className="text-blue-600" />
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest">Perfis Digitais</h4>
-                  </div>
-
-                  {/* Social Network Toggles */}
-                  <div className="flex gap-2">
-                    {[
-                      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn' }
-                    ].map((social) => (
-                      !activeSocials.includes(social.id) && (
-                        <button
-                          key={social.id}
-                          onClick={() => toggleSocial(social.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 transition-all"
-                          title={`Adicionar ${social.label}`}
-                        >
-                          <social.icon size={16} />
-                        </button>
-                      )
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <InputField
-                      label="Site"
-                      icon={Globe}
-                      value={formDataCompany.website}
-                      onChange={(e: any) => setFormDataCompany({ ...formDataCompany, website: e.target.value })}
-                    />
-                  </div>
-                  <InputField
-                    label="Instagram"
-                    icon={Instagram}
-                    value={formDataCompany.instagram}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, instagram: e.target.value })}
-                  />
-                  <InputField
-                    label="Facebook"
-                    icon={Facebook}
-                    value={(formDataCompany as any).facebook}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, facebook: e.target.value })}
-                  />
-
-                  {activeSocials.includes('linkedin') && (
-                    <div className="max-w-full animate-fadeIn">
-                      <InputField
-                        label="LinkedIn"
-                        icon={Linkedin}
-                        value={formDataCompany.linkedin}
-                        onChange={(e: any) => setFormDataCompany({ ...formDataCompany, linkedin: e.target.value })}
-                        required={false}
-                      />
-                    </div>
-                  )}
-
-
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-8">
-                <button onClick={handleSaveCompany} disabled={loading} className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
-                  <Save size={18} /> {loading ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </section>
+            </div>
           </div>
         )}
+
+        {/* === TAB: BILLING === */}
+        {activeTab === 'billing' && (
+          <div className="animate-fadeIn">
+            <PlansSection />
+          </div>
+        )}
+
       </div>
+
     </div>
   );
 };

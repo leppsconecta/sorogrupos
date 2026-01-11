@@ -38,7 +38,7 @@ import {
 import { Vaga, Folder, JobContact, SavedJobContact } from '../types';
 import { supabase } from '../lib/supabase';
 import { SavedContactsModal } from '../components/SavedContactsModal';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
@@ -72,7 +72,8 @@ interface VagasProps {
 }
 
 export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) => {
-  const { user, company } = useAuth();
+  const { user, company, accountStatus } = useAuth();
+  const navigate = useNavigate();
 
   // Navegação e Dados
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -962,7 +963,10 @@ Cód. Vaga: *${code}*
             <>
               {/* Desktop Button */}
               <button
-                onClick={() => { setFolderNameInput(''); setIsFolderModalOpen(true); }}
+                onClick={() => {
+                  setFolderNameInput('');
+                  setIsFolderModalOpen(true);
+                }}
                 className={`hidden md:flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95`}
               >
                 <FolderPlus size={18} />
@@ -974,7 +978,10 @@ Cód. Vaga: *${code}*
                 {!isFolderSearchExpanded ? (
                   <>
                     <button
-                      onClick={() => { setFolderNameInput(''); setIsFolderModalOpen(true); }}
+                      onClick={() => {
+                        setFolderNameInput('');
+                        setIsFolderModalOpen(true);
+                      }}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-blue-600/20 active:scale-95"
                     >
                       <FolderPlus size={18} />

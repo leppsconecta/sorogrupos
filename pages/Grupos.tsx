@@ -757,123 +757,182 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       </div>
 
       {/* Groups Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {filteredGroups.map((group) => (
-          <div
-            key={group.id}
-            onClick={() => handleGroupClick(group)}
-            className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900 ${group.isAdmin ? 'cursor-pointer' : 'cursor-default'}`}
-          >
-            {/* Admin Badge - Top Left */}
-            <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
-              {/* Creation Badge Removed - Replaced by Overlay */}
-              {group.isAdmin && (
-                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase tracking-widest border border-slate-200 dark:border-slate-700">
-                  Admin
-                </span>
-              )}
-            </div>
-
-            {/* Tag Button Top Right */}
-            <div className="absolute top-4 right-4 z-10">
+      {/* Groups Grid or Empty State */}
+      {filteredGroups.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800">
+          {(searchQuery || selectedTag || showMyGroups) ? (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                <Search size={40} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Nenhum resultado encontrado</h3>
+                <p className="text-sm text-slate-500">Tente buscar por outro termo ou remova os filtros.</p>
+              </div>
               <button
-                onClick={(e) => { e.stopPropagation(); setTaggingGroup(group); }}
-                className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 active:scale-95"
-                title="Adicionar Tag"
+                onClick={() => { setSearchQuery(''); setSelectedTag(null); setShowMyGroups(false); }}
+                className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-colors"
               >
-                <TagIcon size={16} />
+                Limpar Filtros
               </button>
             </div>
-
-            {/* Group Thumbnail (Circular) */}
-            <div className="relative mb-4 mt-2">
-              <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-50 dark:bg-slate-800/50">
-                {group.image === 'sem_image' ? (
-                  <span className="text-[10px] font-bold text-slate-400 uppercase text-center leading-tight px-2">
-                    Sem exibição
+          ) : (
+            <div className="space-y-6 max-w-md px-4">
+              {!isWhatsAppConnected ? (
+                <>
+                  <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto text-blue-600 animate-pulse">
+                    <Smartphone size={48} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Conecte seu WhatsApp</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Conecte seu whatsapp para carregar os grupos disponíveis.</p>
+                  </div>
+                  <button
+                    onClick={onOpenConnect}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/30 active:scale-95 transition-all"
+                  >
+                    Conectar WhatsApp Agora
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <Users size={48} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Carregando Grupos</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Seus grupos serão carregados aqui automaticamente. Isso pode levar alguns instantes.</p>
+                  </div>
+                  <button
+                    onClick={handleSyncGroups}
+                    className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-colors flex items-center gap-2 mx-auto"
+                  >
+                    <CheckCircle2 size={14} /> Atualizar Lista
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {filteredGroups.map((group) => (
+            <div
+              key={group.id}
+              onClick={() => handleGroupClick(group)}
+              className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-all duration-300 group overflow-hidden flex flex-col items-center text-center relative hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-900 ${group.isAdmin ? 'cursor-pointer' : 'cursor-default'}`}
+            >
+              {/* Admin Badge - Top Left */}
+              <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
+                {/* Creation Badge Removed - Replaced by Overlay */}
+                {group.isAdmin && (
+                  <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                    Admin
                   </span>
-                ) : (
-                  <img
-                    src={group.image}
-                    alt={group.name}
-                    className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
-                  />
                 )}
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 w-full space-y-3">
-              <h4 className="text-lg font-bold text-slate-800 dark:text-white truncate px-2 leading-tight">
-                {group.name}
-              </h4>
-              <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider">
-                <Users size={12} className="text-blue-500" />
-                <span>{group.membersCount.toLocaleString()} participantes</span>
+              {/* Tag Button Top Right */}
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTaggingGroup(group); }}
+                  className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 active:scale-95"
+                  title="Adicionar Tag"
+                >
+                  <TagIcon size={16} />
+                </button>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-2 mt-4 min-h-[24px]">
-                {group.tags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleTagInGroup(group, tag);
-                    }}
-                    className="group/tag relative bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-rose-500 hover:pr-6 transition-all"
-                    title="Clique para remover"
-                  >
-                    {tag}
-                    <span className="absolute right-1.5 opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                      <X size={10} />
+              {/* Group Thumbnail (Circular) */}
+              <div className="relative mb-4 mt-2">
+                <div className="w-28 h-28 rounded-full p-1 border-2 border-blue-100 dark:border-slate-800 group-hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-50 dark:bg-slate-800/50">
+                  {group.image === 'sem_image' ? (
+                    <span className="text-[10px] font-bold text-slate-400 uppercase text-center leading-tight px-2">
+                      Sem exibição
                     </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Privacy Message - Subtle above Ver Conversas */}
-            {group.privacy && !group.isAdmin && (
-              <div className="mb-2">
-                <span className="text-[10px] font-bold text-red-500/80 dark:text-red-400/80 whitespace-nowrap">
-                  Somente admin pode interagir
-                </span>
-              </div>
-            )}
-
-            {/* Buttons */}
-            <button
-              onClick={(e) => { e.stopPropagation(); }}
-              className="w-full py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-              Ver Conversas
-              <ExternalLink size={14} />
-            </button>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); copyLink(group); }}
-              className={`w-full mt-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
-                ${copiedId === group.id
-                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
-            >
-              Link do Grupo
-              {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-
-            {/* Creation Overlay Mask */}
-            {
-              group.status_create_group === 0 && (
-                <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
-                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
-                    <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
-                  </div>
+                  ) : (
+                    <img
+                      src={group.image}
+                      alt={group.name}
+                      className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-500"
+                    />
+                  )}
                 </div>
-              )
-            }
-          </div>
-        ))}
-      </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 w-full space-y-3">
+                <h4 className="text-lg font-bold text-slate-800 dark:text-white truncate px-2 leading-tight">
+                  {group.name}
+                </h4>
+                <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider">
+                  <Users size={12} className="text-blue-500" />
+                  <span>{group.membersCount.toLocaleString()} participantes</span>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-2 mt-4 min-h-[24px]">
+                  {group.tags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTagInGroup(group, tag);
+                      }}
+                      className="group/tag relative bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-rose-500 hover:pr-6 transition-all"
+                      title="Clique para remover"
+                    >
+                      {tag}
+                      <span className="absolute right-1.5 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+                        <X size={10} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Privacy Message - Subtle above Ver Conversas */}
+              {group.privacy && !group.isAdmin && (
+                <div className="mb-2">
+                  <span className="text-[10px] font-bold text-red-500/80 dark:text-red-400/80 whitespace-nowrap">
+                    Somente admin pode interagir
+                  </span>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <button
+                onClick={(e) => { e.stopPropagation(); }}
+                className="w-full py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                Ver Conversas
+                <ExternalLink size={14} />
+              </button>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); copyLink(group); }}
+                className={`w-full mt-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
+                  ${copiedId === group.id
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
+              >
+                Link do Grupo
+                {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+
+              {/* Creation Overlay Mask */}
+              {
+                group.status_create_group === 0 && (
+                  <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
+                      <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
+                    </div>
+                  </div>
+                )
+              }
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal: Group Details & Description */}
       {
