@@ -102,17 +102,22 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
         return days;
     };
 
-    const fetchSchedules = async () => {
+    const fetchSchedules = async (startDate?: string, endDate?: string) => {
         try {
             setLoading(true);
 
             if (!user) return;
 
-            // 1. Fetch Schedules
-            const { data: schedulesData, error: schedulesError } = await supabase
+            // 1. Fetch Schedules (Optimized with Date Range)
+            let query = supabase
                 .from('marketing_schedules')
                 .select('id, user_id, jobs_ids, scheduled_date, scheduled_time, status, publish_status, groups_count, id_group')
                 .eq('user_id', user.id);
+
+            if (startDate) query = query.gte('scheduled_date', startDate);
+            if (endDate) query = query.lte('scheduled_date', endDate);
+
+            const { data: schedulesData, error: schedulesError } = await query;
 
             if (schedulesError) throw schedulesError;
 
@@ -154,51 +159,52 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
                 }
             });
 
-            // 3. Fetch Job Details (FETCH ALL - Using FLAT COLUMNS)
+            // 3. Fetch Job Details (OPTIMIZED: Only fetch referenced jobs)
             let jobsMap: Record<string, any> = {};
             let jobFetchError = null;
 
-            const { data: jobsData, error: jobsError } = await supabase
-                .from('jobs')
-                .select('id, title, code, job_type, company_name, hide_company, employment_type, city, region, requirements, benefits, activities, image_url, show_observation, observation, contact_whatsapp, contact_email, contact_link, contact_address, contact_address_date, contact_address_time, function')
-                .eq('user_id', user.id);
+            if (allJobIds.size > 0) {
+                const { data: jobsData, error: jobsError } = await supabase
+                    .from('jobs')
+                    .select('id, title, code, job_type, company_name, hide_company, employment_type, city, region, requirements, benefits, activities, image_url, show_observation, observation, contact_whatsapp, contact_email, contact_link, contact_address, contact_address_date, contact_address_time, function')
+                    // .eq('user_id', user.id) // Not strictly needed if we filter by ID, but good for RLS safety
+                    .in('id', Array.from(allJobIds));
 
-            if (jobsError) {
-                console.error('Error fetching jobs:', jobsError);
-                jobFetchError = jobsError;
-            }
+                if (jobsError) {
+                    console.error('Error fetching jobs:', jobsError);
+                    jobFetchError = jobsError;
+                }
 
-            let jobsFoundCount = 0;
-            if (jobsData) {
-                jobsFoundCount = jobsData.length;
-                jobsData.forEach(j => {
-                    // Map flat columns to format expected by generateJobText
-                    const contacts = [];
-                    if (j.contact_whatsapp) contacts.push({ type: 'WhatsApp', value: j.contact_whatsapp });
-                    if (j.contact_email) contacts.push({ type: 'Email', value: j.contact_email });
-                    if (j.contact_link) contacts.push({ type: 'Link', value: j.contact_link });
-                    if (j.contact_address) {
-                        contacts.push({
-                            type: 'Endereço',
-                            value: j.contact_address,
-                            date: j.contact_address_date,
-                            time: j.contact_address_time,
-                            noDateTime: !j.contact_address_date
-                        });
-                    }
+                if (jobsData) {
+                    jobsData.forEach(j => {
+                        // Map flat columns to format expected by generateJobText
+                        const contacts = [];
+                        if (j.contact_whatsapp) contacts.push({ type: 'WhatsApp', value: j.contact_whatsapp });
+                        if (j.contact_email) contacts.push({ type: 'Email', value: j.contact_email });
+                        if (j.contact_link) contacts.push({ type: 'Link', value: j.contact_link });
+                        if (j.contact_address) {
+                            contacts.push({
+                                type: 'Endereço',
+                                value: j.contact_address,
+                                date: j.contact_address_date,
+                                time: j.contact_address_time,
+                                noDateTime: !j.contact_address_date
+                            });
+                        }
 
-                    jobsMap[j.id] = {
-                        ...j,
-                        role: j.title || j.function,
-                        jobCode: j.code,
-                        type: j.job_type === 'text' ? 'scratch' : 'file',
-                        companyName: j.company_name,
-                        hideCompany: j.hide_company,
-                        bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type === 'Estágio' ? 'Estágio' : j.employment_type,
-                        contacts: contacts,
-                        showObservation: j.show_observation // Ensure naming matches use in generateJobText
-                    };
-                });
+                        jobsMap[j.id] = {
+                            ...j,
+                            role: j.title || j.function,
+                            jobCode: j.code,
+                            type: j.job_type === 'text' ? 'scratch' : 'file',
+                            companyName: j.company_name,
+                            hideCompany: j.hide_company,
+                            bond: j.employment_type === 'CLT' ? 'CLT ( Fixo )' : j.employment_type === 'PJ' ? 'Pessoa Jurídica' : j.employment_type === 'Estágio' ? 'Estágio' : j.employment_type,
+                            contacts: contacts,
+                            showObservation: j.show_observation
+                        };
+                    });
+                }
             }
 
             // 4. Fetch Group Names
@@ -226,10 +232,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
                     id: s.id,
                     job: job,
                     jobIdDebug: firstJobId || 'No ID found',
-                    debugJobsFound: jobsFoundCount,
                     debugUserId: user.id,
                     debugError: jobFetchError,
-                    allJobIds: Object.keys(jobsMap).join(', '), // Debug available IDs
                     title: job?.role || job?.title || 'Vaga sem título',
                     company: job?.company_name || 'Empresa',
                     date: s.scheduled_date,
@@ -294,11 +298,37 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
     };
 
     useEffect(() => {
-        fetchSchedules();
+        if (!user) return;
+
+        const fetchWithRange = () => {
+            let start: Date;
+            let end: Date;
+
+            // Calculate range matches the UI grid EXACTLY
+            if (viewMode === 'week') {
+                const days = getWeekDays();
+                start = days[0];
+                end = days[days.length - 1];
+            } else {
+                const days = getMonthDays();
+                start = days[0];
+                end = days[days.length - 1];
+            }
+
+            // Helper to format YYYY-MM-DD
+            const formatDate = (date: Date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            fetchSchedules(formatDate(start), formatDate(end));
+        };
+
+        fetchWithRange();
         fetchAllGroups();
         fetchUserEmojis();
-
-        if (!user) return;
 
         const channel = supabase
             .channel(`marketing_schedules_changes_${user.id}`)
@@ -311,7 +341,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
                     filter: `user_id=eq.${user.id}`,
                 },
                 (payload) => {
-                    fetchSchedules();
+                    fetchWithRange();
                 }
             )
             .subscribe();
@@ -319,7 +349,7 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [user, currentDate, viewMode]);
 
     const calendarDays = useMemo(() => {
         return viewMode === 'week' ? getWeekDays() : getMonthDays();

@@ -254,36 +254,40 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         setAvailableTags(tagsData.map(t => t.name));
       }
 
-      // Fetch Groups with Tags
-      const { data: groupsData, error } = await supabase
-        .from('whatsapp_groups')
-        .select(`
-          *,
-          whatsapp_groups_tags (
-            tags_group (
-              name
+      // Fetch Groups with Tags (Optimized)
+      if (user) {
+        const { data: groupsData, error } = await supabase
+          .from('whatsapp_groups')
+          .select(`
+            id, name_group, image, total, admin, link_invite, description, created_at, status_create_group, privacy,
+            whatsapp_groups_tags (
+              tags_group (
+                name
+              )
             )
-          )
-        `)
-        .order('created_at', { ascending: false });
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (groupsData) {
-        const mappedGroups: Group[] = groupsData.map((g: any) => ({
-          id: g.id,
-          name: g.name_group,
-          image: g.image || `https://picsum.photos/seed/${g.id}/200/200`, // Use uploaded image or placeholder
-          membersCount: g.total || 0,
-          isAdmin: g.admin || false,
-          link: g.link_invite || '',
-          contact: '', // Database doesn't have contact/phone column separate from link/description
-          description: g.description || '',
-          tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name),
-          status_create_group: g.status_create_group,
-          privacy: g.privacy !== undefined ? g.privacy : false
-        }));
-        setGroups(mappedGroups);
+        if (groupsData) {
+          // ... mapping logic remains the same (assumes variable name is 'groupsData')
+          const mappedGroups: Group[] = groupsData.map((g: any) => ({
+            id: g.id,
+            name: g.name_group,
+            image: g.image || `https://picsum.photos/seed/${g.id}/200/200`,
+            membersCount: g.total || 0,
+            isAdmin: g.admin || false,
+            link: g.link_invite || '',
+            contact: '',
+            description: g.description || '',
+            tags: g.whatsapp_groups_tags.map((t: any) => t.tags_group.name),
+            status_create_group: g.status_create_group,
+            privacy: g.privacy !== undefined ? g.privacy : false
+          }));
+          setGroups(mappedGroups);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);

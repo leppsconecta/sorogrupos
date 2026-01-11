@@ -52,8 +52,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
+  // Contact Form State
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
+
   const { signIn, signUp } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  const handleContactPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, '');
+    let charCode = numbers.length;
+    if (numbers.length > 11) charCode = 11;
+    const numeric = numbers.slice(0, charCode);
+    let formatted = numeric;
+    if (numeric.length > 2) formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2)}`;
+    if (numeric.length > 7) formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2, 7)}-${numeric.slice(7)}`;
+    setContactPhone(formatted);
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactName || !contactEmail || !contactMessage || !contactPhone) {
+      alert("Preencha todos os campos.");
+      return;
+    }
+    setContactLoading(true);
+    try {
+      // Usando no-cors com form-urlencoded para evitar bloqueios de CORS em localhost
+      // e garantir que o webhook receba os dados mesmo sem headers complexos
+      const params = new URLSearchParams();
+      params.append('name', contactName);
+      params.append('email', contactEmail);
+      params.append('phone', contactPhone);
+      params.append('message', contactMessage);
+      params.append('date', new Date().toISOString());
+
+      await fetch('https://webhook.leppsconecta.com.br/webhook/ad743de6-8435-435c-85af-21bbfb696eae', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params
+      });
+
+      // Com no-cors, não recebemos status de erro (é opaco), então assumimos sucesso se não lançar exceção de rede
+      setContactSuccess(true);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao enviar mensagem. Tente novamente.");
+    } finally {
+      setContactLoading(false);
+    }
+  };
 
   const handleLoginForm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,6 +253,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
           user_id: data.user.id,
           emojis: '🟡🔴🔵'
         });
+
+        // Create Default Company Folder
+        const { data: folderCompany, error: fcError } = await supabase
+          .from('folder_companies')
+          .insert({ name: 'Carrefour', user_id: data.user.id })
+          .select()
+          .single();
+
+        if (!fcError && folderCompany) {
+          // Create Default Sector Folder
+          await supabase
+            .from('sectors')
+            .insert({ name: 'Ax. Administrativo', folder_company_id: folderCompany.id });
+        }
       }
 
       if (data.session) {
@@ -255,13 +324,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden pt-20">
+    <div id="home" className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden pt-20">
       {/* Header - Fixed on top */}
       <header className="h-20 bg-blue-950 fixed top-0 left-0 w-full z-50 px-6 md:px-12 flex items-center justify-between shadow-xl">
         <Logo size="md" />
 
         <nav className="hidden lg:flex items-center gap-10">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Home</button>
+          <button onClick={() => scrollTo('home')} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Home</button>
           <button onClick={() => scrollTo('beneficios')} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Benefícios</button>
           <button onClick={() => scrollTo('contato')} className="text-sm font-medium text-white/80 hover:text-yellow-400 transition-colors">Contato</button>
         </nav>
@@ -473,23 +542,78 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
             <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-slate-100">
               <h4 className="text-xl font-bold text-blue-950 mb-6">Solicitar Contato</h4>
-              <form className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
-                  <input type="text" placeholder="Seu nome completo" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all" />
+              {contactSuccess ? (
+                <div className="text-center py-10 animate-scaleUp">
+                  <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg shadow-emerald-500/30">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h5 className="text-xl font-bold text-blue-950 mb-2">Mensagem Enviada!</h5>
+                  <p className="text-slate-500 text-sm">Em breve nossa equipe entrará em contato.</p>
+                  <button
+                    onClick={() => { setContactSuccess(false); setContactName(''); setContactEmail(''); setContactPhone(''); setContactMessage(''); }}
+                    className="mt-6 text-sm font-bold text-blue-600 hover:text-blue-800"
+                  >
+                    Enviar nova mensagem
+                  </button>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
-                  <input type="email" placeholder="seu@email.com" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Mensagem</label>
-                  <textarea rows={3} placeholder="Como podemos te ajudar?" className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all resize-none"></textarea>
-                </div>
-                <button type="button" className="w-full py-4 bg-blue-950 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-900 shadow-xl shadow-blue-900/20 active:scale-95 transition-all flex items-center justify-center gap-3">
-                  Enviar <Send size={18} />
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
+                    <input
+                      required
+                      type="text"
+                      value={contactName}
+                      onChange={e => setContactName(e.target.value)}
+                      placeholder="Seu nome completo"
+                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
+                    <input
+                      required
+                      type="text"
+                      inputMode="numeric"
+                      value={contactPhone}
+                      onChange={handleContactPhoneChange}
+                      placeholder="(11) 99999-9999"
+                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
+                    <input
+                      required
+                      type="email"
+                      value={contactEmail}
+                      onChange={e => setContactEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Mensagem</label>
+                    <textarea
+                      required
+                      value={contactMessage}
+                      onChange={e => setContactMessage(e.target.value)}
+                      rows={3}
+                      placeholder="Como podemos te ajudar?"
+                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm font-semibold outline-none focus:ring-2 ring-blue-500 transition-all resize-none"
+                    ></textarea>
+                  </div>
+                  <button
+                    disabled={contactLoading}
+                    type="submit"
+                    className="w-full py-4 bg-blue-950 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-900 shadow-xl shadow-blue-900/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:pointer-events-none"
+                  >
+                    {contactLoading ? 'Enviando...' : (<>Enviar <Send size={18} /></>)}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

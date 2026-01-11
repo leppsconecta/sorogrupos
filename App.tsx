@@ -345,17 +345,17 @@ const AppContent: React.FC = () => {
               <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
 
               {/* Protected Routes */}
-              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/login" /> : <Dashboard {...commonProps} />} />
-              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/login" /> : <Marketing {...commonProps} />} />
-              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/login" /> : <Vagas />} />
-              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/login" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
-              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/login" /> : <Agendamentos />} />
-              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/login" /> : <Plano />} />
-              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/login" /> : <Suporte />} />
-              <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/login" /> : <Perfil />} />
-              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/login" /> : <Candidatos />} />
-              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/login" /> : <Curriculos />} />
-              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/login" /> : <MinhaAgenda />} />
+              <Route path="/painel" element={!isLoggedIn ? <Navigate to="/" /> : <Dashboard {...commonProps} />} />
+              <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/" /> : <Marketing {...commonProps} />} />
+              <Route path="/vagas" element={!isLoggedIn ? <Navigate to="/" /> : <Vagas />} />
+              <Route path="/grupos" element={!isLoggedIn ? <Navigate to="/" /> : <Grupos externalTrigger={triggerCreateGroup} {...commonProps} />} />
+              <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/" /> : <Agendamentos />} />
+              <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/" /> : <Plano />} />
+              <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/" /> : <Suporte />} />
+              <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/" /> : <Perfil />} />
+              <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/" /> : <Candidatos />} />
+              <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/" /> : <Curriculos />} />
+              <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/" /> : <MinhaAgenda />} />
 
               {/* Catch all */}
               <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />

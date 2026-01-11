@@ -233,7 +233,7 @@ Cód. Vaga: *${code}*
                 user_id: user.id,
                 code: jobDraft.jobCode,
                 title: jobDraft.role,
-                role: jobDraft.role, // Saving to both just in case
+                function: jobDraft.role, // Mapping to function column to match Vagas.tsx
                 company_name: jobDraft.companyName,
                 hide_company: jobDraft.hideCompany,
                 city: jobDraft.city,
@@ -248,7 +248,7 @@ Cód. Vaga: *${code}*
                 footer_enabled: showFooterInImage,
                 file_url: finalImageUrl,
                 image_url: finalImageUrl, // Saving to both
-                status: 'Ativa', // Default status
+                status: 'active', // Default status
 
                 // New flat columns for contacts (taking the first of each type found)
                 contact_whatsapp: jobDraft.contacts?.find(c => c.type === 'WhatsApp')?.value || null,

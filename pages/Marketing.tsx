@@ -25,9 +25,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { JobEditModal } from '../components/JobEditModal';
-import { SuccessModal } from '../components/SuccessModal';
+import { ActionsModal } from '../components/ActionsModal';
 import { JobSelectorModal } from '../components/JobSelectorModal';
-import { AlertModal } from '../components/AlertModal';
 
 // Helper for date formatting
 const formatDateTime = (dateString: string) => {
@@ -658,9 +657,11 @@ Cód. Vaga: *${code}*
 
   return (
     <div className="space-y-4">
-      <AlertModal
+      <ActionsModal
         isOpen={alertModalOpen}
         onClose={() => setAlertModalOpen(false)}
+        type="warning"
+        title="Atenção"
         message={alertMessage}
       />
 
@@ -1222,11 +1223,12 @@ Cód. Vaga: *${code}*
         }}
       />
 
-      <SuccessModal
+      <ActionsModal
         isOpen={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
+        type="success"
+        title="Sucesso"
         message={successMessage}
-        autoCloseDuration={5000}
       />
     </div >
   );
