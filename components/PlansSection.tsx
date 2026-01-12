@@ -49,12 +49,12 @@ export const PlansSection: React.FC = () => {
             const ONE_TIME_PRICE = 'price_1SolWz2MPjzdFt9kgWrySX9g'; // Avulso 1 Mês
 
             const { data, error } = await supabase.functions.invoke('create-checkout', {
-                body: {
+                body: { // Body is ignored by health-check but kept for signature compatibility
                     priceId: mode === 'subscription' ? RECURRING_PRICE : ONE_TIME_PRICE,
                     mode: mode,
                     successUrl: `${window.location.origin}/painel?payment_success=true`,
                     cancelUrl: `${window.location.origin}/meuplano?payment_canceled=true`,
-                    userId: user.id, // Use Auth User ID, not Account ID
+                    userId: user.id,
                     userEmail: user.email
                 }
             });
