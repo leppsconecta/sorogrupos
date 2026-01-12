@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
     CreditCard,
@@ -7,10 +8,12 @@ import {
     AlertCircle,
     QrCode
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export const PlansSection: React.FC = () => {
-    const { account, accountStatus, subscription } = useAuth();
+    const { account, accountStatus, subscription, user } = useAuth();
+    const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
 
     const getPlanDetails = () => {
         if (accountStatus === 'trial') {
@@ -24,18 +27,51 @@ export const PlansSection: React.FC = () => {
             };
         }
 
-        // Active or Inactive (but had subscription)
         const amount = subscription?.plan_amount ? (subscription.plan_amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 97,00';
         const interval = subscription?.plan_interval === 'month' ? 'Mensal' : subscription?.plan_interval === 'year' ? 'Anual' : 'Mensal';
 
         return {
-            name: subscription?.plan_type === 'pro' ? 'Plano PRO' : 'Plano Básico', // Default fallback
+            name: subscription?.plan_type === 'pro' ? 'Plano PRO' : 'Plano Básico',
             price: amount,
             interval: interval,
             status_label: accountStatus === 'active' ? 'Ativo' : 'Inativo',
             renewal_label: 'Renova em',
             date: subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString('pt-BR') : '---'
         };
+    };
+
+    const handleCheckout = async (mode: 'payment' | 'subscription') => {
+        if (!user) return; // Ensure user is present
+        setIsCheckingOut(mode);
+        try {
+            // Price IDs
+            const RECURRING_PRICE = 'price_1SolZw2MPjzdFt9kHRlBT8hE'; // Mensal Recorrente
+            const ONE_TIME_PRICE = 'price_1SolWz2MPjzdFt9kgWrySX9g'; // Avulso 1 Mês
+
+            const { data, error } = await supabase.functions.invoke('create-checkout', {
+                body: {
+                    priceId: mode === 'subscription' ? RECURRING_PRICE : ONE_TIME_PRICE,
+                    mode: mode,
+                    successUrl: `${window.location.origin}/painel?payment_success=true`,
+                    cancelUrl: `${window.location.origin}/meuplano?payment_canceled=true`,
+                    userId: user.id, // Use Auth User ID, not Account ID
+                    userEmail: user.email
+                }
+            });
+
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error); // Catch function-returned errors
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No checkout URL returned');
+            }
+        } catch (error: any) {
+            console.error('Checkout error:', error);
+            alert(`Erro ao iniciar pagamento: ${error.message || error}`);
+        } finally {
+            setIsCheckingOut(null);
+        }
     };
 
     const planDetails = getPlanDetails();
@@ -67,7 +103,6 @@ export const PlansSection: React.FC = () => {
 
     return (
         <div className="flex flex-col gap-6 animate-fadeIn">
-
             {/* Header com Status */}
             <div className="flex items-center justify-between">
                 <div>
@@ -80,7 +115,6 @@ export const PlansSection: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Card do Plano Atual */}
                 <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-black/20 relative overflow-hidden group">
-
                     <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 dark:bg-slate-800 rounded-full blur-3xl -mr-32 -mt-32 transition-all group-hover:bg-blue-50/50 dark:group-hover:bg-blue-900/10" />
 
                     <div className="relative z-10">
@@ -94,7 +128,6 @@ export const PlansSection: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Status de Renovação */}
                             <div className="bg-slate-50 dark:bg-slate-800 px-6 py-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-3 mb-1">
                                     <Calendar size={16} className="text-blue-500" />
@@ -107,49 +140,44 @@ export const PlansSection: React.FC = () => {
                         </div>
 
                         <div className="space-y-4 mb-8">
-                            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                                    <Check size={12} strokeWidth={3} />
+                            {[
+                                'Acesso total ao sistema',
+                                'Criação ilimitada de vagas',
+                                'Agendamento de disparos',
+                                'Suporte prioritário'
+                            ].map((feature, i) => (
+                                <div key={i} className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                                    <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
+                                        <Check size={12} strokeWidth={3} />
+                                    </div>
+                                    <span className="font-medium">{feature}</span>
                                 </div>
-                                <span className="font-medium">Acesso total ao sistema</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                                    <Check size={12} strokeWidth={3} />
-                                </div>
-                                <span className="font-medium">Criação ilimitada de vagas</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                                    <Check size={12} strokeWidth={3} />
-                                </div>
-                                <span className="font-medium">Agendamento de disparos</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                                    <Check size={12} strokeWidth={3} />
-                                </div>
-                                <span className="font-medium">Suporte prioritário</span>
-                            </div>
+                            ))}
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
-                            {/* Show cancel only if active */}
                             {accountStatus === 'active' && (
                                 <button className="px-6 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-sm uppercase tracking-wider hover:border-rose-200 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all">
                                     Cancelar Assinatura
                                 </button>
                             )}
-                            {/* Show upgrade/subscribe if inactive or trial */}
                             {(accountStatus === 'inactive' || accountStatus === 'trial') && (
                                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                                    <button className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={() => handleCheckout('payment')}
+                                        disabled={!!isCheckingOut}
+                                        className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
                                         <QrCode size={18} />
-                                        Pagar via Pix
+                                        {isCheckingOut === 'payment' ? 'Processando...' : '1 Mês - Avulso (Pix/Cartão)'}
                                     </button>
-                                    <button className="flex-1 px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={() => handleCheckout('subscription')}
+                                        disabled={!!isCheckingOut}
+                                        className="flex-1 px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
                                         <CreditCard size={18} />
-                                        Cartão de Crédito
+                                        {isCheckingOut === 'subscription' ? 'Processando...' : 'Assinar Mensal (Recorrente)'}
                                     </button>
                                 </div>
                             )}
@@ -167,14 +195,12 @@ export const PlansSection: React.FC = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar max-h-[300px] lg:max-h-none">
-                        {/* Mock History - To replace with real later */}
                         {[].length === 0 ? (
                             <div className="text-center py-10 text-slate-400">
                                 <CreditCard size={32} className="mx-auto mb-2 opacity-50" />
                                 <p className="text-xs">Nenhuma fatura encontrada.</p>
                             </div>
                         ) : (
-                            // Keeping this for when we have payment history
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between group hover:border-blue-200 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center">
@@ -197,7 +223,7 @@ export const PlansSection: React.FC = () => {
                         <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50">
                             <AlertCircle size={20} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
                             <p className="text-xs text-blue-800 dark:text-blue-200 font-medium leading-relaxed">
-                                Seu próximo pagamento será processado automaticamente no cartão final 4242.
+                                Seu próximo pagamento será processado automaticamente.
                             </p>
                         </div>
                     </div>
