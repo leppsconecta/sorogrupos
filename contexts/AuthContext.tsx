@@ -31,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [accountStatus, setAccountStatus] = useState<AccountStatus>('trial');
     const [planType, setPlanType] = useState<string | null>(null);
     const [subscription, setSubscription] = useState<UserSubscription | null>(null);
-    const [onboardingCompleted, setOnboardingCompleted] = useState(true);
+    const [onboardingCompleted, setOnboardingCompleted] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const fetchProfileData = async (userId: string) => {

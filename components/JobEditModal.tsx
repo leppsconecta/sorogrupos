@@ -32,9 +32,10 @@ interface JobEditModalProps {
     jobToEdit?: any | null; // Can be Job type or null for new job
     onSave: () => void;
     hideBackButton?: boolean;
+    previewEmojis?: string;
 }
 
-export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, jobToEdit, onSave, hideBackButton }) => {
+export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, jobToEdit, onSave, hideBackButton, previewEmojis: initialEmojis = '🟡🔴🔵' }) => {
     const { company } = useAuth();
     const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview'>('selection');
     const [jobDraft, setJobDraft] = useState<Partial<Job>>({
@@ -48,9 +49,14 @@ export const JobEditModal: React.FC<JobEditModalProps> = ({ isOpen, onClose, job
     const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
     const [isEmojiModalOpen, setIsEmojiModalOpen] = useState(false);
     const [savedContacts, setSavedContacts] = useState<any[]>([]);
-    const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🤣');
+    const [previewEmojis, setPreviewEmojis] = useState(initialEmojis);
     const [emojiInput, setEmojiInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Update emojis when prop changes
+    useEffect(() => {
+        setPreviewEmojis(initialEmojis);
+    }, [initialEmojis]);
 
     // Fetch saved contacts on mount/open
     useEffect(() => {

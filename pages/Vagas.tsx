@@ -243,15 +243,28 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
         footerEnabled: j.footer_enabled,
         observation: j.observation,
         showObservation: j.show_observation,
-        contacts: (j.job_contacts || []).map((c: any) => ({
-          type: c.type === 'whatsapp' ? 'WhatsApp' :
-            c.type === 'email' ? 'Email' :
-              c.type === 'address' ? 'Endereço' : 'Link',
-          value: c.value,
-          date: c.date,
-          time: c.time,
-          noDateTime: c.no_date_time
-        }))
+        contacts: (j.job_contacts && j.job_contacts.length > 0)
+          ? j.job_contacts.map((c: any) => ({
+            type: c.type === 'whatsapp' ? 'WhatsApp' :
+              c.type === 'email' ? 'Email' :
+                c.type === 'address' ? 'Endereço' : 'Link',
+            value: c.value,
+            date: c.date,
+            time: c.time,
+            noDateTime: c.no_date_time
+          }))
+          : [
+            j.contact_whatsapp && { type: 'WhatsApp', value: j.contact_whatsapp },
+            j.contact_email && { type: 'Email', value: j.contact_email },
+            j.contact_link && { type: 'Link', value: j.contact_link },
+            j.contact_address && {
+              type: 'Endereço',
+              value: j.contact_address,
+              date: j.contact_address_date,
+              time: j.contact_address_time,
+              noDateTime: !j.contact_address_date
+            }
+          ].filter(Boolean)
       }));
 
       setVagas(mappedJobs);
@@ -440,8 +453,8 @@ Cód. Vaga: *${code}*
 Função: *${j.role || j.title || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
-*Vínculo:* ${j.bond || 'CLT'}
-*Empresa:* ${j.hideCompany ? '(Oculto)' : j.companyName || ''}
+*Vínculo:* ${j.bond || 'CLT'}${!j.hideCompany ? `
+*Empresa:* ${j.companyName || ''}` : ''}
 *Cidade/Bairro:* ${j.city || ''} - ${j.region || ''}
 *Requisitos:* ${j.requirements || ''}
 *Benefícios:* ${j.benefits || ''}
@@ -609,6 +622,7 @@ Cód. Vaga: *${code}*
       setIsValidationModalOpen(true);
     }
   };
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -1339,45 +1353,7 @@ Cód. Vaga: *${code}*
         </div>
       )}
 
-      {/* Modal de Confirmação de Exclusão */}
-      {isDeleteModalOpen && deleteData && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsDeleteModalOpen(false)} />
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] shadow-2xl p-6 animate-scaleUp text-center">
 
-            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={32} />
-            </div>
-
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Confirmar Exclusão</h3>
-
-            <p className="text-sm text-slate-500 mb-6">
-              {deleteData.type === 'folder'
-                ? `Tem certeza que deseja excluir ${deleteData.item.level === 'company' ? 'a empresa' : 'o setor'} "${deleteData.item.name}"?`
-                : `Tem certeza que deseja excluir a vaga "${deleteData.item.role || deleteData.item.title}"?`
-              }
-              <br />
-              <span className="font-bold text-rose-500 text-xs mt-1 block">Essa ação não pode ser desfeita.</span>
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all active:scale-95"
-              >
-                Excluir
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
 
       {/* MODAL: Criação de Vaga - Largura reduzida para max-w-2xl */}
@@ -1791,6 +1767,8 @@ Cód. Vaga: *${code}*
                         }
 
                         if (!jobDraft.contacts || jobDraft.contacts.length === 0) {
+                          setValidationMessage("Adicione pelo menos um canal de contato.");
+                          setIsValidationModalOpen(true);
                           // Scroll to contacts section
                           const contactSection = document.querySelector('[class*="Contatos"]') as HTMLElement;
                           if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });

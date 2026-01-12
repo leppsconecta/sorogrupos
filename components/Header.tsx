@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
             >
               <OfficialWhatsAppIcon size={16} />
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest hidden sm:inline">
+                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest inline">
                   {connectedPhone ? connectedPhone : 'Conectado'}
                 </span>
                 <CheckCircle2 size={12} className="text-emerald-500" />
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
               <div className="text-white">
                 <OfficialWhatsAppIcon size={16} color="currentColor" />
               </div>
-              <span className="hidden sm:inline text-[10px] font-bold text-white uppercase tracking-widest">WhatsApp Desconectado</span>
+              <span className="inline text-[10px] font-bold text-white uppercase tracking-widest">WhatsApp Desconectado</span>
             </button>
           )}
 

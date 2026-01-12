@@ -250,25 +250,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
       if (error) throw error;
 
       if (data.user) {
-        // Create default emojis
-        await supabase.from('user_job_emojis').insert({
-          user_id: data.user.id,
-          emojis: '🟡🔴🔵'
-        });
-
-        // Create Default Company Folder
-        const { data: folderCompany, error: fcError } = await supabase
-          .from('folder_companies')
-          .insert({ name: 'Carrefour', user_id: data.user.id })
-          .select()
-          .single();
-
-        if (!fcError && folderCompany) {
-          // Create Default Sector Folder
-          await supabase
-            .from('sectors')
-            .insert({ name: 'Ax. Administrativo', folder_company_id: folderCompany.id });
-        }
+        // Trigger de banco de dados agora cria automaticamente:
+        // 1. Perfil
+        // 2. Conexão WhatsApp
+        // 3. Emojis Padrão
+        // 4. Pasta Empresa (Carrefour)
+        // 5. Pasta Setor (Ax. Administrativo)
       }
 
       if (data.session) {

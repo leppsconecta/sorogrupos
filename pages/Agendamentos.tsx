@@ -249,22 +249,8 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
 
 
             // 6. Cleanup Orphaned Schedules (Cascade Delete Simulation)
-            const orphanedIds = processedSchedules.filter(s => !s.job).map(s => s.id);
-
-            if (orphanedIds.length > 0) {
-                console.log('Cleaning up orphaned schedules:', orphanedIds);
-                // Delete from DB without waiting
-                supabase.from('marketing_schedules').delete().in('id', orphanedIds).then(({ error }) => {
-                    if (error) console.error('Error deleting orphaned schedules:', error);
-                    else console.log('Orphaned schedules deleted successfully');
-                });
-
-                // Filter out from UI immediately
-                const validSchedules = processedSchedules.filter(s => s.job);
-                setSchedules(validSchedules);
-            } else {
-                setSchedules(processedSchedules);
-            }
+            // 6. Set Schedules (No cleanup)
+            setSchedules(processedSchedules);
 
         } catch (error) {
             console.error('Error fetching schedules:', error);
@@ -682,7 +668,11 @@ export const Agendamentos: React.FC<AgendamentosProps> = () => {
             else if (c.type === 'Endereço') {
                 const addressBase = `${c.value}`;
                 if (!c.noDateTime) {
-                    const dateStr = c.date ? new Date(c.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
+                    let dateStr = '';
+                    if (c.date) {
+                        const [y, m, d] = c.date.split('-');
+                        dateStr = `${d}/${m}`;
+                    }
                     addressParts.push(`${addressBase} no dia ${dateStr} às ${c.time || '__:__'}`);
                 } else {
                     addressParts.push(addressBase);
@@ -720,8 +710,7 @@ Cód. Vaga: *${code}*
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
-*Vínculo:* ${job.bond || 'CLT'}
-*Empresa:* ${job.hideCompany ? '(Oculto)' : job.companyName || ''}
+*Vínculo:* ${job.bond || 'CLT'}${!job.hideCompany ? `\n*Empresa:* ${job.companyName || ''}` : ''}
 *Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}
 *Requisitos:* ${job.requirements || ''}
 *Benefícios:* ${job.benefits || ''}
@@ -1017,15 +1006,12 @@ Cód. Vaga: *${code}*
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="bg-rose-50 dark:bg-rose-900/20 p-5 rounded-2xl border border-rose-100 dark:border-rose-800">
-                                            <div className="flex flex-col items-center justify-center text-rose-500 py-4 gap-2">
-                                                <AlertCircle size={24} />
-                                                <p className="font-bold text-sm">Vaga não encontrada</p>
-                                            </div>
-                                            <div className="text-[10px] font-mono bg-white dark:bg-slate-900 p-3 rounded-lg border border-rose-100 dark:border-rose-800 text-slate-500 break-all">
-                                                <p><strong>Missing ID:</strong> {selectedBatch[0].jobIdDebug}</p>
-                                                <p><strong>Available Job IDs:</strong> {selectedBatch[0].allJobIds}</p>
-                                                <p><strong>Fetch Error:</strong> {JSON.stringify(selectedBatch[0].debugError)}</p>
+                                        <div className="bg-rose-50 dark:bg-rose-900/20 p-5 rounded-2xl border border-rose-100 dark:border-rose-800 transition-all">
+                                            <div className="flex flex-col items-center justify-center text-rose-500 py-6 gap-3">
+                                                <div className="p-3 bg-rose-100 dark:bg-rose-800/30 rounded-full">
+                                                    <Trash2 size={24} />
+                                                </div>
+                                                <p className="font-bold text-sm text-center">Esta vaga foi deletada</p>
                                             </div>
                                         </div>
                                     )}
@@ -1044,7 +1030,12 @@ Cód. Vaga: *${code}*
                                                 />
                                             ) : (
                                                 <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
-                                                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{new Date(selectedBatch[0].date).toLocaleDateString('pt-BR')}</span>
+                                                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                                        {selectedBatch[0].date ? (() => {
+                                                            const [y, m, d] = selectedBatch[0].date.split('-');
+                                                            return `${d}/${m}/${y}`;
+                                                        })() : '--/--/----'}
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>

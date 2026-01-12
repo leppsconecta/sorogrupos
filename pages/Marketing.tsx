@@ -148,6 +148,9 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
   // Emojis State
   const [previewEmojis, setPreviewEmojis] = useState('🟡🔴🔵');
 
+  // Company Info State for Preview
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -224,15 +227,36 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
         .select('name')
         .eq('user_id', user.id);
 
-      // Fetch User Emojis
-      const { data: emojiData } = await supabase
+      // Fetch User/Company Emojis (Prioritize User Preference, fallback to Company)
+      const { data: companyDataFetch } = await supabase
+        .from('companies')
+        .select('name, emojis, whatsapp, website, email_corporative')
+        .eq('owner_id', user.id)
+        .single();
+
+      const { data: userEmojisData } = await supabase
         .from('user_job_emojis')
         .select('emojis')
         .eq('user_id', user.id)
         .single();
 
-      if (emojiData) {
-        setPreviewEmojis(emojiData.emojis);
+      let resolvedEmojis = '🟡🔴🔵';
+
+      if (userEmojisData && userEmojisData.emojis) {
+        resolvedEmojis = userEmojisData.emojis;
+      } else if (companyDataFetch && companyDataFetch.emojis) {
+        resolvedEmojis = companyDataFetch.emojis;
+      } else if (company && company.emojis) {
+        resolvedEmojis = company.emojis;
+      }
+
+      setPreviewEmojis(resolvedEmojis);
+
+      // Set Company Info
+      if (companyDataFetch) {
+        setCompanyInfo(companyDataFetch);
+      } else if (company) {
+        setCompanyInfo(company);
       }
 
       if (jobsData) {
@@ -258,15 +282,28 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
           footerEnabled: j.footer_enabled,
           observation: j.observation,
           showObservation: j.show_observation,
-          contacts: (j.job_contacts || []).map((c: any) => ({
-            type: c.type === 'whatsapp' ? 'WhatsApp' :
-              c.type === 'email' ? 'Email' :
-                c.type === 'address' ? 'Endereço' : 'Link',
-            value: c.value,
-            date: c.date,
-            time: c.time,
-            noDateTime: c.no_date_time
-          }))
+          contacts: (j.job_contacts && j.job_contacts.length > 0)
+            ? j.job_contacts.map((c: any) => ({
+              type: c.type === 'whatsapp' ? 'WhatsApp' :
+                c.type === 'email' ? 'Email' :
+                  c.type === 'address' ? 'Endereço' : 'Link',
+              value: c.value,
+              date: c.date,
+              time: c.time,
+              noDateTime: c.no_date_time
+            }))
+            : [
+              j.contact_whatsapp && { type: 'WhatsApp', value: j.contact_whatsapp },
+              j.contact_email && { type: 'Email', value: j.contact_email },
+              j.contact_link && { type: 'Link', value: j.contact_link },
+              j.contact_address && {
+                type: 'Endereço',
+                value: j.contact_address,
+                date: j.contact_address_date,
+                time: j.contact_address_time,
+                noDateTime: !j.contact_address_date
+              }
+            ].filter(Boolean)
         }));
         setVagas(mappedVagas);
       }
@@ -422,10 +459,16 @@ export const Marketing: React.FC<MarketingProps> = ({ isWhatsAppConnected, onOpe
     const finalParts = [cvText, addressText, linkText].filter(Boolean);
     const interessadosText = finalParts.length > 0 ? joinList(finalParts) : 'Entre em contato pelos canais oficiais.';
 
+    // Use fresh company info or fallback
+    const compName = companyInfo?.name || company?.name || 'Sua Empresa';
+    const compWhatsapp = companyInfo?.whatsapp || company?.whatsapp || '11946610753';
+    const compWebsite = companyInfo?.website || company?.website || 'leppsconecta.com.br';
+    const emojis = companyInfo?.emojis || previewEmojis;
+
     // Image Job Text Structure (Simpler)
     if (job.type === 'file') {
       const observationText = job.showObservation && job.observation ? `\nObs: ${job.observation}\n` : '';
-      return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
+      return `*${compName}* ${emojis}
       -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
@@ -435,13 +478,13 @@ Cód. Vaga: *${code}*
     }
 
     // Text Job Structure (Full)
-    return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
+    return `*${compName}* ${emojis}
 -----------------------------
 Função: *${job.role || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
-*Vínculo:* ${job.bond || 'CLT'}
-*Empresa:* ${job.hideCompany ? '(Oculto)' : job.companyName || ''}
+*Vínculo:* ${job.bond || 'CLT'}${!job.hideCompany ? `
+*Empresa:* ${job.companyName || ''}` : ''}
 *Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}
 *Requisitos:* ${job.requirements || ''}
 *Benefícios:* ${job.benefits || ''}
@@ -452,9 +495,9 @@ Cód. Vaga: *${code}*
 ----------------------------- 
 
 *Mais informações:*
-➞ ${company?.name || 'Lepps |Conecta'}
-➞ ${company?.whatsapp || '11946610753'}
-➞ ${company?.website || 'leppsconecta.com.br'}`;
+➞ ${compName}
+➞ ${compWhatsapp}
+➞ ${compWebsite}`;
   };
 
   /* New: Utility to save schedule/send action to DB */
@@ -1221,6 +1264,7 @@ Cód. Vaga: *${code}*
           setIsEditModalOpen(false);
           setEditingJob(null);
         }}
+        previewEmojis={previewEmojis}
       />
 
       <ActionsModal

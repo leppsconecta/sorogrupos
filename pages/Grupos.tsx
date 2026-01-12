@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { RefreshCw } from 'lucide-react';
 import {
   Users,
   Search,
@@ -54,13 +55,14 @@ interface GruposProps {
 export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConnected, onOpenConnect }) => {
   const { user } = useAuth();
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [taggingGroup, setTaggingGroup] = useState<Group | null>(null);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Mobile Search State
   const [editingTagValue, setEditingTagValue] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [descriptionDraft, setDescriptionDraft] = useState('');
@@ -78,14 +80,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
   const [showMyGroups, setShowMyGroups] = useState(false);
 
   // Form for creation
-  const [formName, setFormName] = useState('');
-  const [formImage, setFormImage] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [formContact, setFormContact] = useState('');
-  const [formFirstMember, setFormFirstMember] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
+
 
 
   // Alert Modal State
@@ -212,11 +207,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
   // ... in return JSX ...
 
-  useEffect(() => {
-    if (externalTrigger && externalTrigger > 0) {
-      openCreateModal();
-    }
-  }, [externalTrigger]);
+
 
 
 
@@ -298,6 +289,94 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
 
 
+  const handleUpdateGroups = async () => {
+    if (isUpdating) return;
+    if (!isWhatsAppConnected) {
+      showAlert('Atenção', 'Conecte o WhatsApp para atualizar os grupos.', 'warning');
+      return;
+    }
+    if (!user) return;
+
+    setIsUpdating(true);
+    // setIsSyncing(true); // Optional: if we want to trigger the main loading skeleton effectively
+
+    try {
+      // 1. Call Webhook
+      await fetch('https://webhook.leppsconecta.com.br/webhook/1772f550-b77c-4b09-b1ff-a5a460723ce3', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          type: 'update_groups'
+        })
+      });
+
+      // 2. Setup Realtime Listener or Polling Strategy
+      if (groups.length === 0) {
+        // If 0 groups, we strictly wait for NEW data via Realtime
+        const channel = supabase
+          .channel('groups-update')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'whatsapp_groups',
+              filter: `user_id=eq.${user.id}`
+            },
+            async (payload) => {
+              console.log('Realtime update received!', payload);
+              await fetchData();
+              setIsUpdating(false);
+              // showAlert('Sucesso', 'Grupos sincronizados com sucesso!', 'success'); // REMOVE
+              supabase.removeChannel(channel);
+            }
+          )
+          .subscribe();
+
+        // Safety Timeout (e.g., 60 seconds)
+        setTimeout(async () => {
+          if (isUpdating) { // If still updating
+            await fetchData(); // Just in case
+            // If still 0, maybe warn user, but stop spinner
+            setIsUpdating(false);
+            supabase.removeChannel(channel);
+            // Verify if we actually got groups now
+            const { count } = await supabase.from('whatsapp_groups').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+            if (count && count > 0) {
+              // showAlert('Sucesso', 'Grupos atualizados!', 'success'); // REMOVE
+            } else {
+              showAlert('Aviso', 'Nenhum grupo encontrado após aguardar. Verifique seu WhatsApp.', 'info');
+            }
+          }
+        }, 60000);
+
+      } else {
+        // If we already have groups, we just poll a bit to refresh details
+        let attempts = 0;
+        const maxAttempts = 10;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          // Simple re-fetch check
+          if (attempts >= 3) { // Wait quickly then fetch
+            clearInterval(pollInterval);
+            await fetchData();
+            setIsUpdating(false);
+            // showAlert('Sucesso', 'Grupos atualizados com sucesso!', 'success'); // REMOVE
+          }
+        }, 1000);
+      }
+
+    } catch (error) {
+      console.error('Error updating groups:', error);
+      showAlert('Erro', 'Erro ao solicitar atualização.', 'error');
+      setIsUpdating(false);
+    }
+  };
+
+
   const filteredGroups = groups.filter(g => {
     const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = selectedTag ? g.tags.includes(selectedTag) : true;
@@ -309,147 +388,13 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     fetchData();
   };
 
-  const openCreateModal = () => {
-    if (!isWhatsAppConnected) {
-      showAlert('Atenção', 'Conecte o WhatsApp para criar grupos.', 'warning');
-      return;
-    }
-    setFormName('');
-    setFormImage('');
-    setSelectedFile(null);
-    setFormImage('');
-    setSelectedFile(null);
-    setFormContact('');
-    setFormFirstMember('');
-    setFormDescription('');
-    setSelectedTags([]);
-    setIsCreateModalOpen(true);
-  };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-    if (value.startsWith('0')) {
-      value = value.substring(1); // Remove leading zero
-    }
-    setFormFirstMember(value);
-  };
 
-  const handleCreateGroup = async () => {
-    if (isCreating) return;
-    if (!formName.trim() || !formFirstMember.trim() || !user) {
-      showAlert('Campos Obrigatórios', 'Preencha todos os campos obrigatórios (Nome, Primeiro Integrante).', 'warning');
-      return;
-    }
 
-    setIsCreating(true);
 
-    try {
-      let imageUrl = null;
 
-      // 1. Upload Image (if selected)
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('group-logos')
-          .upload(filePath, selectedFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('group-logos')
-          .getPublicUrl(filePath);
-
-        imageUrl = publicUrl;
-      }
-
-      // 2. Fetch Connected Number
-      let numberOwner = null;
-      const { data: connectionData } = await supabase
-        .from('whatsapp_conections')
-        .select('phone')
-        .eq('user_id', user.id)
-        .eq('status', 'connected') // Assuming 'connected' is the status for active connection
-        .single();
-
-      if (connectionData) {
-        numberOwner = connectionData.phone;
-      }
-
-      // 3. Create Group
-      const { data: groupData, error: groupError } = await supabase
-        .from('whatsapp_groups')
-        .insert({
-          user_id: user.id,
-          name_group: formName,
-          link_invite: "", // Removed input, setting to empty/null manually later
-          description: formDescription,
-          admin: true, // User created it, so they are admin
-          total: 1,
-          image: imageUrl,
-          number_owner: numberOwner, // Save the connected number
-          first_member: formFirstMember,
-          status_create_group: 0
-        })
-        .select()
-        .single();
-
-      if (groupError) throw groupError;
-
-      // 3. Handle Tags
-      if (selectedTags.length > 0) {
-        for (const tagName of selectedTags) {
-          let tagId;
-          const { data: existingTag } = await supabase
-            .from('tags_group')
-            .select('id')
-            .eq('name', tagName)
-            .single();
-
-          if (existingTag) {
-            tagId = existingTag.id;
-          } else {
-            // Should theoretically not happen if selecting from available, but safe to keep
-            const { data: newTag } = await supabase
-              .from('tags_group')
-              .insert({ user_id: user.id, name: tagName })
-              .select('id')
-              .single();
-            tagId = newTag?.id;
-          }
-
-          if (tagId) {
-            await supabase
-              .from('whatsapp_groups_tags')
-              .insert({ group_id: groupData.id, tag_id: tagId });
-          }
-        }
-      }
-
-      await fetchData();
-      setIsCreateModalOpen(false);
-
-    } catch (error) {
-      console.error('Error creating group:', error);
-      showAlert('Erro', 'Erro ao criar grupo. Tente novamente.', 'error');
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   const handleJoinGroup = () => {
     if (!joinValue.trim()) return;
@@ -651,13 +596,17 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
           {/* Join Button Removed */}
 
+
           <button
-            onClick={openCreateModal}
-            className="hidden md:flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 whitespace-nowrap"
+            onClick={handleUpdateGroups}
+            disabled={isUpdating}
+            className="hidden md:flex items-center justify-center gap-2 px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus size={18} />
-            <span>Criar</span>
+            <RefreshCw size={18} className={isUpdating ? 'animate-spin' : ''} />
+            <span>{isUpdating ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
+
+
         </div>
       </div>
 
@@ -676,22 +625,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
             {groups.length}
           </span>
         </button>
-        <button
-          onClick={() => {
-            setShowMyGroups(!showMyGroups);
-            setSelectedTag(null);
-          }}
-          className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all border flex items-center gap-2
-            ${showMyGroups
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600'
-            }`}
-        >
-          Meus Grupos
-          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${showMyGroups ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
-            {groups.filter(g => g.isAdmin).length}
-          </span>
-        </button>
+
 
         {availableTags.map(tag => {
           const count = groups.filter(g => g.tags.includes(tag)).length;
@@ -750,13 +684,15 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
           </div>
         </div>
 
-        {/* Create Button (Hidden when search expanded) */}
+
+
+        {/* Mobile Update Button */}
         <button
-          onClick={openCreateModal}
-          className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm active:scale-95 whitespace-nowrap overflow-hidden ${isSearchExpanded ? 'w-0 px-0 opacity-0' : 'flex-1 opacity-100'}`}
+          onClick={handleUpdateGroups}
+          disabled={isUpdating}
+          className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-sm active:scale-95 whitespace-nowrap overflow-hidden ${isSearchExpanded ? 'w-0 px-0 opacity-0' : 'flex-initial opacity-100'}`}
         >
-          <Plus size={16} className="flex-shrink-0" />
-          <span className="whitespace-nowrap">Criar Grupo</span>
+          <RefreshCw size={16} className={`flex-shrink-0 ${isUpdating ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -800,15 +736,33 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                 </>
               ) : (
                 <>
-                  <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-900/10 rounded-full flex items-center justify-center mx-auto text-emerald-600 mb-4 relative">
-                    <div className="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900/40 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                    <Users size={32} className="opacity-50" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Sincronizando Grupos...</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Aguarde, estamos identificando seus grupos.</p>
-                  </div>
+                  {isSyncing || isUpdating ? (
+                    <>
+                      <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto text-blue-600 animate-spin">
+                        <RefreshCw size={48} />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white">Sincronizando...</h3>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium">
+                          Buscando grupos no servidor...
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                        <Users size={48} />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white">Nenhum Grupo Encontrado</h3>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium">
+                          Não encontramos grupos no banco de dados.
+                          <br />
+                          Clique em <strong>ATUALIZAR</strong> para buscar.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -901,34 +855,23 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
               {/* Buttons */}
               <button
-                onClick={(e) => { e.stopPropagation(); }}
-                className="w-full py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                Ver Conversas
-                <ExternalLink size={14} />
-              </button>
-
-              <button
                 onClick={(e) => { e.stopPropagation(); copyLink(group); }}
-                className={`w-full mt-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95
-                  ${copiedId === group.id
-                    ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
+                disabled={group.link === 'link_indisponível'}
+                className={`w-full mt-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed
+                  ${group.link === 'link_indisponível'
+                    ? 'bg-red-500 text-white shadow-red-500/20'
+                    : copiedId === group.id
+                      ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'}`}
               >
-                Link do Grupo
-                {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}
+                {group.link === 'link_indisponível' ? (
+                  <>Link Indisponível <X size={14} /></>
+                ) : (
+                  <>Link do Grupo {copiedId === group.id ? <Check size={14} /> : <Copy size={14} />}</>
+                )}
               </button>
 
-              {/* Creation Overlay Mask */}
-              {
-                group.status_create_group === 0 && (
-                  <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-not-allowed">
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-3 animate-bounce-slight">
-                      <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
-                      <span className="text-xs font-black uppercase tracking-widest text-slate-500">Criando Grupo...</span>
-                    </div>
-                  </div>
-                )
-              }
+
             </div>
           ))}
         </div>
@@ -1066,123 +1009,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
         )
       }
 
-      {/* Modal: Create Group */}
-      {
-        isCreateModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsCreateModalOpen(false)} />
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col">
-              {/* Dark Header */}
-              <div className="p-6 bg-blue-950 text-white flex justify-between items-center flex-shrink-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center text-blue-950 shadow-lg shadow-yellow-400/20">
-                    <Users size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold">Criar Grupo</h3>
-                    <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Novo Canal</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
-              </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div className="space-y-6">
-                  {/* Profile Picture Upload */}
-                  <div className="flex flex-col items-center mb-6">
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-slate-300 relative group cursor-pointer overflow-hidden hover:border-blue-500 transition-all"
-                    >
-                      {formImage ? (
-                        <img src={formImage} className="w-full h-full object-cover" alt="Preview" />
-                      ) : (
-                        <ImageIcon size={28} />
-                      )}
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <Upload size={20} className="text-white" />
-                      </div>
-                    </div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3">Clique para carregar foto</span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Nome do Grupo <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><MessageSquare size={18} /></div>
-                      <input autoFocus type="text" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Empregos Sorocaba e Região" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
-                    </div>
-                  </div>
-
-                  {/* Link Invite Field Removed */}
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Primeiro Integrante (WhatsApp) <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400"><Phone size={18} /></div>
-                      <input type="text" value={formFirstMember} onChange={handlePhoneChange} placeholder="Ex: 5515999999999" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Tags do Grupo</label>
-                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl min-h-[60px]">
-                      {availableTags.length === 0 ? (
-                        <span className="text-xs text-slate-400">Nenhuma tag disponível. Crie tags na tela principal.</span>
-                      ) : (
-                        availableTags.map(tag => {
-                          const isSelected = selectedTags.includes(tag);
-                          return (
-                            <button
-                              key={tag}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedTags(selectedTags.filter(t => t !== tag));
-                                } else {
-                                  setSelectedTags([...selectedTags, tag]);
-                                }
-                              }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all border ${isSelected
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                                : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500'
-                                }`}
-                            >
-                              {tag}
-                            </button>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Descrição</label>
-                    <div className="relative">
-                      <div className="absolute top-3.5 left-4 text-slate-400"><AlignLeft size={18} /></div>
-                      <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Informações do grupo..." className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 bg-white dark:bg-slate-900">
-                <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-                <button onClick={handleCreateGroup} disabled={!formName.trim() || !formFirstMember.trim() || isCreating} className="flex-[1.5] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-                  {isCreating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Criando...
-                    </>
-                  ) : (
-                    'Criar Grupo'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
 
       {/* Modal: Update Info */}
 

@@ -28,16 +28,18 @@ export const JobPreviewModal: React.FC<JobPreviewModalProps> = ({
         j.contacts?.forEach(c => {
             if (!c.value?.trim()) return;
 
-            if (c.type === 'WhatsApp') {
+            const type = c.type.toLowerCase();
+
+            if (type === 'whatsapp') {
                 channelStrings.push(`WhatsApp ${c.value}`);
-            } else if (c.type === 'Email') {
+            } else if (type === 'email') {
                 channelStrings.push(`e-mail ${c.value}`);
-            } else if (c.type === 'Link') {
+            } else if (type === 'link') {
                 channelStrings.push(`Link ${c.value}`);
-            } else if (c.type === 'Endereço') {
+            } else if (type === 'endereço' || type === 'address') {
                 let addr = `${c.value}`;
                 // Note: Using simple format effectively here to avoid dependency on external helpers
-                if (!c.noDateTime) {
+                if (!c.noDateTime && !c.no_date_time) {
                     const d = c.date;
                     const t = c.time;
                     if (d && t) {
@@ -77,8 +79,8 @@ Cód. Vaga: *${code}*
 Função: *${j.role || j.title || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
-*Vínculo:* ${j.bond || 'CLT'}
-*Empresa:* ${j.hideCompany ? '(Oculto)' : j.companyName || ''}
+*Vínculo:* ${j.bond || 'CLT'}${!j.hideCompany ? `
+*Empresa:* ${j.companyName || ''}` : ''}
 *Cidade/Bairro:* ${j.city || ''} - ${j.region || ''}
 *Requisitos:* ${j.requirements || ''}
 *Benefícios:* ${j.benefits || ''}
