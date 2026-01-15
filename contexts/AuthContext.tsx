@@ -112,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
+                setLoading(true); // Prevent flash of content/onboarding
                 fetchProfileData(session.user.id).then(() => setLoading(false));
             } else {
                 setProfile(null);

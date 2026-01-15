@@ -52,6 +52,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
+  // WhatsApp Login State
+  const [loginMethod, setLoginMethod] = useState<'email' | 'whatsapp'>('email');
+  const [whatsPhone, setWhatsPhone] = useState('');
+  const [whatsCode, setWhatsCode] = useState('');
+  const [whatsStep, setWhatsStep] = useState<'phone' | 'code'>('phone');
+  const [whatsLoading, setWhatsLoading] = useState(false);
+  const [isNotFoundModalOpen, setIsNotFoundModalOpen] = useState(false); // New state for alert modal
+  const [countdown, setCountdown] = useState(0);
+
+  // Timer Effect
+  React.useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+
   // Contact Form State
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -159,6 +177,90 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
     setError('');
     setRecoveryInput('');
     setLoading(false);
+  };
+
+  const handleWhatsPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, '');
+    let charCode = numbers.length;
+    if (numbers.length > 11) charCode = 11;
+    const numeric = numbers.slice(0, charCode);
+    let formatted = numeric;
+    if (numeric.length > 2) formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2)}`;
+    if (numeric.length > 7) formatted = `(${numeric.slice(0, 2)}) ${numeric.slice(2, 7)}-${numeric.slice(7)}`;
+    setWhatsPhone(formatted);
+  };
+
+  const handleWhatsAppTrigger = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (whatsPhone.replace(/\D/g, '').length < 10) {
+      alert("Por favor, insira um número válido.");
+      return;
+    }
+    setWhatsLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('trigger-whatsapp-login', {
+        body: { phone: whatsPhone }
+      });
+      if (error) throw error;
+      setWhatsStep('code');
+      setCountdown(60); // Start 60s timer
+    } catch (err: any) {
+      console.error(err);
+      if (err.message && err.message.includes('não cadastrado')) {
+        setIsNotFoundModalOpen(true);
+      } else {
+        alert(err.message || 'Erro ao enviar código. Tente novamente.');
+      }
+    } finally {
+      setWhatsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (countdown > 0) return;
+    setWhatsCode(''); // Limpa o campo de código
+    setWhatsLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('trigger-whatsapp-login', {
+        body: { phone: whatsPhone }
+      });
+      if (error) throw error;
+      setCountdown(60);
+      // alert('Código reenviado com sucesso!'); // Removido a pedido
+    } catch (err: any) {
+      console.error(err);
+      alert('Erro ao reenviar: ' + err.message);
+    } finally {
+      setWhatsLoading(false);
+    }
+  };
+
+  const handleWhatsAppVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (whatsCode.length < 6) return;
+    setWhatsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-whatsapp-login', {
+        body: { phone: whatsPhone, code: whatsCode }
+      });
+
+      if (error) throw error;
+
+      if (data?.session) {
+        const { error: sessionError } = await supabase.auth.setSession(data.session);
+        if (sessionError) throw sessionError;
+        // Auth context handles redirect
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.message) {
+        alert(err.message);
+      } else {
+        alert('Código inválido ou expirado.');
+      }
+    } finally {
+      setWhatsLoading(false);
+    }
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -639,73 +741,159 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
 
                 <h3 className="text-2xl font-black text-white mb-2 text-center">Bem-vindo</h3>
-                <p className="text-sm text-blue-300/60 mb-8 text-center">Acesse sua conta profissional</p>
+                <p className="text-sm text-blue-300/60 mb-6 text-center">Acesse sua conta profissional</p>
 
-                <form onSubmit={handleLoginForm} className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail</label>
-                    <div className="relative">
-                      <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        required
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="seu@email.com"
-                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center pr-1">
-                      <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Senha</label>
-                      <button
-                        type="button"
-                        onClick={() => setModalView('forgot')}
-                        className="text-[10px] font-black text-yellow-400 uppercase hover:underline tracking-widest"
-                      >
-                        Recuperar Senha
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        required
-                        type="password"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  {error && <p className="text-xs font-black text-rose-400 text-center uppercase tracking-widest">{error}</p>}
-
-                  <button className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-xl shadow-yellow-400/20 active:scale-95 transition-all mt-4">
-                    Entrar no Painel
-                  </button>
-
-                  <div className="relative flex py-4 items-center">
-                    <div className="flex-grow border-t border-blue-800"></div>
-                    <span className="flex-shrink-0 mx-4 text-blue-300/40 text-[10px] font-black uppercase tracking-widest">Ou continue com</span>
-                    <div className="flex-grow border-t border-blue-800"></div>
-                  </div>
-
+                <div className="flex p-1 bg-blue-900/30 rounded-xl mb-6 border border-blue-900/50">
                   <button
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    className="w-full py-4 bg-white text-blue-950 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg"
+                    onClick={() => setLoginMethod('email')}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${loginMethod === 'email' ? 'bg-yellow-400 text-blue-950 shadow-lg' : 'text-blue-300 hover:text-white'}`}
                   >
-                    <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                    </svg>
-                    Entrar com Google
+                    Email
                   </button>
-                </form>
+                  <button
+                    onClick={() => setLoginMethod('whatsapp')}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${loginMethod === 'whatsapp' ? 'bg-green-500 text-white shadow-lg' : 'text-blue-300 hover:text-white'}`}
+                  >
+                    WhatsApp
+                  </button>
+                </div>
+
+                {loginMethod === 'email' ? (
+                  <form onSubmit={handleLoginForm} className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">E-mail</label>
+                      <div className="relative">
+                        <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          required
+                          type="email"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          placeholder="seu@email.com"
+                          className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center pr-1">
+                        <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Senha</label>
+                        <button
+                          type="button"
+                          onClick={() => setModalView('forgot')}
+                          className="text-[10px] font-black text-yellow-400 uppercase hover:underline tracking-widest"
+                        >
+                          Recuperar Senha
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          required
+                          type="password"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-yellow-400/50 transition-all text-slate-800"
+                        />
+                      </div>
+                    </div>
+
+                    {error && <p className="text-xs font-black text-rose-400 text-center uppercase tracking-widest">{error}</p>}
+
+                    <button className="w-full py-4 bg-yellow-400 text-blue-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow-300 shadow-xl shadow-yellow-400/20 active:scale-95 transition-all mt-4">
+                      Entrar no Painel
+                    </button>
+
+                    <div className="relative flex py-4 items-center">
+                      <div className="flex-grow border-t border-blue-800"></div>
+                      <span className="flex-shrink-0 mx-4 text-blue-300/40 text-[10px] font-black uppercase tracking-widest">Ou continue com</span>
+                      <div className="flex-grow border-t border-blue-800"></div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      className="w-full py-4 bg-white text-blue-950 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg"
+                    >
+                      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                      </svg>
+                      Entrar com Google
+                    </button>
+                  </form>
+                ) : (
+                  <div className="animate-fadeIn">
+                    {whatsStep === 'phone' ? (
+                      <form onSubmit={handleWhatsAppTrigger} className="space-y-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">WhatsApp</label>
+                          <div className="relative">
+                            <Smartphone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <span className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">+55</span>
+                            <input
+                              required
+                              autoFocus
+                              type="text"
+                              inputMode="numeric"
+                              value={whatsPhone}
+                              onChange={handleWhatsPhoneChange}
+                              placeholder="(99) 99999-9999"
+                              className="w-full bg-white border-none rounded-2xl pl-20 pr-4 py-4 text-sm font-bold outline-none focus:ring-4 ring-green-500/50 transition-all text-slate-800"
+                            />
+                          </div>
+                        </div>
+                        <button disabled={whatsLoading} className="w-full py-4 bg-green-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-600 shadow-xl shadow-green-500/20 active:scale-95 transition-all mt-4 disabled:opacity-70">
+                          {whatsLoading ? 'Enviando...' : 'Receber Código'}
+                        </button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleWhatsAppVerify} className="space-y-5">
+                        <div className="text-center mb-4">
+                          <p className="text-xs text-blue-300">Código enviado para <span className="text-white font-bold">{whatsPhone}</span></p>
+                          <button type="button" onClick={() => setWhatsStep('phone')} className="text-[10px] text-yellow-400 font-bold uppercase mt-1 hover:underline">Alterar número</button>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-blue-300 uppercase tracking-widest ml-1">Código de 6 dígitos</label>
+                          <div className="relative">
+                            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              required
+                              autoFocus
+                              type="text"
+                              maxLength={6}
+                              value={whatsCode}
+                              onChange={e => setWhatsCode(e.target.value.replace(/\D/g, ''))}
+                              placeholder="123456"
+                              className="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-4 text-xl font-bold outline-none focus:ring-4 ring-green-500/50 transition-all text-slate-800 tracking-[0.5em] text-center"
+                            />
+                          </div>
+                        </div>
+
+                        {countdown > 0 ? (
+                          <p className="text-center text-xs text-blue-300/50 font-bold uppercase tracking-widest mt-2">
+                            Aguarde {countdown}s para reenviar
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleResendCode}
+                            disabled={whatsLoading}
+                            className="w-full py-2 text-[10px] font-black text-blue-300 uppercase tracking-widest hover:text-white transition-colors"
+                          >
+                            Reenviar Código
+                          </button>
+                        )}
+
+                        <button disabled={whatsLoading} className="w-full py-4 bg-green-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-600 shadow-xl shadow-green-500/20 active:scale-95 transition-all mt-4 disabled:opacity-70">
+                          {whatsLoading ? 'Verificando...' : 'Entrar'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -810,6 +998,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
           </div>
         </div>
       )}
+
+
+      {/* Phone Not Found Modal */}
+      {isNotFoundModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-blue-950/80 backdrop-blur-md" onClick={() => setIsNotFoundModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 animate-scaleUp text-center border border-slate-100">
+            <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users size={32} />
+            </div>
+            <h3 className="text-xl font-black text-blue-950 mb-2">Conta não encontrada</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              O telefone <span className="font-bold text-blue-950">{whatsPhone}</span> não possui cadastro ativo.
+              <br />Por favor, realize seu cadastro para continuar.
+            </p>
+            <button
+              onClick={() => { setIsNotFoundModalOpen(false); setIsLoginModalOpen(false); scrollTo('home'); }}
+              className="w-full py-3 bg-blue-950 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20"
+            >
+              Criar Cadastro Grátis
+            </button>
+            <button
+              onClick={() => setIsNotFoundModalOpen(false)}
+              className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-blue-950 transition-colors"
+            >
+              Tentar outro número
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

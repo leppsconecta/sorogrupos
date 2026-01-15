@@ -289,6 +289,32 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
 
 
+  useEffect(() => {
+    // Check for persistent update state on mount
+    const updateStart = localStorage.getItem('group_update_start');
+    if (updateStart) {
+      const timeElapsed = Date.now() - parseInt(updateStart);
+      const TIMEOUT_MS = 180000; // 3 minutes timeout
+
+      if (timeElapsed < TIMEOUT_MS) {
+        setIsUpdating(true);
+        // Re-attach listeners or polling if valid (optional, but good for UX)
+        // For simplicity, we just block the UI until they refresh or timeout logic kicks in
+        // Realistically, the "fetchData" polling logic below handles the "check if done" part
+
+        // We set a timeout to clear this state locally if it expires while they are on the page
+        const remainingTime = TIMEOUT_MS - timeElapsed;
+        setTimeout(() => {
+          setIsUpdating(false);
+          localStorage.removeItem('group_update_start');
+          fetchData();
+        }, remainingTime);
+      } else {
+        localStorage.removeItem('group_update_start');
+      }
+    }
+  }, []);
+
   const handleUpdateGroups = async () => {
     if (isUpdating) return;
     if (!isWhatsAppConnected) {
@@ -298,7 +324,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
     if (!user) return;
 
     setIsUpdating(true);
-    // setIsSyncing(true); // Optional: if we want to trigger the main loading skeleton effectively
+    localStorage.setItem('group_update_start', Date.now().toString());
 
     try {
       // 1. Call Webhook
@@ -314,8 +340,10 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
       });
 
       // 2. Setup Realtime Listener or Polling Strategy
+      // We wait for up to 3 minutes
+      const TIMEOUT_MS = 180000;
+
       if (groups.length === 0) {
-        // If 0 groups, we strictly wait for NEW data via Realtime
         const channel = supabase
           .channel('groups-update')
           .on(
@@ -330,49 +358,70 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
               console.log('Realtime update received!', payload);
               await fetchData();
               setIsUpdating(false);
-              // showAlert('Sucesso', 'Grupos sincronizados com sucesso!', 'success'); // REMOVE
+              localStorage.removeItem('group_update_start');
               supabase.removeChannel(channel);
             }
           )
           .subscribe();
 
-        // Safety Timeout (e.g., 60 seconds)
+        // Safety Timeout (3 minutes)
         setTimeout(async () => {
-          if (isUpdating) { // If still updating
-            await fetchData(); // Just in case
-            // If still 0, maybe warn user, but stop spinner
+          if (localStorage.getItem('group_update_start')) {
             setIsUpdating(false);
+            localStorage.removeItem('group_update_start');
             supabase.removeChannel(channel);
-            // Verify if we actually got groups now
+
+            await fetchData();
+
             const { count } = await supabase.from('whatsapp_groups').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-            if (count && count > 0) {
-              // showAlert('Sucesso', 'Grupos atualizados!', 'success'); // REMOVE
-            } else {
-              showAlert('Aviso', 'Nenhum grupo encontrado após aguardar. Verifique seu WhatsApp.', 'info');
+            if (!count || count === 0) {
+              showAlert('Aviso', 'Nenhum grupo encontrado após 3 minutos. Verifique seu WhatsApp.', 'info');
             }
           }
-        }, 60000);
+        }, TIMEOUT_MS);
 
       } else {
-        // If we already have groups, we just poll a bit to refresh details
-        let attempts = 0;
-        const maxAttempts = 10;
+        const updateStartTime = parseInt(localStorage.getItem('group_update_start') || Date.now().toString());
+
         const pollInterval = setInterval(async () => {
-          attempts++;
-          // Simple re-fetch check
-          if (attempts >= 3) { // Wait quickly then fetch
-            clearInterval(pollInterval);
-            await fetchData();
-            setIsUpdating(false);
-            // showAlert('Sucesso', 'Grupos atualizados com sucesso!', 'success'); // REMOVE
+          // Check for any record created AFTER the update started
+          const { data: latestGroups, error } = await supabase
+            .from('whatsapp_groups')
+            .select('created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (latestGroups && latestGroups.length > 0) {
+            const latestDate = new Date(latestGroups[0].created_at).getTime();
+            // If latest group is newer than our start time (with a small buffer for clock skew, e.g., -5s)
+            if (latestDate > (updateStartTime - 5000)) {
+              clearInterval(pollInterval);
+              await fetchData();
+              setIsUpdating(false);
+              localStorage.removeItem('group_update_start');
+              showAlert('Sucesso', 'Novos grupos detectados!', 'success');
+            }
           }
-        }, 1000);
+        }, 3000); // Check every 3s
+
+        // Hard Stop after 3 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          if (isUpdating) {
+            setIsUpdating(false);
+            localStorage.removeItem('group_update_start');
+            fetchData(); // One last fetch
+            // Optional: warn if nothing found?
+          }
+        }, TIMEOUT_MS);
       }
 
     } catch (error) {
       console.error('Error updating groups:', error);
       showAlert('Erro', 'Erro ao solicitar atualização.', 'error');
       setIsUpdating(false);
+      localStorage.removeItem('group_update_start');
     }
   };
 
@@ -698,7 +747,7 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
 
       {/* Groups Grid */}
       {/* Groups Grid or Empty State */}
-      {filteredGroups.length === 0 ? (
+      {filteredGroups.length === 0 || isUpdating ? (
         <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800">
           {(searchQuery || selectedTag || showMyGroups) ? (
             <div className="space-y-4">
@@ -742,9 +791,13 @@ export const Grupos: React.FC<GruposProps> = ({ externalTrigger, isWhatsAppConne
                         <RefreshCw size={48} />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-black text-slate-800 dark:text-white">Sincronizando...</h3>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white">
+                          {isUpdating ? 'Atualizando Grupos' : 'Sincronizando...'}
+                        </h3>
                         <p className="text-slate-500 dark:text-slate-400 font-medium">
-                          Buscando grupos no servidor...
+                          {isUpdating
+                            ? 'Carregando novos grupos, aguarde o registro no banco de dados.'
+                            : 'Buscando grupos no servidor...'}
                         </p>
                       </div>
                     </>

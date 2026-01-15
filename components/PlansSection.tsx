@@ -8,7 +8,6 @@ import {
     AlertCircle,
     QrCode
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export const PlansSection: React.FC = () => {
@@ -40,38 +39,20 @@ export const PlansSection: React.FC = () => {
         };
     };
 
-    const handleCheckout = async (mode: 'payment' | 'subscription') => {
-        if (!user) return; // Ensure user is present
-        setIsCheckingOut(mode);
-        try {
-            // Price IDs
-            const RECURRING_PRICE = 'price_1SolZw2MPjzdFt9kHRlBT8hE'; // Mensal Recorrente
-            const ONE_TIME_PRICE = 'price_1SolWz2MPjzdFt9kgWrySX9g'; // Avulso 1 Mês
+    const handleCheckout = (mode: 'payment' | 'subscription') => {
+        if (!user) return;
 
-            const { data, error } = await supabase.functions.invoke('create-checkout', {
-                body: { // Body is ignored by health-check but kept for signature compatibility
-                    priceId: mode === 'subscription' ? RECURRING_PRICE : ONE_TIME_PRICE,
-                    mode: mode,
-                    successUrl: `${window.location.origin}/painel?payment_success=true`,
-                    cancelUrl: `${window.location.origin}/meuplano?payment_canceled=true`,
-                    userId: user.id,
-                    userEmail: user.email
-                }
-            });
+        // IMPORTANTE: Substitua estes URLs pelos seus "Links de Pagamento" gerados no Painel do Stripe
+        // Vá em Stripe Dashboard -> Pagamentos -> Links de Pagamento -> Criar Novo
+        const PAYMENT_LINK_MONTHLY = 'https://buy.stripe.com/test_...'; // Link para Assinatura (Recorrente)
+        const PAYMENT_LINK_ONE_TIME = 'https://buy.stripe.com/test_...'; // Link para Avulso (1 Mês)
 
-            if (error) throw error;
-            if (data?.error) throw new Error(data.error); // Catch function-returned errors
-            if (data?.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error('No checkout URL returned');
-            }
-        } catch (error: any) {
-            console.error('Checkout error:', error);
-            alert(`Erro ao iniciar pagamento: ${error.message || error}`);
-        } finally {
-            setIsCheckingOut(null);
-        }
+        const baseUrl = mode === 'subscription' ? PAYMENT_LINK_MONTHLY : PAYMENT_LINK_ONE_TIME;
+
+        // Adiciona o ID do usuário para que o n8n identifique quem pagou
+        const checkoutUrl = `${baseUrl}?client_reference_id=${user.id}&prefilled_email=${user.email}`;
+
+        window.open(checkoutUrl, '_blank');
     };
 
     const planDetails = getPlanDetails();

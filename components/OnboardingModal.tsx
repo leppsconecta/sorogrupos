@@ -101,6 +101,14 @@ export const OnboardingModal: React.FC = () => {
 
             if (profileError) throw profileError;
 
+            // Sync Phone to Auth User
+            const { error: authError } = await supabase.auth.updateUser({
+                phone: personalPhone.replace(/\D/g, '')
+            });
+            if (authError) console.error("Error syncing phone to auth:", authError);
+
+            if (authError) console.error("Error syncing phone to auth:", authError);
+
             // Update Company
             const { data: existingCompany } = await supabase
                 .from('companies')
