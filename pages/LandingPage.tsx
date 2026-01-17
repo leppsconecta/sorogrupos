@@ -198,19 +198,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
     }
     setWhatsLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('trigger-whatsapp-login', {
+      const { data, error } = await supabase.functions.invoke('trigger-whatsapp-login', {
         body: { phone: whatsPhone }
       });
+
       if (error) throw error;
+
+      if (data && data.not_found) {
+        setIsNotFoundModalOpen(true);
+        return;
+      }
+
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+
       setWhatsStep('code');
       setCountdown(60); // Start 60s timer
     } catch (err: any) {
       console.error(err);
-      if (err.message && err.message.includes('não cadastrado')) {
-        setIsNotFoundModalOpen(true);
-      } else {
-        alert(err.message || 'Erro ao enviar código. Tente novamente.');
-      }
+      alert(err.message || 'Erro ao enviar código. Tente novamente.');
     } finally {
       setWhatsLoading(false);
     }

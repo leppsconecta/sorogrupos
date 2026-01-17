@@ -51,8 +51,8 @@ Deno.serve(async (req) => {
 
         if (!record) {
             return new Response(
-                JSON.stringify({ error: 'Cadastro incompleto ou não encontrado. Faça login com Google primeiro e preencha seu cadastro.', not_found: true }),
-                { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                JSON.stringify({ error: 'Cadastro incompleto ou não encontrado.', not_found: true }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
 
