@@ -140,78 +140,34 @@ export const OnboardingModal: React.FC = () => {
             const dbPersonalPhone = formatPhoneForDB(personalPhone);
             const dbCompanyPhone = formatPhoneForDB(companyPhone);
 
-            // Update Profile
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: user.id,
-                    full_name: fullName,
-                    whatsapp: dbPersonalPhone,
-                    status_created: 1,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (profileError) throw profileError;
-
-            // Sync Phone to Auth User
-            const { error: authError } = await supabase.auth.updateUser({
-                phone: dbPersonalPhone
-            });
-            if (authError) console.error("Error syncing phone to auth:", authError);
-
-            // Update Auth Credentials (Claim Account)
-            if (authEmail && authPassword) {
-                const { error: updateAuthError } = await supabase.auth.updateUser({
+            // Use Edge Function for atomic claim (admin update)
+            const { error: claimError } = await supabase.functions.invoke('claim-account', {
+                body: {
                     email: authEmail,
                     password: authPassword,
-                    data: { status_claimed: true }
-                });
-
-                if (updateAuthError) {
-                    console.error("Error updating auth credentials:", updateAuthError);
-                    // Don't block flow, but maybe warn? For now proceeding as it's critical.
-                    if (updateAuthError.message.includes("requires a valid email")) {
-                        throw new Error("Email inválido para login.");
+                    phone: dbPersonalPhone,
+                    fullName: fullName,
+                    companyData: {
+                        name: companyName,
+                        email: companyEmail,
+                        whatsapp: dbCompanyPhone,
+                        zip_code: companyCep.replace(/\D/g, ''),
+                        website: companySite,
+                        instagram: companyInstagram,
+                        facebook: companyFacebook,
+                        linkedin: companyLinkedin
                     }
                 }
+            });
+
+            if (claimError) {
+                console.error("Error claiming account:", claimError);
+                // Check if it's a known auth error wrapped in the function response
+                if (claimError.message && claimError.message.includes("requires a valid email")) {
+                    throw new Error("Email inválido para login.");
+                }
+                throw claimError;
             }
-
-            // Update Company
-            const { data: existingCompany } = await supabase
-                .from('companies')
-                .select('id')
-                .eq('owner_id', user.id)
-                .maybeSingle();
-
-            const companyData = {
-                name: companyName,
-                email: companyEmail,
-                whatsapp: dbCompanyPhone,
-                zip_code: companyCep.replace(/\D/g, ''),
-                website: companySite,
-                instagram: companyInstagram,
-                facebook: companyFacebook,
-                linkedin: companyLinkedin,
-                status_created: 1,
-                owner_id: user.id
-            };
-
-            let companyError;
-
-            if (existingCompany) {
-                const { error } = await supabase
-                    .from('companies')
-                    .update(companyData)
-                    .eq('id', existingCompany.id);
-                companyError = error;
-            } else {
-                const { error } = await supabase
-                    .from('companies')
-                    .insert([companyData]);
-                companyError = error;
-            }
-
-            if (companyError) throw companyError;
 
             // await refreshProfile();
             setSuccess(true);

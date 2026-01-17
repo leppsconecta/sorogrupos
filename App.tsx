@@ -31,6 +31,8 @@ const AppContent: React.FC = () => {
   const { session, signOut, onboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
 
+  const navigate = useNavigate();
+
   // Use Context
   const {
     isWhatsAppConnected,
@@ -83,8 +85,13 @@ const AppContent: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await signOut();
-    window.location.href = '/';
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Logout failed", error);
+    } finally {
+      navigate('/');
+    }
   };
 
   const handleCreateGroupShortcut = () => {

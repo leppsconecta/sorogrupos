@@ -28,6 +28,79 @@ import { PlansSection } from '../components/PlansSection';
 
 // Styled Components / Reusable Parts
 
+// Helper Component for Phone Input (Brazil Fixed)
+const BrazilPhoneInput = ({ label, value, onChange, placeholder, required = false, disabled = false, helper, icon: Icon }: any) => {
+  // Value coming in is likely 5515999999999 or just 15999999999
+  // We want to strip 55 if present for display
+  const getDisplayValue = (val: string) => {
+    if (!val) return '';
+    let cleaned = val.replace(/\D/g, '');
+    // Always strip leading 55 if present, as it's the enforced country code
+    if (cleaned.startsWith('55')) {
+      cleaned = cleaned.substring(2);
+    }
+
+    if (cleaned.length === 0) return '';
+
+    // Format as (DD) 99999-9999
+    if (cleaned.length <= 2) return `(${cleaned}`;
+    if (cleaned.length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (cleaned.length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+
+    // 11 digits (Mobile)
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  };
+
+  const handleChange = (e: any) => {
+    let input = e.target.value.replace(/\D/g, '');
+    // User types 1599... we format it
+    // We need to pass back the FULL value with 55 to the parent state
+    // usage: onChange({ target: { value: '55' + rawDDDNumber } })
+
+    // But standard input behavior expects the formatted string in the input
+    // So we might need to handle this carefully.
+
+    // Actually, the parent state stores the DB value (55...), right?
+    // Let's assume parent state MUST have 55.
+
+    if (input.length > 11) input = input.slice(0, 11); // Max 11 digits (2 DDD + 9 Num)
+
+    const rawValue = '55' + input;
+    onChange({ target: { value: rawValue } });
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+        <span>{label} {required && <span className="text-red-500">*</span>}</span>
+      </label>
+      <div className="relative group flex items-stretch">
+        <div className="bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-200 dark:border-slate-800 rounded-l-xl px-3 flex items-center justify-center text-slate-500 font-bold text-sm select-none">
+          <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-5 h-auto mr-2 rounded-sm opacity-80" />
+          +55
+        </div>
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+            <Icon size={18} />
+          </div>
+          <input
+            type="text"
+            value={getDisplayValue(value)}
+            onChange={handleChange}
+            disabled={disabled}
+            placeholder={placeholder}
+            className={`w-full bg-white dark:bg-slate-900 border rounded-r-xl rounded-l-none pl-10 pr-5 py-3.5 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
+                        ${required && (!value || value === '55') && !disabled ? 'border-red-300 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800 left-[-1px] relative'}
+                        ${disabled ? 'bg-slate-50 dark:bg-slate-950/50 opacity-70 cursor-not-allowed select-none' : 'hover:border-blue-400/50'}
+                        `}
+          />
+        </div>
+      </div>
+      {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium ml-1">{helper}</p>}
+    </div>
+  );
+};
+
 const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onChange, required = false, disabled = false, helper }: any) => (
   <div className="space-y-2">
     <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
@@ -68,13 +141,13 @@ export const Perfil: React.FC = () => {
   // Local state for forms
   const [formDataAccount, setFormDataAccount] = useState({
     full_name: profile?.full_name || '',
-    whatsapp: profile?.whatsapp || '',
+    whatsapp: profile?.whatsapp || '', // Store as 55...
   });
 
   const [formDataCompany, setFormDataCompany] = useState({
     name: company?.name || '',
     cnpj: company?.cnpj || '',
-    whatsapp: company?.whatsapp || '',
+    whatsapp: company?.whatsapp || '', // Store as 55...
     email: company?.email || '',
     zip_code: company?.zip_code || '',
     website: company?.website || '',
@@ -96,6 +169,9 @@ export const Perfil: React.FC = () => {
   // Load Data Effect
   React.useEffect(() => {
     if (profile) {
+      // Ensure we have the 55 prefix if it's missing but valid length?
+      // Or just trust what's in DB. If DB has 15999..., we might want to prepend 55.
+      // But let's assume DB is mostly correct or we respect it.
       setFormDataAccount({
         full_name: profile.full_name || '',
         whatsapp: profile.whatsapp || ''
@@ -176,20 +252,26 @@ export const Perfil: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          full_name: formDataAccount.full_name,
-          whatsapp: formDataAccount.whatsapp,
-          updated_at: new Date().toISOString()
-        });
+      // Ensure prefix
+      let phoneToSave = formDataAccount.whatsapp.replace(/\D/g, '');
+      if (phoneToSave && !phoneToSave.startsWith('55')) {
+        phoneToSave = '55' + phoneToSave;
+      }
+
+      const { data, error } = await supabase.functions.invoke('update-user-phone', {
+        body: {
+          phone: phoneToSave,
+          fullName: formDataAccount.full_name
+        }
+      });
 
       if (error) throw error;
+
       await refreshProfile();
       toast({ type: 'success', title: 'Sucesso', message: 'Perfil atualizado com sucesso!' });
     } catch (err: any) {
-      toast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar perfil: ' + err.message });
+      console.error(err);
+      toast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar perfil: ' + (err.message || "Erro desconhecido") });
     } finally {
       setLoading(false);
     }
@@ -199,11 +281,17 @@ export const Perfil: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
+      // Ensure prefix for company phone too
+      let compPhoneToSave = formDataCompany.whatsapp.replace(/\D/g, '');
+      if (compPhoneToSave && !compPhoneToSave.startsWith('55')) {
+        compPhoneToSave = '55' + compPhoneToSave;
+      }
+
       const dataToUpsert = {
         owner_id: user.id,
         name: formDataCompany.name,
         cnpj: formDataCompany.cnpj,
-        whatsapp: formDataCompany.whatsapp,
+        whatsapp: compPhoneToSave,
         zip_code: formDataCompany.zip_code,
         email: (formDataCompany as any).email,
         website: formDataCompany.website,
@@ -339,11 +427,11 @@ export const Perfil: React.FC = () => {
                   helper="O email não pode ser alterado."
                 />
 
-                <InputField
+                <BrazilPhoneInput
                   label="WhatsApp Pessoal"
                   icon={Smartphone}
                   required
-                  placeholder="(15) 9 9999-9999"
+                  placeholder="(DDD) 9 9999-9999"
                   value={formDataAccount.whatsapp}
                   onChange={(e: any) => setFormDataAccount({ ...formDataAccount, whatsapp: e.target.value })}
                 />
@@ -398,10 +486,10 @@ export const Perfil: React.FC = () => {
                     </h4>
                   </div>
 
-                  <InputField
+                  <BrazilPhoneInput
                     label="WhatsApp Comercial"
                     icon={Smartphone}
-                    placeholder="(15) 99999-9999"
+                    placeholder="(DDD) 99999-9999"
                     required
                     value={formDataCompany.whatsapp}
                     onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
