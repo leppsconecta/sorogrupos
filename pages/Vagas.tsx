@@ -104,6 +104,53 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [showFooterInImage, setShowFooterInImage] = useState(false);
 
+  // Persistence Logic
+  useEffect(() => {
+    // Restore logic
+    const savedState = localStorage.getItem('job_creation_persistence');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.isJobModalOpen) {
+          // Restore
+          setIsJobModalOpen(true);
+          setJobCreationStep(parsed.jobCreationStep || 'selection');
+          setJobDraft(parsed.jobDraft || {});
+          setEditingJobId(parsed.editingJobId || null);
+          setShowFooterInImage(parsed.showFooterInImage || false);
+        }
+      } catch (e) {
+        console.error("Error restoring job draft", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Save logic
+    if (isJobModalOpen) {
+      const stateToSave = {
+        isJobModalOpen,
+        jobCreationStep,
+        jobDraft,
+        editingJobId,
+        showFooterInImage
+      };
+      localStorage.setItem('job_creation_persistence', JSON.stringify(stateToSave));
+    } else {
+      // If closed, check if we should clear. 
+      // If just navigating away, it won't trigger this 'else' (unmount happens).
+      // If user explicitly CLOSES modal, we probably want to clear.
+      // But the user's issue is accidental closure/nav. 
+      // If they click 'X' to close, they likely mean to discard.
+      // So clearing on 'falsy' is correct for explicit action, but we need to distinguish 'unmount' from 'state change to false'.
+      // Actually, this effect runs on state change. If isJobModalOpen changes to false, we clear.
+    }
+  }, [isJobModalOpen, jobCreationStep, jobDraft, editingJobId, showFooterInImage]);
+
+  const clearPersistence = () => {
+    localStorage.removeItem('job_creation_persistence');
+  };
+
   // Outros estados
   const [folderToEdit, setFolderToEdit] = useState<Folder | null>(null);
   const [jobToMove, setJobToMove] = useState<Vaga | null>(null);
@@ -154,10 +201,11 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
         setIsJobModalOpen(true);
         setJobDraft(job);
 
+        // We probably shouldn't persist deep-linked edits as drafts immediately unless they change data, 
+        // but it doesn't hurt.
+
         // Clear state to avoid reopening on re-renders (optional, but good practice if using props)
         if (onClearTargetJob) onClearTargetJob();
-        // Note: For location.state, we can't easily "clear" it without navigating again, 
-        // but since this depends on [effectiveInitialJobId, vagas], it should be stable enough unless vagas reload.
       }
     }
   }, [effectiveInitialJobId, vagas, onClearTargetJob]);
@@ -613,6 +661,7 @@ Cód. Vaga: *${code}*
       }
 
       await fetchData(); // Refresh all data
+      clearPersistence();
       setIsJobModalOpen(false);
       setJobCreationStep(null);
 
@@ -1360,7 +1409,7 @@ Cód. Vaga: *${code}*
       {
         isJobModalOpen && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)} />
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => { clearPersistence(); setIsJobModalOpen(false); }} />
             <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleUp flex flex-col max-h-[90vh]">
 
               {/* Header seguindo padrão anexo */}
@@ -1377,7 +1426,7 @@ Cód. Vaga: *${code}*
                     <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest">Cód: {jobDraft.jobCode}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsJobModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
+                <button onClick={() => { clearPersistence(); setIsJobModalOpen(false); }} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"><X size={20} /></button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
@@ -1712,7 +1761,7 @@ Cód. Vaga: *${code}*
                   onClick={() => {
                     if (jobCreationStep === 'form' || jobCreationStep === 'upload') setJobCreationStep('selection');
                     else if (jobCreationStep === 'preview') setJobCreationStep(jobDraft.type === 'file' ? 'upload' : 'form');
-                    else setIsJobModalOpen(false);
+                    else { clearPersistence(); setIsJobModalOpen(false); }
                   }}
                   className="px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
                 >

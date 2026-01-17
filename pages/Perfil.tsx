@@ -29,42 +29,65 @@ import { PlansSection } from '../components/PlansSection';
 // Styled Components / Reusable Parts
 
 // Helper Component for Phone Input (Brazil Fixed)
-const BrazilPhoneInput = ({ label, value, onChange, placeholder, required = false, disabled = false, helper, icon: Icon }: any) => {
+const FixedBrazilPhoneInput = ({ label, value, onChange, placeholder, required = false, disabled = false, helper, icon: Icon }: any) => {
   // Value coming in is likely 5515999999999 or just 15999999999
   // We want to strip 55 if present for display
   const getDisplayValue = (val: string) => {
     if (!val) return '';
     let cleaned = val.replace(/\D/g, '');
-    // Always strip leading 55 if present, as it's the enforced country code
-    if (cleaned.startsWith('55')) {
+
+    // Always strip leading 55 if present on the stored value
+    if (cleaned.startsWith('55') && cleaned.length > 2) {
       cleaned = cleaned.substring(2);
+    } else if (cleaned === '55') {
+      return '';
     }
 
     if (cleaned.length === 0) return '';
 
-    // Format as (DD) 99999-9999
-    if (cleaned.length <= 2) return `(${cleaned}`;
-    if (cleaned.length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
-    if (cleaned.length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    // Prevent leading zero in display
+    if (cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
 
-    // 11 digits (Mobile)
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+    // Format as DD 9 XXXX-XXXX (No parentheses as requested)
+    // 11 9 4661-7052
+
+    // DDD (2 digits)
+    if (cleaned.length <= 2) return cleaned;
+
+    // DDD + 9 (3 digits) -> 11 9
+    if (cleaned.length <= 3) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
+
+    // DDD + 9 + Part1 -> 11 9 4661
+    if (cleaned.length <= 7) return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 3)} ${cleaned.slice(3)}`;
+
+    // Full
+    return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 3)} ${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
   };
 
   const handleChange = (e: any) => {
     let input = e.target.value.replace(/\D/g, '');
-    // User types 1599... we format it
-    // We need to pass back the FULL value with 55 to the parent state
-    // usage: onChange({ target: { value: '55' + rawDDDNumber } })
 
-    // But standard input behavior expects the formatted string in the input
-    // So we might need to handle this carefully.
+    if (!input) {
+      onChange({ target: { value: '' } });
+      return;
+    }
 
-    // Actually, the parent state stores the DB value (55...), right?
-    // Let's assume parent state MUST have 55.
+    // Block leading zero
+    if (input.startsWith('0')) {
+      input = input.substring(1);
+    }
 
-    if (input.length > 11) input = input.slice(0, 11); // Max 11 digits (2 DDD + 9 Num)
+    // Max 11 digits (2 DDD + 9 Num)
+    if (input.length > 11) input = input.slice(0, 11);
 
+    if (input.length === 0) {
+      onChange({ target: { value: '' } });
+      return;
+    }
+
+    // Always prepend 55 for state
     const rawValue = '55' + input;
     onChange({ target: { value: rawValue } });
   };
@@ -75,7 +98,7 @@ const BrazilPhoneInput = ({ label, value, onChange, placeholder, required = fals
         <span>{label} {required && <span className="text-red-500">*</span>}</span>
       </label>
       <div className="relative group flex items-stretch">
-        <div className="bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-200 dark:border-slate-800 rounded-l-xl px-3 flex items-center justify-center text-slate-500 font-bold text-sm select-none">
+        <div className="bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-200 dark:border-slate-800 rounded-l-xl px-3 flex items-center justify-center text-slate-500 font-bold text-sm select-none min-w-[3.5rem]">
           <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-5 h-auto mr-2 rounded-sm opacity-80" />
           +55
         </div>
@@ -253,6 +276,8 @@ export const Perfil: React.FC = () => {
     setLoading(true);
     try {
       // Ensure prefix
+      // FixedBrazilPhoneInput ensures '55' is already at the start if user typed anything.
+      // But if we edited it directly or state is inconsistent, let's be safe.
       let phoneToSave = formDataAccount.whatsapp.replace(/\D/g, '');
       if (phoneToSave && !phoneToSave.startsWith('55')) {
         phoneToSave = '55' + phoneToSave;
@@ -427,11 +452,11 @@ export const Perfil: React.FC = () => {
                   helper="O email não pode ser alterado."
                 />
 
-                <BrazilPhoneInput
+                <FixedBrazilPhoneInput
                   label="WhatsApp Pessoal"
                   icon={Smartphone}
                   required
-                  placeholder="(DDD) 9 9999-9999"
+                  placeholder="11 9 4661-7052"
                   value={formDataAccount.whatsapp}
                   onChange={(e: any) => setFormDataAccount({ ...formDataAccount, whatsapp: e.target.value })}
                 />
@@ -486,10 +511,10 @@ export const Perfil: React.FC = () => {
                     </h4>
                   </div>
 
-                  <BrazilPhoneInput
+                  <FixedBrazilPhoneInput
                     label="WhatsApp Comercial"
                     icon={Smartphone}
-                    placeholder="(DDD) 99999-9999"
+                    placeholder="11 9 4661-7052"
                     required
                     value={formDataCompany.whatsapp}
                     onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
@@ -573,10 +598,10 @@ export const Perfil: React.FC = () => {
                 <button
                   onClick={handleSaveCompany}
                   disabled={loading}
-                  className="bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-2"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
                 >
                   {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
-                  Salvar Dados da Empresa
+                  Salvar Alterações
                 </button>
               </div>
             </div>
