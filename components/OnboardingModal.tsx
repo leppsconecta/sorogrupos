@@ -14,6 +14,13 @@ export const OnboardingModal: React.FC = () => {
 
     const [success, setSuccess] = useState(false);
 
+    // Auth Update State (Claim Account)
+    const [authEmail, setAuthEmail] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [confirmAuthPassword, setConfirmAuthPassword] = useState('');
+    const [isTempAccount, setIsTempAccount] = useState(false);
+    const [isPhantomUser, setIsPhantomUser] = useState(false);
+
     // Form State
     const [fullName, setFullName] = useState('');
     const [personalPhone, setPersonalPhone] = useState('');
@@ -32,13 +39,18 @@ export const OnboardingModal: React.FC = () => {
     useEffect(() => {
         const metadata = user?.user_metadata || {};
         const metaPhone = metadata.whatsapp ? metadata.whatsapp.replace(/^\+55/, '') : '';
+        const isPhantom = metadata.tipo === 'fantasma'; // Check for phantom user
+
+        setIsPhantomUser(isPhantom);
 
         if (profile) {
-            setFullName(profile.full_name || metadata.full_name || metadata.name || '');
+            // If Phantom, DO NOT pre-fill name from metadata (let user type)
+            // UNLESS profile already has a real name (not the default one)
+            setFullName(isPhantom ? '' : (profile.full_name || metadata.full_name || metadata.name || ''));
             setPersonalPhone(profile.whatsapp || metaPhone || '');
         } else {
             // Fallback if profile is not yet loaded
-            setFullName(metadata.full_name || metadata.name || '');
+            setFullName(isPhantom ? '' : (metadata.full_name || metadata.name || ''));
             setPersonalPhone(metaPhone || '');
         }
 
@@ -49,12 +61,27 @@ export const OnboardingModal: React.FC = () => {
             setCompanyCep(company.zip_code || '');
             setCompanySite(company.website || '');
 
-            // Check if any social is present to auto-open toggle
             if (company.instagram || company.facebook || company.linkedin) {
                 setShowSocials(true);
                 setCompanyInstagram(company.instagram || '');
                 setCompanyFacebook(company.facebook || '');
                 setCompanyLinkedin(company.linkedin || '');
+            }
+        } else if (isPhantom) {
+            // Clear company fields for phantom user if no company exists yet
+            setCompanyName('');
+            setCompanyEmail('');
+            setCompanyPhone('');
+            setCompanyCep('');
+        }
+
+        // Check for temp account (n8n created)
+        if (user && user.email) {
+            setAuthEmail(user.email);
+            // If phantom user or temp email, clear auth email field
+            if (isPhantom || user.email.includes('@temp.lepps.com') || user.email.includes('placeholder')) {
+                setIsTempAccount(true);
+                setAuthEmail(''); // Clear temp email so user types real one
             }
         }
     }, [profile, company, user]);
@@ -80,6 +107,16 @@ export const OnboardingModal: React.FC = () => {
 
         if (!user) return;
 
+        if (!authEmail || !authPassword) {
+            setError('Defina seu Email e Senha de acesso.');
+            return;
+        }
+
+        if (authPassword !== confirmAuthPassword) {
+            setError('As senhas não coincidem.');
+            return;
+        }
+
         if (!fullName || !personalPhone || !companyName || !companyEmail || !companyPhone || !companyCep) {
             setError('Preencha os campos obrigatórios (Perfil e Empresa).');
             return;
@@ -88,13 +125,28 @@ export const OnboardingModal: React.FC = () => {
         setLoading(true);
 
         try {
+            // Helper to format phone for DB (55 + DDD + Number)
+            const formatPhoneForDB = (phone: string) => {
+                const numbers = phone.replace(/\D/g, '');
+                // If length is 10 or 11 (DDD + Number), add 55
+                if (numbers.length >= 10 && numbers.length <= 11) {
+                    return `55${numbers}`;
+                }
+                // If already has 55 (starts with 55 and length is 12 or 13), keep it
+                // Or if user typed weirdly, trust the digits but ideally we strictly want 55+11
+                return numbers;
+            };
+
+            const dbPersonalPhone = formatPhoneForDB(personalPhone);
+            const dbCompanyPhone = formatPhoneForDB(companyPhone);
+
             // Update Profile
             const { error: profileError } = await supabase
                 .from('profiles')
                 .upsert({
                     id: user.id,
                     full_name: fullName,
-                    whatsapp: personalPhone.replace(/\D/g, ''),
+                    whatsapp: dbPersonalPhone,
                     status_created: 1,
                     updated_at: new Date().toISOString()
                 });
@@ -103,11 +155,26 @@ export const OnboardingModal: React.FC = () => {
 
             // Sync Phone to Auth User
             const { error: authError } = await supabase.auth.updateUser({
-                phone: personalPhone.replace(/\D/g, '')
+                phone: dbPersonalPhone
             });
             if (authError) console.error("Error syncing phone to auth:", authError);
 
-            if (authError) console.error("Error syncing phone to auth:", authError);
+            // Update Auth Credentials (Claim Account)
+            if (authEmail && authPassword) {
+                const { error: updateAuthError } = await supabase.auth.updateUser({
+                    email: authEmail,
+                    password: authPassword,
+                    data: { status_claimed: true }
+                });
+
+                if (updateAuthError) {
+                    console.error("Error updating auth credentials:", updateAuthError);
+                    // Don't block flow, but maybe warn? For now proceeding as it's critical.
+                    if (updateAuthError.message.includes("requires a valid email")) {
+                        throw new Error("Email inválido para login.");
+                    }
+                }
+            }
 
             // Update Company
             const { data: existingCompany } = await supabase
@@ -119,7 +186,7 @@ export const OnboardingModal: React.FC = () => {
             const companyData = {
                 name: companyName,
                 email: companyEmail,
-                whatsapp: companyPhone.replace(/\D/g, ''),
+                whatsapp: dbCompanyPhone,
                 zip_code: companyCep.replace(/\D/g, ''),
                 website: companySite,
                 instagram: companyInstagram,
@@ -239,14 +306,68 @@ export const OnboardingModal: React.FC = () => {
                                     <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">WhatsApp Pessoal</label>
                                     <input
                                         required
+                                        readOnly={isPhantomUser} // LOCK FOR PHONE
                                         type="text"
                                         value={personalPhone}
                                         onChange={e => handlePhoneChange(e.target.value, setPersonalPhone)}
-                                        className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                        className={`w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal ${isPhantomUser ? 'opacity-70 cursor-not-allowed bg-slate-100' : ''}`}
                                         placeholder="(00) 00000-0000"
                                     />
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Account Access Section (Claiming) */}
+                        <div className="space-y-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                            <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest flex items-center gap-2 mb-2 pb-2">
+                                <Mail size={14} /> Dados de Acesso (Login)
+                            </h3>
+                            {/* Grid ajustado de 2 para 1 coluna se precisar ou manter 2 e spanning */}
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Email de Login</label>
+                                    <input
+                                        required
+                                        type="email"
+                                        value={authEmail}
+                                        onChange={e => setAuthEmail(e.target.value)}
+                                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                        placeholder="seu@email.com"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Crie sua Senha</label>
+                                        <input
+                                            required
+                                            type="password"
+                                            value={authPassword}
+                                            onChange={e => setAuthPassword(e.target.value)}
+                                            className="w-full bg-white border border-blue-100 rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                            placeholder="Mínimo 6 caracteres"
+                                            minLength={6}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Confirme sua Senha</label>
+                                        <input
+                                            required
+                                            type="password"
+                                            value={confirmAuthPassword}
+                                            onChange={e => setConfirmAuthPassword(e.target.value)}
+                                            className="w-full bg-white border border-blue-100 rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                            placeholder="Repita a senha"
+                                            minLength={6}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {isTempAccount && (
+                                <p className="text-[10px] text-blue-600 font-medium px-1">
+                                    * Como você entrou via WhatsApp, defina um email e senha para garantir seu acesso futuro.
+                                </p>
+                            )}
                         </div>
 
                         {/* Company Section */}
@@ -388,7 +509,7 @@ export const OnboardingModal: React.FC = () => {
                         </button>
                     </form>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };

@@ -246,6 +246,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
       if (error) throw error;
 
+      // Checa erro lógico retornado com status 200 (para evitar bloqueio de CORS/Client genérico)
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       if (data?.session) {
         const { error: sessionError } = await supabase.auth.setSession(data.session);
         if (sessionError) throw sessionError;

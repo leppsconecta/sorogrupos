@@ -50,40 +50,70 @@ Deno.serve(async (req) => {
         if (dbError) throw dbError
 
         if (!codeRecord) {
-            throw new Error('Código inválido ou expirado. Tente novamente.')
+            return new Response(
+                JSON.stringify({ error: 'Código inválido ou expirado. Tente novamente.' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } } // Return 200 so client can read message
+            )
         }
 
         // Check if code was already "used" (we mark it by changing it to something invalid, or check updated_at)
         // For now, if the code matches what's in the DB, we proceed.
 
         const userId = codeRecord.user_id
-        if (!userId) throw new Error('Erro interno: Código sem usuário vinculado')
+        if (!userId) {
+            return new Response(
+                JSON.stringify({ error: 'Erro interno: Código sem usuário vinculado' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // 3. Get exact phone for login from Auth User (MOVED UP FOR DEBUGGING)
+        console.log('Fetching user data for:', userId)
+        const { data: userData, error: userError } = await sbAdmin.auth.admin.getUserById(userId)
+
+        if (userError || !userData.user) {
+            console.error('Get User Error:', userError)
+            return new Response(
+                JSON.stringify({ error: 'Usuário não encontrado no Auth (Get): ' + (userError?.message || '') }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        const userEmail = userData.user.email
+        console.log('User found:', userEmail)
 
         // 2. Generate Session via Temp Password
         const tempPassword = crypto.randomUUID()
+        console.log('Updating password for user:', userId)
 
         // Set temp password
-        const { error: updateError } = await sbAdmin.auth.admin.updateUserById(userId, {
-            password: tempPassword
-        })
+        try {
+            const { error: updateError } = await sbAdmin.auth.admin.updateUserById(userId, {
+                password: tempPassword
+            })
+            if (updateError) {
+                console.error('Update User Error:', updateError)
+                throw new Error('Falha ao atualizar senha temporária: ' + updateError.message)
+            }
+        } catch (err: any) {
+            console.error('Catch Update User:', err)
+            throw new Error('Erro ao atualizar usuário (' + userId + '): ' + err.message)
+        }
 
-        if (updateError) throw updateError
+        console.log('Signing in as:', userEmail)
 
-        // 3. Get exact phone for login from Auth User (to avoid format mismatch during sign in)
-        const { data: userData, error: userError } = await sbAdmin.auth.admin.getUserById(userId)
-        if (userError || !userData.user) throw new Error('Usuário não encontrado no Auth')
-
-        const userPhone = userData.user.phone
-
-        // 4. Sign In using the temp password
+        // 4. Sign In using the temp password (using EMAIL instead of phone for reliability)
         const { data: authData, error: authError } = await sbPublic.auth.signInWithPassword({
-            phone: userPhone,
+            email: userEmail,
             password: tempPassword
         })
 
         if (authError || !authData.session) {
-            console.error('Auth error:', authError)
-            throw new Error('Falha ao gerar sessão de login: ' + authError.message)
+            console.error('Auth Signin error:', authError)
+            return new Response(
+                JSON.stringify({ error: 'Falha ao gerar sessão de login: ' + authError.message }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 5. Invalidate Code (prevent replay)
@@ -104,8 +134,8 @@ Deno.serve(async (req) => {
 
     } catch (error) {
         return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: 'Erro no servidor: ' + error.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } } // 200 OK to allow reading body
         )
     }
 })
