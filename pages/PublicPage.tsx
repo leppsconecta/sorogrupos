@@ -16,7 +16,7 @@ import { JobAlertModal } from '../components/public/modals/JobAlertModal';
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
-import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info } from 'lucide-react';
+import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info, Star } from 'lucide-react';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
 
@@ -276,6 +276,10 @@ export const PublicPage = () => {
                 {/* Featured Carousel */}
                 {searchTerm === '' && selectedType === FilterType.ALL && featuredJobs.length > 0 && (
                     <div className="py-2">
+                        <h3 className="text-sm font-bold text-[#f59e0b] uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Star size={18} fill="#f59e0b" strokeWidth={0} />
+                            Vagas em Destaque
+                        </h3>
 
                         <FeaturedCarousel
                             jobs={featuredJobs}

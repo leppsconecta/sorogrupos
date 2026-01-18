@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CompanyProfile } from './types';
-import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown, Camera } from 'lucide-react';
+import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown, Camera, Pencil } from 'lucide-react';
 import ContactOptionsModal from './modals/ContactOptionsModal';
 import AddressModal from './modals/AddressModal';
 import { OfficialWhatsAppIcon } from '../OfficialWhatsAppIcon';
@@ -12,6 +12,7 @@ interface CompanyProfileCardProps {
     isUploadingLogo?: boolean;
     isSidebarCollapsed?: boolean;
     onToggleCollapse?: (collapsed: boolean) => void;
+    onUpdateDescription?: (newDescription: string) => Promise<void>;
 }
 
 const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
@@ -20,11 +21,31 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
     onLogoUpload,
     isUploadingLogo,
     isSidebarCollapsed = false,
-    onToggleCollapse
+    onToggleCollapse,
+    onUpdateDescription
 }) => {
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
     const [isMobileContactsOpen, setIsMobileContactsOpen] = useState(false);
+
+    // Description Editing State
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [tempDescription, setTempDescription] = useState('');
+    const [isSavingDescription, setIsSavingDescription] = useState(false);
+
+    const handleSaveDescription = async () => {
+        if (onUpdateDescription) {
+            setIsSavingDescription(true);
+            try {
+                await onUpdateDescription(tempDescription);
+                setIsEditingDescription(false);
+            } catch (error) {
+                console.error("Failed to save description", error);
+            } finally {
+                setIsSavingDescription(false);
+            }
+        }
+    };
 
     const fullAddress = `${company.address || ''}${company.number ? `, ${company.number}` : ''}${company.neighborhood ? ` - ${company.neighborhood}` : ''}${company.city ? ` - ${company.city}` : ''}${company.state ? `/${company.state}` : ''}`;
     const cityState = company.city && company.state ? `${company.city} - ${company.state}` : null;
@@ -231,9 +252,63 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                         </div>
                     </div>
 
-                    <p className={`text-slate-600 text-sm font-medium leading-relaxed mb-6 line-clamp-3 ${!isSidebarCollapsed ? 'lg:px-6' : ''}`}>
-                        {company.description || 'Empresa parceira SoroEmpregos.'}
-                    </p>
+                    {/* Description with Inline Edit */}
+                    {isEditingDescription ? (
+                        <div className="mb-6 animate-fadeIn">
+                            <div className="relative">
+                                <textarea
+                                    className="w-full bg-white border-2 border-indigo-100 rounded-xl p-3 text-sm text-slate-700 outline-none focus:border-indigo-500 resize-none shadow-sm"
+                                    rows={3}
+                                    maxLength={150}
+                                    value={tempDescription}
+                                    onChange={(e) => setTempDescription(e.target.value)}
+                                    placeholder="Descreva sua empresa em até 150 caracteres..."
+                                    autoFocus
+                                />
+                                <div className={`absolute bottom-2 right-2 text-[10px] font-bold ${tempDescription.length >= 150 ? 'text-red-500' : 'text-slate-400'}`}>
+                                    {tempDescription.length}/150
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-2">
+                                <button
+                                    onClick={() => {
+                                        setIsEditingDescription(false);
+                                        setTempDescription(company.description || '');
+                                    }}
+                                    className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSaveDescription}
+                                    disabled={isSavingDescription}
+                                    className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-70"
+                                >
+                                    {isSavingDescription ? 'Salvando...' : 'Salvar Descrição'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={`group relative mb-6 flex gap-2 ${!isSidebarCollapsed ? 'lg:px-6' : 'justify-center'}`}>
+                            {/* Edit Button (Visible only to owner) */}
+                            {isOwner && onUpdateDescription && !isSidebarCollapsed && (
+                                <button
+                                    onClick={() => {
+                                        setTempDescription(company.description || '');
+                                        setIsEditingDescription(true);
+                                    }}
+                                    className="text-slate-400 hover:text-indigo-600 p-1 rounded-lg transition-colors h-fit mt-0.5"
+                                    title="Editar Descrição"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                            )}
+
+                            <p className="text-slate-600 text-sm font-medium leading-relaxed">
+                                {company.description || 'Empresa parceira SoroEmpregos.'}
+                            </p>
+                        </div>
+                    )}
 
                     {/* Mobile Toggle Button (Visible only on Mobile) */}
                     <button

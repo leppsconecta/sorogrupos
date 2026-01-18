@@ -753,13 +753,20 @@ export const Perfil: React.FC = () => {
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-xs font-bold text-slate-500 uppercase">Descrição da Empresa</label>
-                                            <textarea
-                                                rows={3}
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500"
-                                                value={formData.description}
-                                                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                                placeholder="Descreva sua empresa..."
-                                            />
+                                            <div className="relative">
+                                                <textarea
+                                                    rows={3}
+                                                    maxLength={150}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500 resize-none"
+                                                    value={formData.description || ''}
+                                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                                    placeholder="Descreva sua empresa em até 150 caracteres..."
+                                                />
+                                                <div className={`absolute bottom-2 right-2 text-[10px] font-bold ${(formData.description?.length || 0) >= 150 ? 'text-red-500' : 'text-slate-400'
+                                                    }`}>
+                                                    {formData.description?.length || 0}/150
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -804,6 +811,13 @@ export const Perfil: React.FC = () => {
                                             isOwner={true}
                                             onLogoUpload={handleLogoUpload}
                                             isUploadingLogo={uploadingLogo}
+                                            onUpdateDescription={async (newDesc) => {
+                                                setFormData(prev => ({ ...prev, description: newDesc }));
+                                                const { error } = await supabase.from('companies').update({ description: newDesc }).eq('id', company.id);
+                                                if (error) throw error;
+                                                await refreshProfile();
+                                                toast({ type: 'success', title: 'Descrição Atualizada', message: 'Nova descrição salva com sucesso!' });
+                                            }}
                                         />
                                     </div>
 
