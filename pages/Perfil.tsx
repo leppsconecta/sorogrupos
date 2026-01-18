@@ -40,6 +40,7 @@ import AlertModal from '../components/public/modals/AlertModal';
 import QuestionModal from '../components/public/modals/QuestionModal';
 import ReportModal from '../components/public/modals/ReportModal';
 import ApplicationModal from '../components/public/modals/ApplicationModal';
+import JobDetailModal from '../components/public/modals/JobDetailModal';
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
@@ -112,6 +113,7 @@ export const Perfil: React.FC = () => {
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
+    const [isJobDetailModalOpen, setIsJobDetailModalOpen] = useState(false);
 
     // Username Verification State
     const [checkingUsername, setCheckingUsername] = useState(false);
@@ -872,6 +874,7 @@ export const Perfil: React.FC = () => {
                                                 onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
                                                 onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                                 onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
+                                                onViewDetails={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                                 showAdminControls={true}
                                                 onToggleHidden={() => {
                                                     const originalJob = jobs.find(j => j.id === job.id);
@@ -902,6 +905,15 @@ export const Perfil: React.FC = () => {
                                     isOpen={isQuestionModalOpen}
                                     onClose={() => setIsQuestionModalOpen(false)}
                                     jobTitle={selectedJob.title}
+                                />
+                                <JobDetailModal
+                                    isOpen={isJobDetailModalOpen}
+                                    onClose={() => setIsJobDetailModalOpen(false)}
+                                    job={selectedJob}
+                                    onApply={() => { }}
+                                    onReport={() => { }}
+                                    onQuestion={() => { }}
+                                    showFooter={false}
                                 />
                             </>
                         )}

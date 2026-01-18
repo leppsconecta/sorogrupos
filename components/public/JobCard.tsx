@@ -59,15 +59,17 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
                     <div className="flex-1 w-full space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                             {/* Job Code Badge with Copy */}
-                            <div
-                                onClick={handleCopyCode}
-                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-200 hover:border-slate-300 transition-colors group/code"
-                                title="Copiar código da vaga"
-                            >
-                                <Hash size={10} className="text-slate-400" />
-                                {job.code}
-                                {isCopied ? <Check size={10} className="text-green-500" /> : <Copy size={10} className="text-slate-400 group-hover/code:text-blue-500" />}
-                            </div>
+                            {!showAdminControls && (
+                                <div
+                                    onClick={handleCopyCode}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-200 hover:border-slate-300 transition-colors group/code"
+                                    title="Copiar código da vaga"
+                                >
+                                    <Hash size={10} className="text-slate-400" />
+                                    {job.code}
+                                    {isCopied ? <Check size={10} className="text-green-500" /> : <Copy size={10} className="text-slate-400 group-hover/code:text-blue-500" />}
+                                </div>
+                            )}
 
                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getTypeStyles(job.type)}`}>
                                 {job.type}

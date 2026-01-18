@@ -22,6 +22,7 @@ interface JobDetailModalProps {
     onApply: () => void;
     onReport: () => void;
     onQuestion: () => void;
+    showFooter?: boolean;
 }
 
 const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -30,7 +31,8 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
     job,
     onApply,
     onReport,
-    onQuestion
+    onQuestion,
+    showFooter = true
 }) => {
     const [isShared, setIsShared] = React.useState(false);
 
@@ -173,51 +175,53 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
 
                 {/* Compact Footer */}
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
-                    <button
-                        onClick={onApply}
-                        className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
-                    >
-                        <Send size={16} /> Enviar Currículo
-                    </button>
+                {showFooter && (
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
+                        <button
+                            onClick={onApply}
+                            className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        >
+                            <Send size={16} /> Enviar Currículo
+                        </button>
 
-                    <button
-                        onClick={handleShare}
-                        className={`h-11 px-4 flex items-center justify-center rounded-xl border transition-all font-medium text-sm gap-2 ${isShared
-                            ? 'bg-green-50 border-green-200 text-green-600'
-                            : 'bg-white border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'
-                            }`}
-                        title="Compartilhar Vaga"
-                    >
-                        {isShared ? (
-                            <>
-                                <CheckCircle2 size={18} className="text-green-600" />
-                                <span className="hidden sm:inline">Copiado!</span>
-                            </>
-                        ) : (
-                            <>
-                                <Share2 size={18} />
-                                <span className="hidden sm:inline">Compartilhar</span>
-                            </>
-                        )}
-                    </button>
+                        <button
+                            onClick={handleShare}
+                            className={`h-11 px-4 flex items-center justify-center rounded-xl border transition-all font-medium text-sm gap-2 ${isShared
+                                ? 'bg-green-50 border-green-200 text-green-600'
+                                : 'bg-white border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'
+                                }`}
+                            title="Compartilhar Vaga"
+                        >
+                            {isShared ? (
+                                <>
+                                    <CheckCircle2 size={18} className="text-green-600" />
+                                    <span className="hidden sm:inline">Copiado!</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Share2 size={18} />
+                                    <span className="hidden sm:inline">Compartilhar</span>
+                                </>
+                            )}
+                        </button>
 
-                    <button
-                        onClick={onQuestion}
-                        className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600 transition-colors bg-white"
-                        title="Dúvida"
-                    >
-                        <HelpCircle size={18} />
-                    </button>
+                        <button
+                            onClick={onQuestion}
+                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600 transition-colors bg-white"
+                            title="Dúvida"
+                        >
+                            <HelpCircle size={18} />
+                        </button>
 
-                    <button
-                        onClick={onReport}
-                        className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors bg-white"
-                        title="Reportar"
-                    >
-                        <AlertTriangle size={18} />
-                    </button>
-                </div>
+                        <button
+                            onClick={onReport}
+                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors bg-white"
+                            title="Reportar"
+                        >
+                            <AlertTriangle size={18} />
+                        </button>
+                    </div>
+                )}
 
             </div>
         </div>

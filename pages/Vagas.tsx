@@ -39,7 +39,8 @@ import { Vaga, Folder, JobContact, SavedJobContact } from '../types';
 import { supabase } from '../lib/supabase';
 import { SavedContactsModal } from '../components/SavedContactsModal';
 import { ActionsModal } from '../components/ActionsModal';
-import { JobPreviewModal } from '../components/JobPreviewModal';
+import JobDetailModal from '../components/public/modals/JobDetailModal';
+import JobCard from '../components/public/JobCard';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
@@ -1722,7 +1723,7 @@ Cód. Vaga: *${code}*
                       style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '20px 20px' }}
                     >
 
-                      <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-sm shadow-sm max-w-lg mx-auto mt-8 border border-slate-100 dark:border-slate-700 relative">
+                      <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-sm shadow-sm max-w-lg mx-auto mt-8 border border-slate-100 dark:border-slate-700 relative scale-[0.85] sm:scale-100 origin-top">
                         {/* Triangle Tail */}
                         <svg viewBox="0 0 8 13" height="13" width="8" className="absolute top-0 -left-2 text-white dark:text-[#202c33] fill-current"><path opacity="0.13" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
 
@@ -1744,12 +1745,12 @@ Cód. Vaga: *${code}*
                               </div>
                             )}
 
-                            <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap">
+                            <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap font-sans">
                               {generatePreviewText().split('\n').map((line, i) => (
                                 <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
                                   {line.split(/(\*[^*]+\*)/g).map((part, j) => (
                                     part.startsWith('*') && part.endsWith('*') ? (
-                                      <strong key={j} className="font-semibold">{part.slice(1, -1)}</strong>
+                                      <strong key={j} className="font-bold">{part.slice(1, -1)}</strong>
                                     ) : (
                                       <span key={j}>{part}</span>
                                     )
@@ -1757,9 +1758,9 @@ Cód. Vaga: *${code}*
                                   {i === 0 && (
                                     <button
                                       onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                                      className="ml-1 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
+                                      className="ml-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
                                     >
-                                      Alterar Emoji
+                                      <Edit2 size={10} /> Alterar Emoji
                                     </button>
                                   )}
                                 </div>
@@ -1767,12 +1768,12 @@ Cód. Vaga: *${code}*
                             </div>
                           </div>
                         ) : (
-                          <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap">
+                          <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap font-sans">
                             {generatePreviewText().split('\n').map((line, i) => (
                               <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
                                 {line.split(/(\*[^*]+\*)/g).map((part, j) => (
                                   part.startsWith('*') && part.endsWith('*') ? (
-                                    <strong key={j} className="font-semibold">{part.slice(1, -1)}</strong>
+                                    <strong key={j} className="font-bold">{part.slice(1, -1)}</strong>
                                   ) : (
                                     <span key={j}>{part}</span>
                                   )
@@ -1780,9 +1781,9 @@ Cód. Vaga: *${code}*
                                 {i === 0 && (
                                   <button
                                     onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                                    className="ml-1 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
+                                    className="ml-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
                                   >
-                                    Alterar Emoji
+                                    <Edit2 size={10} /> Alterar Emoji
                                   </button>
                                 )}
                               </div>
@@ -1982,12 +1983,28 @@ Cód. Vaga: *${code}*
 
 
       {
-        <JobPreviewModal
+        <JobDetailModal
           isOpen={isViewModalOpen}
           onClose={() => setIsViewModalOpen(false)}
-          job={viewingJob}
-          companyName={company?.name || 'Lepps Conecta'}
-          previewEmojis={previewEmojis}
+          job={viewingJob ? {
+            id: viewingJob.id,
+            code: viewingJob.jobCode || '---',
+            title: viewingJob.role || viewingJob.title || '',
+            company: viewingJob.companyName || company?.name || 'Sua Empresa',
+            location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
+            type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+            salary: viewingJob.salary,
+            postedAt: viewingJob.date || 'Hoje',
+            description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
+            requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => i.trim()) : [],
+            benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => i.trim()) : [],
+            activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => i.trim()) : [],
+            isFeatured: viewingJob.is_featured
+          } : null}
+          showFooter={false}
+          onApply={() => alert('Modo de Visualização: Esta ação enviaria o currículo.')}
+          onReport={() => alert('Modo de Visualização: Reportar vaga.')}
+          onQuestion={() => alert('Modo de Visualização: Tirar dúvida.')}
         />
       }
 
