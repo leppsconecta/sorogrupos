@@ -228,7 +228,7 @@ export const PublicPage = () => {
             <div className="space-y-6">
 
                 {/* Fixed Header: Filters & Alert Button */}
-                <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 border-b border-gray-200/50 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
+                <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
                     <Filters
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
@@ -247,10 +247,7 @@ export const PublicPage = () => {
                 {/* Featured Carousel */}
                 {searchTerm === '' && selectedType === FilterType.ALL && featuredJobs.length > 0 && (
                     <div className="py-2">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <span className="w-1 h-4 bg-yellow-400 rounded-full"></span>
-                            Vagas em Destaque
-                        </h3>
+
                         <FeaturedCarousel
                             jobs={featuredJobs}
                             onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
