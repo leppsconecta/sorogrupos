@@ -11,7 +11,9 @@ import AlertModal from '../components/public/modals/AlertModal';
 import QuestionModal from '../components/public/modals/QuestionModal';
 import ReportModal from '../components/public/modals/ReportModal';
 import ApplicationModal from '../components/public/modals/ApplicationModal';
-import { JobAlertModal } from '../components/public/modals/JobAlertModal'; // Named export as defined in step 1971
+
+import { JobAlertModal } from '../components/public/modals/JobAlertModal';
+import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info } from 'lucide-react';
@@ -39,7 +41,9 @@ export const PublicPage = () => {
     const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
         if (username) fetchData();
@@ -75,20 +79,37 @@ export const PublicPage = () => {
                 .order('created_at', { ascending: false });
 
             if (!jobsError && jobsData) {
-                const mappedJobs: Job[] = jobsData.map((j: any) => ({
-                    id: j.id,
-                    title: j.role || j.title,
-                    company: companyData.name,
-                    location: j.city || 'Sorocaba, SP',
-                    type: mapJobType(j.type),
-                    salary: j.salary_range ? `R$ ${j.salary_range} ` : undefined,
-                    postedAt: formatDate(j.created_at),
-                    description: j.description,
-                    requirements: [],
-                    benefits: [],
-                    activities: [],
-                    isFeatured: j.is_featured
-                }));
+                const mappedJobs: Job[] = jobsData.map((j: any) => {
+                    // Helper to parse JSON or text fields into array
+                    const parseList = (field: any) => {
+                        if (Array.isArray(field)) return field;
+                        if (typeof field === 'string') {
+                            try {
+                                const parsed = JSON.parse(field);
+                                if (Array.isArray(parsed)) return parsed;
+                            } catch (e) {
+                                // If not JSON, split by line break or return as single item
+                                return field.split('\n').filter(s => s.trim().length > 0);
+                            }
+                        }
+                        return [];
+                    }
+
+                    return {
+                        id: j.id,
+                        title: j.role || j.title,
+                        company: companyData.name,
+                        location: j.city || 'Sorocaba, SP',
+                        type: mapJobType(j.type),
+                        salary: j.salary_range ? `R$ ${j.salary_range} ` : undefined,
+                        postedAt: formatDate(j.created_at),
+                        description: j.description || 'Sem descrição',
+                        requirements: parseList(j.requirements),
+                        benefits: parseList(j.benefits),
+                        activities: parseList(j.activities),
+                        isFeatured: j.is_featured
+                    };
+                });
                 setJobs(mappedJobs);
             }
         } catch (err: any) {
@@ -109,7 +130,15 @@ export const PublicPage = () => {
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         const now = new Date();
-        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 3600 * 24));
+        const diffMs = now.getTime() - date.getTime();
+
+        const diffMinutes = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMinutes < 1) return 'Agora mesmo';
+        if (diffMinutes < 60) return `Há ${diffMinutes} min`;
+        if (diffHours < 24) return `Há ${diffHours} h`;
         if (diffDays === 0) return 'Hoje';
         if (diffDays === 1) return 'Ontem';
         return `Há ${diffDays} dias`;
@@ -250,7 +279,8 @@ export const PublicPage = () => {
 
                         <FeaturedCarousel
                             jobs={featuredJobs}
-                            onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+
+                            onApply={(job) => { setSelectedJob(job); setIsDetailModalOpen(true); }}
                         />
                     </div>
                 )}
@@ -323,6 +353,14 @@ export const PublicPage = () => {
                             onClose={() => setIsQuestionModalOpen(false)}
                             jobTitle={selectedJob.title}
                             onSubmit={handleQuestionSubmit}
+                        />
+                        <JobDetailModal
+                            isOpen={isDetailModalOpen}
+                            onClose={() => setIsDetailModalOpen(false)}
+                            job={selectedJob}
+                            onApply={() => { setIsDetailModalOpen(false); setIsApplicationModalOpen(true); }}
+                            onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
+                            onQuestion={() => { setIsDetailModalOpen(false); setIsQuestionModalOpen(true); }}
                         />
                     </>
                 )}
