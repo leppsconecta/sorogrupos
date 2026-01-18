@@ -181,7 +181,7 @@ const AppContent: React.FC = () => {
         </main>
       </div>
 
-      {isLoggedIn && <BottomNav />}
+      {showDashboardUI && <BottomNav />}
 
       {/* Onboarding Modal */}
       {isLoggedIn && !onboardingCompleted && <OnboardingModal />}
