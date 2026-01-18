@@ -21,7 +21,6 @@ interface JobDetailModalProps {
     job: Job | null;
     onApply: () => void;
     onReport: () => void;
-    onQuestion: () => void;
     showFooter?: boolean;
 }
 
@@ -29,7 +28,6 @@ interface JobDetailContentProps {
     job: Job;
     onApply: () => void;
     onReport: () => void;
-    onQuestion: () => void;
     showFooter?: boolean;
     onClose?: () => void; // Optional for content view
 }
@@ -38,7 +36,6 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
     job,
     onApply,
     onReport,
-    onQuestion,
     showFooter = true,
     onClose
 }) => {
@@ -202,13 +199,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                         )}
                     </button>
 
-                    <button
-                        onClick={onQuestion}
-                        className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600 transition-colors bg-white"
-                        title="Dúvida"
-                    >
-                        <HelpCircle size={18} />
-                    </button>
+
 
                     <button
                         onClick={onReport}
@@ -230,7 +221,6 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
     job,
     onApply,
     onReport,
-    onQuestion,
     showFooter = true
 }) => {
     if (!isOpen || !job) return null;
@@ -245,7 +235,6 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 job={job}
                 onApply={onApply}
                 onReport={onReport}
-                onQuestion={onQuestion}
                 showFooter={showFooter}
                 onClose={onClose}
             />

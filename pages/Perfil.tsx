@@ -463,10 +463,10 @@ export const Perfil: React.FC = () => {
             type: (j.type === 'PJ' ? 'PJ' : j.type === 'Freelance' ? 'Freelance' : 'CLT') as any,
             salary: j.salary_range ? `R$ ${j.salary_range}` : undefined,
             postedAt: 'Recente',
-            description: j.description || 'Sem descrição',
-            requirements: [],
-            benefits: [],
-            activities: [],
+            description: j.observation || j.description || 'Sem descrição',
+            requirements: j.requirements ? j.requirements.split('\n').filter((i: string) => i.trim()) : [],
+            benefits: j.benefits ? j.benefits.split('\n').filter((i: string) => i.trim()) : [],
+            activities: j.activities ? j.activities.split('\n').filter((i: string) => i.trim()) : [],
             isFeatured: j.is_featured,
             isHidden: j.public_hidden
         }));

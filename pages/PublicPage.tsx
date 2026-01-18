@@ -8,7 +8,7 @@ import Header from '../components/public/Header';
 import Filters from '../components/public/Filters';
 import JobCard from '../components/public/JobCard';
 import AlertModal from '../components/public/modals/AlertModal';
-import QuestionModal from '../components/public/modals/QuestionModal';
+
 import ReportModal from '../components/public/modals/ReportModal';
 
 
@@ -40,7 +40,7 @@ export const PublicPage = () => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+
 
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -176,23 +176,7 @@ export const PublicPage = () => {
         if (error) throw error;
     };
 
-    const handleQuestionSubmit = async (formData: any) => {
-        if (!selectedJob || !company) return;
 
-        const { error } = await supabase
-            .from('job_questions')
-            .insert({
-                job_id: selectedJob.id,
-                company_id: company.id,
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                question: formData.question,
-                status: 'pending'
-            });
-
-        if (error) throw error;
-    };
 
 
     if (loading) {
@@ -290,7 +274,6 @@ export const PublicPage = () => {
                                         onViewDetails={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
                                         onApply={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
                                         onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
-                                        onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
                                     />
                                 ))}
                             </div>
@@ -320,23 +303,17 @@ export const PublicPage = () => {
 
                         <ReportModal
                             isOpen={isReportModalOpen}
-                            onClose={() => setIsReportModalOpen(false)}
+                            onClose={() => { setIsReportModalOpen(false); setIsDetailModalOpen(true); }}
                             jobTitle={selectedJob.title}
                             onSubmit={handleReportSubmit}
                         />
-                        <QuestionModal
-                            isOpen={isQuestionModalOpen}
-                            onClose={() => setIsQuestionModalOpen(false)}
-                            jobTitle={selectedJob.title}
-                            onSubmit={handleQuestionSubmit}
-                        />
+
                         <JobDetailModal
                             isOpen={isDetailModalOpen}
                             onClose={() => setIsDetailModalOpen(false)}
                             job={selectedJob}
                             onApply={() => { }}
                             onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
-                            onQuestion={() => { setIsDetailModalOpen(false); setIsQuestionModalOpen(true); }}
                         />
                     </>
                 )}
