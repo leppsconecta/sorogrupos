@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Job } from './types';
 // Imports updated
-import { Clock, MapPin, ChevronDown, Send, HelpCircle, AlertTriangle, Briefcase, DollarSign, Plus, Star, Eye, EyeOff } from 'lucide-react';
+import { Clock, MapPin, ChevronDown, Send, HelpCircle, AlertTriangle, Briefcase, DollarSign, Plus, Star, Eye, EyeOff, Hash, Copy, Check } from 'lucide-react';
 
 interface JobCardProps {
     job: Job;
@@ -12,10 +12,19 @@ interface JobCardProps {
     showAdminControls?: boolean;
     onToggleFeatured?: () => void;
     onToggleHidden?: () => void;
+    onViewDetails?: () => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, showAdminControls, onToggleFeatured, onToggleHidden }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, showAdminControls, onToggleFeatured, onToggleHidden, onViewDetails }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopyCode = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(job.code || job.id);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
 
     const getTypeStyles = (type: string) => {
         switch (type) {
@@ -30,19 +39,36 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
 
     return (
         <div
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => {
+                if (onViewDetails) {
+                    onViewDetails();
+                } else {
+                    setIsExpanded(!isExpanded);
+                }
+            }}
             className={`group rounded-[32px] border transition-all duration-300 cursor-pointer overflow-hidden relative ${isJobHidden
                 ? 'bg-red-50 border-red-200 hover:border-red-300'
                 : 'bg-white'
-                } ${isExpanded
+                } ${isExpanded && !onViewDetails
                     ? 'border-blue-500 shadow-xl ring-4 ring-blue-50 z-20'
                     : 'shadow-sm hover:shadow-xl hover:border-blue-100 hover:-translate-y-1'
-                } ${!isExpanded && !isJobHidden ? 'border-gray-100' : ''}`}
+                } ${(!isExpanded || onViewDetails) && !isJobHidden ? 'border-gray-100' : ''}`}
         >
             <div className="p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                     <div className="flex-1 w-full space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
+                            {/* Job Code Badge with Copy */}
+                            <div
+                                onClick={handleCopyCode}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-200 hover:border-slate-300 transition-colors group/code"
+                                title="Copiar código da vaga"
+                            >
+                                <Hash size={10} className="text-slate-400" />
+                                {job.code}
+                                {isCopied ? <Check size={10} className="text-green-500" /> : <Copy size={10} className="text-slate-400 group-hover/code:text-blue-500" />}
+                            </div>
+
                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getTypeStyles(job.type)}`}>
                                 {job.type}
                             </span>
@@ -110,9 +136,9 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
                             </div>
                         )}
 
-                        <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
+                        <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded && !onViewDetails ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
                             }`}>
-                            <ChevronDown size={20} />
+                            {onViewDetails ? <Eye size={20} /> : <ChevronDown size={20} />}
                         </div>
                     </div>
                 </div>
@@ -163,7 +189,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
                                     onClick={(e) => { e.stopPropagation(); onApply(); }}
                                     className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 hover:scale-[1.02] shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-xs uppercase flex items-center justify-center gap-2"
                                 >
-                                    <Send size={16} strokeWidth={2.5} /> Candidatar-se Agora
+                                    <Send size={16} strokeWidth={2.5} /> Enviar Currículo
                                 </button>
 
                                 <div className="flex gap-2">

@@ -97,7 +97,8 @@ export const PublicPage = () => {
 
                     return {
                         id: j.id,
-                        title: j.role || j.title,
+                        code: j.code || j.id.slice(0, 8).toUpperCase(), // Fallback to ID slice if code is missing
+                        title: j.title,
                         company: companyData.name,
                         location: j.city || 'Sorocaba, SP',
                         type: mapJobType(j.type),
@@ -311,6 +312,7 @@ export const PublicPage = () => {
                                     <JobCard
                                         key={job.id}
                                         job={job}
+                                        onViewDetails={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
                                         onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
                                         onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                         onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
