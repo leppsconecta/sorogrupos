@@ -93,6 +93,7 @@ export interface Vaga {
   footerEnabled?: boolean;
   observation?: string;
   showObservation?: boolean;
+  is_featured?: boolean;
 }
 
 export interface NavItem {

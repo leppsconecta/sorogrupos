@@ -69,7 +69,7 @@ export const PublicPage = () => {
             const { data: jobsData, error: jobsError } = await supabase
                 .from('jobs')
                 .select('*')
-                .eq('company_id', companyData.id)
+                .eq('user_id', companyData.owner_id) // Map via user_id as jobs use folder_company_id/user_id
                 .eq('status', 'active')
                 .eq('public_hidden', false)
                 .order('created_at', { ascending: false });
@@ -86,7 +86,8 @@ export const PublicPage = () => {
                     description: j.description,
                     requirements: [],
                     benefits: [],
-                    activities: []
+                    activities: [],
+                    isFeatured: j.is_featured
                 }));
                 setJobs(mappedJobs);
             }
@@ -115,6 +116,7 @@ export const PublicPage = () => {
     };
 
     const filteredJobs = jobs.filter(job => {
+        if (job.isFeatured) return false; // Exclude featured jobs from main list
         const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             job.location.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
@@ -213,7 +215,7 @@ export const PublicPage = () => {
         );
     }
 
-    const featuredJobs = jobs.slice(0, 5); // Featured jobs are always the first 5, regardless of filtering
+    const featuredJobs = jobs.filter(j => j.isFeatured).slice(0, 5); // Filter by isFeatured
 
     return (
         <PublicProfileLayout company={company} loading={false}>
@@ -226,7 +228,7 @@ export const PublicPage = () => {
             <div className="space-y-6">
 
                 {/* Fixed Header: Filters & Alert Button */}
-                <div className="sticky top-[88px] z-10 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 border-b border-gray-200/50 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
+                <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 border-b border-gray-200/50 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
                     <Filters
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}

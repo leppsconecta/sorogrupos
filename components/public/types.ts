@@ -11,6 +11,7 @@ export interface Job {
     requirements: string[];
     benefits: string[];
     activities: string[];
+    isFeatured?: boolean;
 }
 
 export interface JobAlert {

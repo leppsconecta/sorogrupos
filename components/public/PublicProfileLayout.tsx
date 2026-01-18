@@ -36,18 +36,9 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] font-sans">
-            {/* Top Cover (Full Width) */}
-            <div
-                className="h-48 md:h-64 w-full bg-cover bg-center relative"
-                style={{
-                    backgroundColor: company.profile_header_color || '#1a234a',
-                    backgroundImage: company.cover_url ? `url(${company.cover_url})` : undefined
-                }}
-            >
-                <div className="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] via-transparent to-transparent opacity-90" />
-            </div>
+            {/* Top Cover Removed */}
 
-            <div className="max-w-7xl mx-auto px-4 md:px-6 -mt-32 pb-20 relative z-10">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 pt-0 pb-20 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                     {/* START SIDEBAR (Right/Top on Mobile) */}
