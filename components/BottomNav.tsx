@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Briefcase,
-  UserCircle,
+  Settings,
   LifeBuoy,
   CreditCard,
   CalendarDays,
@@ -34,7 +34,7 @@ const menuItems = [
   { path: '/candidatos', label: 'Candidatos', icon: <Users size={20} /> },
 
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={20} /> },
-  { path: '/perfil', label: 'Perfil', icon: <UserCircle size={20} /> },
+  { path: '/configuracao', label: 'Configuração', icon: <Settings size={20} /> },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = () => {

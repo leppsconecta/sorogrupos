@@ -1,679 +1,832 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  User,
-  Building2,
-  Key,
-  Save,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  Lock,
-  Smartphone,
-  Hash,
-  Check,
-  Instagram,
-  Facebook,
-  Linkedin,
-  CreditCard,
-  Shield,
-  Zap,
-  Camera
+    Building2,
+    Save,
+    Globe,
+    Upload,
+    Eye,
+    EyeOff,
+    Briefcase,
+    MapPin,
+    Camera,
+    Settings2,
+    Palette,
+    LinkIcon,
+    X,
+    ChevronDown,
+    ChevronUp,
+    Bell,
+    Check,
+    Loader2,
+    Copy,
+    Phone,
+    Info,
+    Instagram,
+    Facebook,
+    Linkedin,
+    ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
-import { ActionsModal } from '../components/ActionsModal';
-import { PlansSection } from '../components/PlansSection';
+import { useNavigate } from 'react-router-dom';
 
-// Styled Components / Reusable Parts
+// Public Components for Preview
+import JobCard from '../components/public/JobCard';
+import Filters from '../components/public/Filters';
+import AlertModal from '../components/public/modals/AlertModal';
+import QuestionModal from '../components/public/modals/QuestionModal';
+import ReportModal from '../components/public/modals/ReportModal';
+import ApplicationModal from '../components/public/modals/ApplicationModal';
+import { Job, FilterType, CompanyProfile } from '../components/public/types';
+import PublicProfileLayout from '../components/public/PublicProfileLayout';
+import FeaturedCarousel from '../components/public/FeaturedCarousel';
 
-// Helper Component for Phone Input (Brazil Fixed)
-const FixedBrazilPhoneInput = ({ label, value, onChange, placeholder, required = false, disabled = false, helper, icon: Icon }: any) => {
-  // Value coming in is likely 5515999999999 or just 15999999999
-  // We want to strip 55 if present for display
-  const getDisplayValue = (val: string) => {
-    if (!val) return '';
-    let cleaned = val.replace(/\D/g, '');
-
-    // Always strip leading 55 if present on the stored value
-    if (cleaned.startsWith('55') && cleaned.length > 2) {
-      cleaned = cleaned.substring(2);
-    } else if (cleaned === '55') {
-      return '';
-    }
-
-    if (cleaned.length === 0) return '';
-
-    // Prevent leading zero in display
-    if (cleaned.startsWith('0')) {
-      cleaned = cleaned.substring(1);
-    }
-
-    // Format as DD 9 XXXX-XXXX (No parentheses as requested)
-    // 11 9 4661-7052
-
-    // DDD (2 digits)
-    if (cleaned.length <= 2) return cleaned;
-
-    // DDD + 9 (3 digits) -> 11 9
-    if (cleaned.length <= 3) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
-
-    // DDD + 9 + Part1 -> 11 9 4661
-    if (cleaned.length <= 7) return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 3)} ${cleaned.slice(3)}`;
-
-    // Full
-    return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 3)} ${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
-  };
-
-  const handleChange = (e: any) => {
-    let input = e.target.value.replace(/\D/g, '');
-
-    if (!input) {
-      onChange({ target: { value: '' } });
-      return;
-    }
-
-    // Block leading zero
-    if (input.startsWith('0')) {
-      input = input.substring(1);
-    }
-
-    // Max 11 digits (2 DDD + 9 Num)
-    if (input.length > 11) input = input.slice(0, 11);
-
-    if (input.length === 0) {
-      onChange({ target: { value: '' } });
-      return;
-    }
-
-    // Always prepend 55 for state
-    const rawValue = '55' + input;
-    onChange({ target: { value: rawValue } });
-  };
-
-  return (
+// Helper Components
+const InputField = ({ label, icon: Icon, helper, ...props }: any) => (
     <div className="space-y-2">
-      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-        <span>{label} {required && <span className="text-red-500">*</span>}</span>
-      </label>
-      <div className="relative group flex items-stretch">
-        <div className="bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-200 dark:border-slate-800 rounded-l-xl px-3 flex items-center justify-center text-slate-500 font-bold text-sm select-none min-w-[3.5rem]">
-          <img src="https://flagcdn.com/w20/br.png" alt="BR" className="w-5 h-auto mr-2 rounded-sm opacity-80" />
-          +55
+        <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                {Icon && <Icon size={14} className="text-slate-400" />}
+                {label}
+            </label>
+            {props.required && <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">Campo Obrigatório</span>}
         </div>
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
-            <Icon size={18} />
-          </div>
-          <input
-            type="text"
-            value={getDisplayValue(value)}
-            onChange={handleChange}
-            disabled={disabled}
-            placeholder={placeholder}
-            className={`w-full bg-white dark:bg-slate-900 border rounded-r-xl rounded-l-none pl-10 pr-5 py-3.5 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
-                        ${required && (!value || value === '55') && !disabled ? 'border-red-300 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800 left-[-1px] relative'}
-                        ${disabled ? 'bg-slate-50 dark:bg-slate-950/50 opacity-70 cursor-not-allowed select-none' : 'hover:border-blue-400/50'}
-                        `}
-          />
+        <div className="group relative">
+            <input
+                className="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500 text-slate-800 dark:text-white rounded-xl px-4 py-3.5 outline-none transition-all font-medium placeholder:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 disabled:opacity-50"
+                {...props}
+            />
         </div>
-      </div>
-      {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium ml-1">{helper}</p>}
+        {helper && <p className="text-xs text-slate-500 pl-1">{helper}</p>}
     </div>
-  );
-};
-
-const InputField = ({ label, icon: Icon, placeholder, type = "text", value, onChange, required = false, disabled = false, helper }: any) => (
-  <div className="space-y-2">
-    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-      <span>{label} {required && <span className="text-red-500">*</span>}</span>
-    </label>
-    <div className="relative group">
-      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
-        <Icon size={18} />
-      </div>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        placeholder={placeholder}
-        className={`w-full bg-white dark:bg-slate-900 border rounded-xl pl-12 pr-5 py-3.5 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
-        ${required && !value && !disabled ? 'border-red-300 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800'}
-        ${disabled ? 'bg-slate-50 dark:bg-slate-950/50 opacity-70 cursor-not-allowed select-none' : 'hover:border-blue-400/50'}
-        `}
-      />
-    </div>
-    {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium ml-1">{helper}</p>}
-  </div>
 );
 
-type ProfileTab = 'personal' | 'company' | 'security' | 'billing';
-
 export const Perfil: React.FC = () => {
-  const { user, profile, company, refreshProfile, onboardingCompleted } = useAuth();
-  const { toast } = useFeedback();
+    const { user, company, refreshProfile } = useAuth();
+    const { toast } = useFeedback();
+    const [loading, setLoading] = useState(false);
+    const [jobs, setJobs] = useState<any[]>([]);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const navigate = useNavigate();
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
-  const [activeSocials, setActiveSocials] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [formData, setFormData] = useState({
+        username: '',
+        profile_header_color: '#1e293b',
+        name: '',
+        description: '',
+        profile_title_color: '#1e293b',
+        logo_url: '',
+        cover_url: '',
+        cep: '',
+        address: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        website: '',
+        phone: '',
+        whatsapp: '',
+        instagram: '',
+        facebook: '',
+        linkedin: ''
+    });
 
-  // Local state for forms
-  const [formDataAccount, setFormDataAccount] = useState({
-    full_name: profile?.full_name || '',
-    whatsapp: profile?.whatsapp || '', // Store as 55...
-  });
+    const [loadingCep, setLoadingCep] = useState(false);
 
-  const [formDataCompany, setFormDataCompany] = useState({
-    name: company?.name || '',
-    cnpj: company?.cnpj || '',
-    whatsapp: company?.whatsapp || '', // Store as 55...
-    email: company?.email || '',
-    zip_code: company?.zip_code || '',
-    website: company?.website || '',
-    instagram: company?.instagram || '',
-    facebook: company?.facebook || '',
-    linkedin: company?.linkedin || ''
-  });
+    // Preview State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedType, setSelectedType] = useState<FilterType>(FilterType.ALL);
 
-  // Password Management State
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: ''
-  });
-  const [loadingPass, setLoadingPass] = useState(false);
+    // Preview Modals State
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
-  const hasPassword = user?.app_metadata?.providers?.includes('email');
+    // Username Verification State
+    const [checkingUsername, setCheckingUsername] = useState(false);
+    const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 
-  // Load Data Effect
-  React.useEffect(() => {
-    if (profile) {
-      // Ensure we have the 55 prefix if it's missing but valid length?
-      // Or just trust what's in DB. If DB has 15999..., we might want to prepend 55.
-      // But let's assume DB is mostly correct or we respect it.
-      setFormDataAccount({
-        full_name: profile.full_name || '',
-        whatsapp: profile.whatsapp || ''
-      });
-    }
-    if (company) {
-      setFormDataCompany(prev => ({
-        ...prev,
-        name: company.name || '',
-        cnpj: company.cnpj || '',
-        whatsapp: company.whatsapp || '',
-        zip_code: company.zip_code || '',
-        email: company.email || '',
-        website: company.website || '',
-        instagram: company.instagram || '',
-        facebook: company.facebook || '',
-        linkedin: company.linkedin || ''
-      }));
-
-      const active = [];
-      if (company.linkedin) active.push('linkedin');
-      setActiveSocials(active);
-    }
-  }, [profile, company]);
-
-  const toggleSocial = (social: string) => {
-    setActiveSocials(prev =>
-      prev.includes(social) ? prev.filter(s => s !== social) : [...prev, social]
-    );
-  };
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    if (loadingPass) return;
-
-    if (passwords.new.length < 6) {
-      toast({ type: 'warning', title: 'Atenção', message: 'A nova senha deve ter pelo menos 6 caracteres.' });
-      return;
-    }
-
-    if (passwords.new !== passwords.confirm) {
-      toast({ type: 'error', title: 'Erro', message: 'As senhas não coincidem.' });
-      return;
-    }
-
-    setLoadingPass(true);
-    try {
-      if (hasPassword) {
-        if (!passwords.current) {
-          throw new Error('Por favor, informe sua senha atual.');
+    const MOCK_JOBS: Job[] = [
+        {
+            id: 'mock-1',
+            title: 'Senior UX Designer (Exemplo)',
+            company: 'Sua Empresa',
+            location: 'Sorocaba, SP',
+            type: 'CLT',
+            salary: 'R$ 8.000 - R$ 12.000',
+            postedAt: 'Há 2 dias',
+            description: 'Esta é uma vaga de exemplo para você visualizar como ficará seu perfil. Crie vagas reais para substituí-la.',
+            requirements: ['Experiência 5+ anos', 'Figma', 'Prototipagem', 'Design System'],
+            benefits: ['Vale Refeição', 'Plano de Saúde', 'Home Office', 'Gympass'],
+            activities: ['Liderar design system', 'Realizar pesquisas com usuários', 'Prototipar interfaces']
+        },
+        {
+            id: 'mock-2',
+            title: 'Desenvolvedor Frontend (Exemplo)',
+            company: 'Sua Empresa',
+            location: 'Remoto',
+            type: 'PJ',
+            salary: 'R$ 6.000 - R$ 9.000',
+            postedAt: 'Há 5 dias',
+            description: 'Vaga de exemplo. Ao publicar vagas reais, elas aparecerão aqui automaticamente.',
+            requirements: ['React', 'TypeScript', 'Tailwind', 'Next.js'],
+            benefits: ['Flexibilidade de horários', 'Equipamento fornecido', 'Bônus anual'],
+            activities: ['Desenvolver novas features', 'Manter código legado', 'Code review']
         }
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: user.email!,
-          password: passwords.current,
-        });
-        if (signInError) throw new Error('Senha atual incorreta.');
-      }
+    ];
 
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: passwords.new
-      });
-      if (updateError) throw updateError;
+    const getPreviewJobs = (): Job[] => {
+        if (jobs.length === 0) return MOCK_JOBS;
 
-      await supabase.auth.refreshSession();
-      setShowSuccessModal(true);
-      setPasswords({ current: '', new: '', confirm: '' });
+        return jobs.map(j => ({
+            id: j.id,
+            title: j.role || j.title,
+            company: formData.name || 'Sua Empresa',
+            location: j.city || 'Sorocaba, SP',
+            type: (j.type === 'PJ' ? 'PJ' : j.type === 'Freelance' ? 'Freelance' : 'CLT') as any,
+            salary: j.salary_range ? `R$ ${j.salary_range}` : undefined,
+            postedAt: 'Recente',
+            description: j.description || 'Sem descrição',
+            requirements: [],
+            benefits: [],
+            activities: []
+        }));
+    };
 
-    } catch (err: any) {
-      console.error(err);
-      toast({ type: 'error', title: 'Erro', message: err.message || 'Erro ao atualizar senha.' });
-    } finally {
-      setLoadingPass(false);
-    }
-  };
+    const previewJobs = getPreviewJobs().filter(job => {
+        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            job.location.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
+        return matchesSearch && matchesType;
+    });
 
-  const handleSaveAccount = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      // Ensure prefix
-      // FixedBrazilPhoneInput ensures '55' is already at the start if user typed anything.
-      // But if we edited it directly or state is inconsistent, let's be safe.
-      let phoneToSave = formDataAccount.whatsapp.replace(/\D/g, '');
-      if (phoneToSave && !phoneToSave.startsWith('55')) {
-        phoneToSave = '55' + phoneToSave;
-      }
-
-      const { data, error } = await supabase.functions.invoke('update-user-phone', {
-        body: {
-          phone: phoneToSave,
-          fullName: formDataAccount.full_name
+    useEffect(() => {
+        if (company) {
+            setFormData({
+                username: company.username || company.name.toLowerCase().replace(/[^a-z0-9]/g, '') || '',
+                profile_header_color: company.profile_header_color || '#1e293b',
+                name: company.name || '',
+                description: company.description || '',
+                profile_title_color: company.profile_title_color || '#ffffff',
+                logo_url: company.logo_url || '',
+                cover_url: company.cover_url || '',
+                cep: company.cep || '',
+                address: company.address || '',
+                number: company.number || '',
+                complement: company.complement || '',
+                neighborhood: company.neighborhood || '',
+                city: company.city || '',
+                state: company.state || '',
+                website: company.website || '',
+                phone: company.phone || '',
+                whatsapp: company.whatsapp || '',
+                instagram: company.instagram || '',
+                facebook: company.facebook || '',
+                linkedin: company.linkedin || ''
+            });
+            fetchJobs();
         }
-      });
+    }, [company]);
 
-      if (error) throw error;
+    const fetchJobs = async () => {
+        if (!company?.id) return;
+        const { data, error } = await supabase
+            .from('jobs')
+            .select('*')
+            .eq('company_id', company.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
 
-      await refreshProfile();
-      toast({ type: 'success', title: 'Sucesso', message: 'Perfil atualizado com sucesso!' });
-    } catch (err: any) {
-      console.error(err);
-      toast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar perfil: ' + (err.message || "Erro desconhecido") });
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (data) setJobs(data);
+    };
 
-  const handleSaveCompany = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      // Ensure prefix for company phone too
-      let compPhoneToSave = formDataCompany.whatsapp.replace(/\D/g, '');
-      if (compPhoneToSave && !compPhoneToSave.startsWith('55')) {
-        compPhoneToSave = '55' + compPhoneToSave;
-      }
+    const handleSave = async () => {
+        if (!user || !company?.id) return;
+        setLoading(true);
+        try {
+            const { error } = await supabase
+                .from('companies')
+                .update({
+                    username: formData.username,
+                    profile_header_color: formData.profile_header_color,
+                    description: formData.description,
+                    profile_title_color: formData.profile_title_color,
+                    logo_url: formData.logo_url,
+                    cover_url: formData.cover_url,
+                    cep: formData.cep,
+                    address: formData.address,
+                    number: formData.number,
+                    complement: formData.complement,
+                    neighborhood: formData.neighborhood,
+                    city: formData.city,
+                    state: formData.state,
+                    website: formData.website,
+                    phone: formData.phone,
+                    whatsapp: formData.whatsapp,
+                    instagram: formData.instagram,
+                    facebook: formData.facebook,
+                    linkedin: formData.linkedin,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', company.id);
 
-      const dataToUpsert = {
-        owner_id: user.id,
-        name: formDataCompany.name,
-        cnpj: formDataCompany.cnpj,
-        whatsapp: compPhoneToSave,
-        zip_code: formDataCompany.zip_code,
-        email: (formDataCompany as any).email,
-        website: formDataCompany.website,
-        instagram: formDataCompany.instagram,
-        facebook: (formDataCompany as any).facebook,
-        linkedin: formDataCompany.linkedin,
-        updated_at: new Date().toISOString()
-      };
+            if (error) throw error;
 
-      let query;
-      if (company && company.id) {
-        query = supabase.from('companies').update(dataToUpsert).eq('id', company.id);
-      } else {
-        query = supabase.from('companies').insert(dataToUpsert);
-      }
+            await refreshProfile();
+            toast({ type: 'success', title: 'Sucesso', message: 'Configurações atualizadas!' });
+        } catch (err: any) {
+            toast({ type: 'error', title: 'Erro', message: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      const { error } = await query;
-      if (error) throw error;
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !company) return;
 
-      await refreshProfile();
-      toast({ type: 'success', title: 'Sucesso', message: 'Dados da empresa atualizados!' });
-    } catch (err: any) {
-      toast({ type: 'error', title: 'Erro', message: 'Erro ao salvar empresa: ' + err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+        const file = e.target.files[0];
+        setUploadingLogo(true);
 
-  return (
-    <div className="max-w-5xl mx-auto pb-20 animate-fadeIn">
-      <ActionsModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        type="success"
-        title="Sucesso!"
-        message={(
-          <div className="space-y-2">
-            <p>Sua senha foi atualizada com sucesso!</p>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Use a nova senha no próximo login.
-            </p>
-          </div>
-        )}
-        autoCloseDuration={3000}
-        confirmText="Entendido"
-      />
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${company.id}-${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
 
-      {!onboardingCompleted && (
-        <div className="mb-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/50 p-6 rounded-2xl animate-shake">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-              <Lock size={20} />
-            </div>
-            <div>
-              <h3 className="text-amber-800 dark:text-amber-200 font-bold mb-1">Passos Iniciais Pendentes</h3>
-              <p className="text-sm text-amber-700/80 dark:text-amber-300/70">
-                Para aproveitar todos os recursos, por favor complete seu cadastro preenchendo as abas <span className="font-bold">Dados Pessoais</span> e <span className="font-bold">Empresa</span>.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+            const { error: uploadError } = await supabase.storage
+                .from('company-logos')
+                .upload(filePath, file);
 
-      {/* Header Section */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Configurações da Conta</h1>
-          <p className="text-slate-500 font-medium">Gerencie seus dados, informações da empresa e segurança.</p>
-        </div>
-      </div>
+            if (uploadError) throw uploadError;
 
-      {/* Modern Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar mb-8 border-b border-slate-200 dark:border-slate-800">
-        <button
-          onClick={() => setActiveTab('personal')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
-           ${activeTab === 'personal' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-        >
-          <User size={16} /> Dados Pessoais
-        </button>
-        <button
-          onClick={() => setActiveTab('company')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
-           ${activeTab === 'company' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-        >
-          <Building2 size={16} /> Empresa
-        </button>
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
-           ${activeTab === 'security' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-        >
-          <Shield size={16} /> Segurança
-        </button>
-        <button
-          onClick={() => setActiveTab('billing')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap
-           ${activeTab === 'billing' ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900' : 'bg-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-        >
-          <CreditCard size={16} /> Plano e Fatura
-        </button>
-      </div>
+            const { data: { publicUrl } } = supabase.storage
+                .from('company-logos')
+                .getPublicUrl(filePath);
 
-      {/* Main Content Area */}
-      <div className="min-h-[400px]">
+            setFormData(prev => ({ ...prev, logo_url: publicUrl }));
 
-        {/* === TAB: PERSONAL === */}
-        {activeTab === 'personal' && (
-          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
-            <div className="max-w-2xl space-y-8">
-              <div className="border-l-4 border-blue-500 pl-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Informações Pessoais</h3>
-                <p className="text-sm text-slate-500">Dados para identificação e contato direto com o administrador da conta.</p>
-              </div>
+            // Save immediately
+            await supabase.from('companies').update({ logo_url: publicUrl }).eq('id', company.id);
+            toast({ type: 'success', title: 'Logo Atualizado', message: 'Logo da empresa enviado com sucesso!' });
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <InputField
-                    label="Nome Completo"
-                    icon={User}
-                    required
-                    placeholder="Seu nome completo"
-                    value={formDataAccount.full_name}
-                    onChange={(e: any) => setFormDataAccount({ ...formDataAccount, full_name: e.target.value })}
-                  />
-                </div>
+        } catch (error: any) {
+            toast({ type: 'error', title: 'Erro no Upload', message: error.message });
+        } finally {
+            setUploadingLogo(false);
+        }
+    };
 
-                <InputField
-                  label="Email de Login"
-                  icon={Mail}
-                  value={user?.email || ''}
-                  disabled
-                  helper="O email não pode ser alterado."
-                />
+    const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !company) return;
 
-                <FixedBrazilPhoneInput
-                  label="WhatsApp Pessoal"
-                  icon={Smartphone}
-                  required
-                  placeholder="11 9 4661-7052"
-                  value={formDataAccount.whatsapp}
-                  onChange={(e: any) => setFormDataAccount({ ...formDataAccount, whatsapp: e.target.value })}
-                />
-              </div>
+        const file = e.target.files[0];
+        setUploadingCover(true);
 
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                <button
-                  onClick={handleSaveAccount}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
-                  Salvar Alterações
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${company.id}-${Date.now()}.${fileExt}`;
+            const filePath = `${fileName}`;
 
-        {/* === TAB: COMPANY === */}
-        {activeTab === 'company' && (
-          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
-            <div className="space-y-8">
-              <div className="border-l-4 border-emerald-500 pl-4 flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">Dados da Empresa</h3>
-                  <p className="text-sm text-slate-500">Informações públicas que aparecerão nas suas vagas.</p>
-                </div>
-              </div>
+            const { error: uploadError } = await supabase.storage
+                .from('company-covers')
+                .upload(filePath, file);
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <InputField
-                  label="Nome da Empresa"
-                  icon={Building2}
-                  required
-                  placeholder="Nome Fantasia"
-                  value={formDataCompany.name}
-                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, name: e.target.value })}
-                />
-                <InputField
-                  label="CNPJ"
-                  icon={Hash}
-                  placeholder="00.000.000/0000-00"
-                  value={formDataCompany.cnpj}
-                  onChange={(e: any) => setFormDataCompany({ ...formDataCompany, cnpj: e.target.value })}
-                />
+            if (uploadError) throw uploadError;
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <div className="md:col-span-2 mb-2">
-                    <h4 className="text-sm font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                      <Phone size={16} className="text-blue-500" /> Contato Comercial
-                    </h4>
-                  </div>
+            const { data: { publicUrl } } = supabase.storage
+                .from('company-covers')
+                .getPublicUrl(filePath);
 
-                  <FixedBrazilPhoneInput
-                    label="WhatsApp Comercial"
-                    icon={Smartphone}
-                    placeholder="11 9 4661-7052"
-                    required
-                    value={formDataCompany.whatsapp}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
-                    helper="Este número aparecerá no botão de contato das vagas."
-                  />
+            setFormData(prev => ({ ...prev, cover_url: publicUrl }));
 
-                  <InputField
-                    label="Email Corporativo"
-                    icon={Mail}
-                    placeholder="contato@empresa.com"
-                    required
-                    value={(formDataCompany as any).email}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, email: e.target.value })}
-                  />
-                </div>
+            // Save immediately
+            await supabase.from('companies').update({ cover_url: publicUrl }).eq('id', company.id);
+            toast({ type: 'success', title: 'Capa Atualizada', message: 'Imagem de capa enviada com sucesso!' });
 
-                <div className="md:col-span-2">
-                  <InputField
-                    label="CEP (Endereço)"
-                    icon={MapPin}
-                    required
-                    placeholder="18000-000"
-                    value={formDataCompany.zip_code}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, zip_code: e.target.value })}
-                    helper="Apenas o CEP é necessário para geolocalização básica."
-                  />
-                </div>
-              </div>
+        } catch (error: any) {
+            toast({ type: 'error', title: 'Erro no Upload', message: error.message });
+        } finally {
+            setUploadingCover(false);
+        }
+    };
 
-              <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                    <Globe size={16} /> Redes Sociais e Site
-                  </h4>
+    const toggleJobVisibility = async (jobId: string, currentHidden: boolean) => {
+        try {
+            const { error } = await supabase
+                .from('jobs')
+                .update({ public_hidden: !currentHidden })
+                .eq('id', jobId);
 
-                  {/* Social Toggles */}
-                  <div className="flex gap-2">
-                    <button onClick={() => toggleSocial('linkedin')} className={`p-2 rounded-lg transition-colors ${activeSocials.includes('linkedin') ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
-                      <Linkedin size={18} />
-                    </button>
-                  </div>
-                </div>
+            if (error) throw error;
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InputField
-                    label="Website"
-                    icon={Globe}
-                    placeholder="https://www.site.com.br"
-                    value={formDataCompany.website}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, website: e.target.value })}
-                  />
-                  <InputField
-                    label="Instagram"
-                    icon={Instagram}
-                    placeholder="@usuario"
-                    value={formDataCompany.instagram}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, instagram: e.target.value })}
-                  />
-                  <InputField
-                    label="Facebook"
-                    icon={Facebook}
-                    placeholder="facebook.com/pagina"
-                    value={(formDataCompany as any).facebook}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, facebook: e.target.value })}
-                  />
-                  {activeSocials.includes('linkedin') && (
-                    <div className="animate-fadeIn">
-                      <InputField
-                        label="LinkedIn"
-                        icon={Linkedin}
-                        placeholder="linkedin.com/in/perfil"
-                        value={formDataCompany.linkedin}
-                        onChange={(e: any) => setFormDataCompany({ ...formDataCompany, linkedin: e.target.value })}
-                      />
+            setJobs(jobs.map(j => j.id === jobId ? { ...j, public_hidden: !currentHidden } : j));
+            toast({ type: 'success', title: 'Vaga Atualizada', message: !currentHidden ? 'Vaga oculta da página pública.' : 'Vaga visível na página pública.' });
+        } catch (err: any) {
+            toast({ type: 'error', title: 'Erro', message: err.message });
+        }
+    };
+
+    const checkUsernameAvailability = async () => {
+        if (!company) return;
+
+        const username = formData.username.trim();
+
+        if (!username) {
+            toast({ type: 'error', title: 'Erro', message: 'O campo username não pode ficar vazio.' });
+            return;
+        }
+
+        setCheckingUsername(true);
+        setUsernameAvailable(null);
+
+        try {
+            const { count, error } = await supabase
+                .from('companies')
+                .select('*', { count: 'exact', head: true })
+                .eq('username', username)
+                .neq('id', company.id);
+
+            if (error) throw error;
+
+            if (count === 0) {
+                setUsernameAvailable(true);
+                // Auto-save if available
+                const { error: updateError } = await supabase
+                    .from('companies')
+                    .update({ username: username })
+                    .eq('id', company.id);
+
+                if (updateError) throw updateError;
+
+                await refreshProfile();
+                toast({ type: 'success', title: 'Salvo!', message: 'Seu usuário foi atualizado com sucesso.' });
+
+            } else {
+                setUsernameAvailable(false);
+                toast({ type: 'error', title: 'Indisponível', message: 'Este usuário já está em uso.' });
+            }
+
+        } catch (error: any) {
+            console.error('Error checking username:', error);
+            toast({ type: 'error', title: 'Erro', message: 'Erro ao verificar/salvar: ' + error.message });
+        } finally {
+            setCheckingUsername(false);
+        }
+    };
+
+    const handleCepBlur = async () => {
+        const cep = formData.cep.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+
+        setLoadingCep(true);
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await response.json();
+
+            if (data.erro) {
+                toast({ type: 'error', title: 'Erro', message: 'CEP não encontrado.' });
+                return;
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                address: data.logradouro,
+                neighborhood: data.bairro,
+                city: data.localidade,
+                state: data.uf,
+                complement: prev.complement
+            }));
+        } catch (error) {
+            toast({ type: 'error', title: 'Erro', message: 'Falha ao buscar CEP.' });
+        } finally {
+            setLoadingCep(false);
+        }
+    };
+
+
+    return (
+        <div className="max-w-7xl mx-auto pb-20 animate-fadeIn px-6">
+
+            {/* Header Removed as per request, just the container */}
+            <div className="flex flex-col gap-6">
+
+                {/* Link Display - Top Public Link */}
+                <div className="flex justify-start items-center p-2 rounded-2xl">
+                    <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-full shadow-sm">
+                            <span className="text-slate-400 text-sm font-bold">soroempregos.com/</span>
+                            <input
+                                className="bg-transparent outline-none font-bold text-slate-700 dark:text-white w-auto min-w-[20px]"
+                                value={formData.username}
+                                onChange={e => {
+                                    setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') });
+                                    setUsernameAvailable(null);
+                                }}
+                                placeholder={company?.name ? company.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : "seu-usuario"}
+                            />
+
+                            <div className="flex items-center ml-2">
+                                {checkingUsername ? (
+                                    <Loader2 size={16} className="animate-spin text-slate-400" />
+                                ) : usernameAvailable === true ? (
+                                    <Check size={16} className="text-emerald-500" />
+                                ) : usernameAvailable === false ? (
+                                    <X size={16} className="text-red-500" />
+                                ) : (
+                                    <button
+                                        onClick={checkUsernameAvailability}
+                                        disabled={!formData.username}
+                                        className="text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                                    >
+                                        Verificar
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                const finalUsername = formData.username || company?.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                navigator.clipboard.writeText(`https://soroempregos.com/${finalUsername}`);
+                                toast({ type: 'success', title: 'Copiado!', message: 'Link copiado para a área de transferência.' });
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full hover:bg-slate-50 transition-all font-bold text-xs text-slate-600 uppercase tracking-wider shadow-sm"
+                            title="Copiar Link"
+                        >
+                            <Copy size={16} />
+                            Copiar Link
+                        </button>
+                        <button
+                            onClick={() => {
+                                const finalUsername = formData.username || company?.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                const url = `${window.location.origin}/${finalUsername}`;
+                                window.open(url, '_blank');
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all font-bold text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-wider shadow-sm"
+                            title="Ver Página Pública"
+                        >
+                            <ExternalLink size={16} />
+                            Ver Página
+                        </button>
                     </div>
-                  )}
                 </div>
-              </div>
 
-              <div className="pt-6 flex justify-end">
-                <button
-                  onClick={handleSaveCompany}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
-                  Salvar Alterações
-                </button>
-              </div>
+                {/* SETTINGS DRAWER (Collapsible) - Moved here for cleaner flow or keep inside? User said "Expandir configurações". Let's keep separate from Preview container. */}
+                <div className={`transition-all duration-500 ease-in-out bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden ${showSettings ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0 border-none'}`}>
+                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><Palette size={18} /> Aparência</h4>
+
+                            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase flex justify-between">
+                                        Fundo do Topo
+                                        <span className="text-[10px] bg-slate-200 px-2 rounded text-slate-600">Usado se sem capa</span>
+                                    </label>
+                                    <div className="flex gap-2 items-center">
+                                        <input type="color" value={formData.profile_header_color} onChange={e => setFormData({ ...formData, profile_header_color: e.target.value })} className="h-10 w-full rounded lg:w-20 cursor-pointer" />
+                                        <span className="text-xs font-mono text-slate-400">{formData.profile_header_color}</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Cor dos Títulos</label>
+                                    <div className="flex gap-2 items-center">
+                                        <input type="color" value={formData.profile_title_color} onChange={e => setFormData({ ...formData, profile_title_color: e.target.value })} className="h-10 w-full rounded lg:w-20 cursor-pointer" />
+                                        <span className="text-xs font-mono text-slate-400">{formData.profile_title_color}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><MapPin size={18} /> Endereço</h4>
+                            <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                {/* CEP, Rua, Numero */}
+                                <div className="flex gap-3">
+                                    <div className="w-1/4">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">CEP</label>
+                                        <div className="relative">
+                                            <input
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                                value={formData.cep}
+                                                onChange={e => setFormData({ ...formData, cep: e.target.value.replace(/\D/g, '').substring(0, 8) })}
+                                                onBlur={handleCepBlur}
+                                                placeholder="00000000"
+                                            />
+                                            {loadingCep && <Loader2 size={14} className="absolute right-3 top-3 animate-spin text-indigo-500" />}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Rua</label>
+                                        <input
+                                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={formData.address}
+                                            onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                            placeholder="Logradouro"
+                                        />
+                                    </div>
+                                    <div className="w-1/4">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Número</label>
+                                        <input
+                                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={formData.number}
+                                            onChange={e => setFormData({ ...formData, number: e.target.value })}
+                                            placeholder="Nº"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Complemento */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Complemento <span className="text-[10px] text-slate-400 font-normal normal-case">(Opcional)</span></label>
+                                    <input
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={formData.complement}
+                                        onChange={e => setFormData({ ...formData, complement: e.target.value })}
+                                        placeholder="Ap, Bloco, etc."
+                                    />
+                                </div>
+
+                                {/* Bairro, Cidade, Estado */}
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Bairro</label>
+                                        <input
+                                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={formData.neighborhood}
+                                            onChange={e => setFormData({ ...formData, neighborhood: e.target.value })}
+                                            placeholder="Bairro"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Cidade</label>
+                                        <input
+                                            className="w-full bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg p-2.5 text-sm outline-none text-slate-500 cursor-not-allowed"
+                                            value={formData.city}
+                                            readOnly
+                                            placeholder="Cidade"
+                                        />
+                                    </div>
+                                    <div className="w-16">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">UF</label>
+                                        <input
+                                            className="w-full bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg p-2.5 text-sm outline-none text-center text-slate-500 cursor-not-allowed"
+                                            value={formData.state}
+                                            readOnly
+                                            placeholder="UF"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><LinkIcon size={18} /> Informações Básicas</h4>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Username</label>
+                                    <input
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-3 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={formData.username}
+                                        onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                                        placeholder="username"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Descrição</label>
+                                    <textarea
+                                        rows={2}
+                                        className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-white"
+                                        value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        placeholder="Descrição curta..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="px-8 pb-8 flex justify-end">
+                        <button onClick={handleSave} disabled={loading} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 flex items-center gap-2 shadow-lg shadow-slate-900/10">
+                            {loading ? 'Salvando...' : <><Save size={18} /> Salvar Alterações</>}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                    {/* Left Column: Settings (4 cols) */}
+                    {/* Removed separate settings column, now integrated into top of right column logic */}
+                    <div className="hidden"></div>
+
+                    {/* Right Column: Preview & Job Management (8 cols) */}
+                    {/* Content Area (Full Width) */}
+                    <div className="col-span-1 lg:col-span-12 space-y-8">
+
+                        {/* Large Preview & Inline Editing Area */}
+                        <div className="bg-slate-50 dark:bg-slate-950/50 rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative">
+
+                            {/* Configuration Toggle (Floating - Left Side) */}
+
+
+                            {/* SETTINGS DRAWER (Collapsible) */}
+                            <div className={`transition-all duration-500 ease-in-out border-b border-slate-200 bg-white ${showSettings ? 'max-h-[800px] opacity-100 py-8 px-8' : 'max-h-0 opacity-0 py-0 overflow-hidden'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><Palette size={18} /> Aparência</h4>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Fundo do Topo</label>
+                                            <div className="flex gap-2">
+                                                <input type="color" value={formData.profile_header_color} onChange={e => setFormData({ ...formData, profile_header_color: e.target.value })} className="h-10 w-20 rounded cursor-pointer" />
+                                                <div className="text-xs text-slate-400 pt-2">Cor da área superior da página.</div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Cor dos Títulos das Vagas</label>
+                                            <div className="flex gap-2">
+                                                <input type="color" value={formData.profile_title_color} onChange={e => setFormData({ ...formData, profile_title_color: e.target.value })} className="h-10 w-20 rounded cursor-pointer" />
+                                                <div className="text-xs text-slate-400 pt-2">Cor usada nos títulos das vagas.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><LinkIcon size={18} /> Informações</h4>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Link Personalizado</label>
+                                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 relative group-focus-within:border-indigo-500 transition-colors">
+                                                <span className="text-slate-400 text-sm font-bold shrink-0">soroempregos.com/</span>
+                                                <input
+                                                    className="bg-transparent outline-none font-bold text-slate-700 w-full text-sm"
+                                                    value={formData.username}
+                                                    onChange={e => {
+                                                        setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') });
+                                                        setUsernameAvailable(null);
+                                                    }}
+                                                    placeholder="suaempresa"
+                                                />
+                                                <div className="shrink-0">
+                                                    {checkingUsername ? (
+                                                        <Loader2 size={16} className="animate-spin text-slate-400" />
+                                                    ) : usernameAvailable === true ? (
+                                                        <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                            <Check size={14} strokeWidth={3} />
+                                                            <span className="text-[10px] font-bold uppercase">Disponível</span>
+                                                        </div>
+                                                    ) : usernameAvailable === false ? (
+                                                        <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                                                            <X size={14} strokeWidth={3} />
+                                                            <span className="text-[10px] font-bold uppercase">Indisponível</span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={checkUsernameAvailability}
+                                                            disabled={!formData.username}
+                                                            className="text-[10px] font-bold uppercase bg-slate-200 hover:bg-slate-300 text-slate-600 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                                                        >
+                                                            Verificar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {usernameAvailable === false && (
+                                                <p className="text-[10px] text-red-500 font-bold mt-1 pl-1">Este usuário já existe. Tente outro.</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Descrição da Empresa</label>
+                                            <textarea
+                                                rows={3}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500"
+                                                value={formData.description}
+                                                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                                placeholder="Descreva sua empresa..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+                                    <button onClick={handleSave} disabled={loading} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 flex items-center gap-2">
+                                        {loading ? 'Salvando...' : <><Save size={16} /> Salvar Alterações</>}
+                                    </button>
+                                </div>
+                            </div>
+
+
+
+                            {/* PREVIEW AREA USING SHARED LAYOUT */}
+                            <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-white">
+                                <PublicProfileLayout
+                                    company={{
+                                        id: company?.id || '',
+                                        name: formData.name,
+                                        username: formData.username,
+                                        description: formData.description,
+                                        website: formData.website,
+                                        profile_header_color: formData.profile_header_color,
+                                        profile_title_color: formData.profile_title_color,
+                                        zip_code: formData.cep,
+                                        address: formData.address,
+                                        number: formData.number,
+                                        neighborhood: formData.neighborhood,
+                                        city: formData.city,
+                                        state: formData.state,
+                                        complement: formData.complement,
+                                        logo_url: formData.logo_url,
+                                        cover_url: formData.cover_url,
+                                        phone: formData.phone,
+                                        whatsapp: formData.whatsapp,
+                                        instagram: formData.instagram,
+                                        facebook: formData.facebook,
+                                        linkedin: formData.linkedin
+                                    }}
+                                    loading={false}
+                                >
+
+                                    {/* Preview Controls Overlay */}
+                                    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center justify-between gap-3 mx-4 lg:mx-0">
+                                        <div className="flex items-center gap-3">
+                                            <Info className="text-yellow-600 shrink-0" size={18} />
+                                            <div>
+                                                <h4 className="text-sm font-bold text-yellow-800">Modo de Pré-visualização</h4>
+                                                <p className="text-xs text-yellow-700">
+                                                    É assim que sua página aparecerá para o público.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <label className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-2 transition-all shadow-sm">
+                                                <Camera size={14} /> Alterar Capa
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleCoverUpload} disabled={uploadingCover} />
+                                            </label>
+                                            <label className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-2 transition-all shadow-sm">
+                                                <Camera size={14} /> Alterar Logo
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {/* Filters Demo */}
+                                    <Filters
+                                        searchTerm={searchTerm}
+                                        setSearchTerm={setSearchTerm}
+                                        selectedType={selectedType}
+                                        setSelectedType={setSelectedType}
+                                    />
+
+                                    {/* Featured Carousel Preview */}
+                                    <FeaturedCarousel
+                                        jobs={previewJobs.slice(0, 3)}
+                                        onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                    />
+
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">Todas as Vagas</h3>
+
+                                    {/* Jobs Grid Preview */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        {previewJobs.map(job => (
+                                            <JobCard
+                                                key={job.id}
+                                                job={job}
+                                                onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                                onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
+                                                onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
+                                            />
+                                        ))}
+                                    </div>
+                                </PublicProfileLayout>
+                            </div>
+
+
+                            {/* Modals for Preview */}
+                            {selectedJob && (
+                                <>
+                                    <ApplicationModal
+                                        isOpen={isApplicationModalOpen}
+                                        onClose={() => setIsApplicationModalOpen(false)}
+                                        jobTitle={selectedJob.title}
+                                    />
+                                    <ReportModal
+                                        isOpen={isReportModalOpen}
+                                        onClose={() => setIsReportModalOpen(false)}
+                                        jobTitle={selectedJob.title}
+                                    />
+                                    <QuestionModal
+                                        isOpen={isQuestionModalOpen}
+                                        onClose={() => setIsQuestionModalOpen(false)}
+                                        jobTitle={selectedJob.title}
+                                    />
+                                </>
+                            )}
+                            <AlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        )}
-
-        {/* === TAB: SECURITY === */}
-        {activeTab === 'security' && (
-          <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
-            <div className="max-w-2xl space-y-8">
-              <div className="border-l-4 border-amber-500 pl-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Segurança da Conta</h3>
-                <p className="text-sm text-slate-500">Gerencie a senha de acesso ao painel.</p>
-              </div>
-
-              <form onSubmit={handleUpdatePassword} className="space-y-6">
-                {hasPassword && (
-                  <InputField
-                    label="Senha Atual"
-                    icon={Key}
-                    type="password"
-                    placeholder="••••••••"
-                    value={passwords.current}
-                    onChange={(e: any) => setPasswords({ ...passwords, current: e.target.value })}
-                    required
-                  />
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InputField
-                    label="Nova Senha"
-                    icon={Lock}
-                    type="password"
-                    placeholder="••••••••"
-                    value={passwords.new}
-                    onChange={(e: any) => setPasswords({ ...passwords, new: e.target.value })}
-                    required
-                  />
-                  <InputField
-                    label="Confirmar Nova Senha"
-                    icon={Check}
-                    type="password"
-                    placeholder="••••••••"
-                    value={passwords.confirm}
-                    onChange={(e: any) => setPasswords({ ...passwords, confirm: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="pt-6 flex justify-start">
-                  <button
-                    type="submit"
-                    disabled={loadingPass}
-                    className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {loadingPass ? 'Processando...' : <><Lock size={16} /> Atualizar Senha</>}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* === TAB: BILLING === */}
-        {activeTab === 'billing' && (
-          <div className="animate-fadeIn">
-            <PlansSection />
-          </div>
-        )}
-
-      </div>
-
-    </div>
-  );
+        </div>
+    );
 };

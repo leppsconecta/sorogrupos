@@ -1,0 +1,343 @@
+
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+
+// New Components
+import Header from '../components/public/Header';
+import Filters from '../components/public/Filters';
+import JobCard from '../components/public/JobCard';
+import AlertModal from '../components/public/modals/AlertModal';
+import QuestionModal from '../components/public/modals/QuestionModal';
+import ReportModal from '../components/public/modals/ReportModal';
+import ApplicationModal from '../components/public/modals/ApplicationModal';
+import { JobAlertModal } from '../components/public/modals/JobAlertModal'; // Named export as defined in step 1971
+
+import { Job, FilterType, CompanyProfile } from '../components/public/types';
+import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info } from 'lucide-react';
+import PublicProfileLayout from '../components/public/PublicProfileLayout';
+import FeaturedCarousel from '../components/public/FeaturedCarousel';
+
+export const PublicPage = () => {
+    const { username } = useParams();
+    const navigate = useNavigate();
+    const [company, setCompany] = useState<CompanyProfile | null>(null);
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const JOBS_PER_PAGE = 20;
+
+    // Filters State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedType, setSelectedType] = useState<FilterType>(FilterType.ALL);
+
+    // Modals State
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (username) fetchData();
+    }, [username]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            // Fetch Company
+            const { data: companyData, error: companyError } = await supabase
+                .from('companies')
+                .select('*')
+                .ilike('username', username)
+                .single();
+
+            if (companyError || !companyData) throw new Error('Empresa não encontrada.');
+
+            // Map DB fields to Component Props
+            setCompany({
+                ...companyData,
+                phone: companyData.whatsapp || companyData.phone // Ensure WhatsApp is used for contact
+            });
+
+            // Fetch Jobs
+            const { data: jobsData, error: jobsError } = await supabase
+                .from('jobs')
+                .select('*')
+                .eq('company_id', companyData.id)
+                .eq('status', 'active')
+                .eq('public_hidden', false)
+                .order('created_at', { ascending: false });
+
+            if (!jobsError && jobsData) {
+                const mappedJobs: Job[] = jobsData.map((j: any) => ({
+                    id: j.id,
+                    title: j.role || j.title,
+                    company: companyData.name,
+                    location: j.city || 'Sorocaba, SP',
+                    type: mapJobType(j.type),
+                    salary: j.salary_range ? `R$ ${j.salary_range} ` : undefined,
+                    postedAt: formatDate(j.created_at),
+                    description: j.description,
+                    requirements: [],
+                    benefits: [],
+                    activities: []
+                }));
+                setJobs(mappedJobs);
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Erro ao carregar.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const mapJobType = (type: string): 'CLT' | 'Freelance' | 'PJ' => {
+        if (type === 'CLT') return 'CLT';
+        if (type === 'PJ') return 'PJ';
+        if (type === 'Freelance' || type === 'Free-lance') return 'Freelance';
+        return 'CLT';
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 3600 * 24));
+        if (diffDays === 0) return 'Hoje';
+        if (diffDays === 1) return 'Ontem';
+        return `Há ${diffDays} dias`;
+    };
+
+    const filteredJobs = jobs.filter(job => {
+        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            job.location.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
+        return matchesSearch && matchesType;
+    });
+
+    const paginatedJobs = filteredJobs.slice(0, page * JOBS_PER_PAGE);
+    const hasMore = paginatedJobs.length < filteredJobs.length;
+
+    const handleApplySubmit = async (formData: any, file: File) => {
+        if (!selectedJob || !company) return;
+
+        // Upload resume
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${company.id} /${selectedJob.id}/${Date.now()}.${fileExt} `;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('resumes')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { error: insertError } = await supabase
+            .from('job_applications')
+            .insert({
+                job_id: selectedJob.id,
+                company_id: company.id,
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email,
+                city: 'N/A',
+                resume_url: uploadData.path
+            });
+
+        if (insertError) throw insertError;
+    };
+
+    const handleReportSubmit = async (formData: any) => {
+        if (!selectedJob || !company) return;
+
+        const { error } = await supabase
+            .from('job_reports')
+            .insert({
+                job_id: selectedJob.id,
+                company_id: company.id,
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email,
+                description: formData.description,
+                status: 'pending'
+            });
+
+        if (error) throw error;
+    };
+
+    const handleQuestionSubmit = async (formData: any) => {
+        if (!selectedJob || !company) return;
+
+        const { error } = await supabase
+            .from('job_questions')
+            .insert({
+                job_id: selectedJob.id,
+                company_id: company.id,
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email,
+                question: formData.question,
+                status: 'pending'
+            });
+
+        if (error) throw error;
+    };
+
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
+
+    if (error || !company) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="text-red-500" size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Ops! Algo deu errado</h2>
+                    <p className="text-gray-500 mb-6">{error || 'Empresa não encontrada.'}</p>
+                    <button onClick={() => navigate('/')} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">
+                        Voltar para o Início
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const featuredJobs = jobs.slice(0, 5); // Featured jobs are always the first 5, regardless of filtering
+
+    return (
+        <PublicProfileLayout company={company} loading={false}>
+            {/* SEO Head */}
+            <div className="hidden">
+                <title>{`${company.name} - Vagas em Aberto | SoroEmpregos`}</title>
+                <meta name="description" content={`Confira as ${jobs.length} vagas de emprego abertas na ${company.name}. Envie seu currículo agora!`} />
+            </div>
+
+            <div className="space-y-6">
+
+                {/* Fixed Header: Filters & Alert Button */}
+                <div className="sticky top-[88px] z-10 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 border-b border-gray-200/50 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
+                    <Filters
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        selectedType={selectedType}
+                        setSelectedType={setSelectedType}
+                    />
+
+                    <button
+                        onClick={() => setIsAlertModalOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-indigo-500/20 flex items-center gap-2 animate-pulse hover:animate-none transition-all whitespace-nowrap"
+                    >
+                        <Bell size={18} /> Receber Alertas
+                    </button>
+                </div>
+
+                {/* Featured Carousel */}
+                {searchTerm === '' && selectedType === FilterType.ALL && featuredJobs.length > 0 && (
+                    <div className="py-2">
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <span className="w-1 h-4 bg-yellow-400 rounded-full"></span>
+                            Vagas em Destaque
+                        </h3>
+                        <FeaturedCarousel
+                            jobs={featuredJobs}
+                            onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                        />
+                    </div>
+                )}
+
+                {/* Job List */}
+                <div>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <span className="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                        Todas as Vagas <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{filteredJobs.length}</span>
+                    </h3>
+
+                    {filteredJobs.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Search className="text-gray-300" size={32} />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-800 mb-1">Nenhuma vaga encontrada</h3>
+                            <p className="text-gray-400 text-sm">Tente ajustar seus filtros de busca</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                {paginatedJobs.map(job => (
+                                    <JobCard
+                                        key={job.id}
+                                        job={job}
+                                        onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                        onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
+                                        onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Load More Pagination */}
+                            {hasMore && (
+                                <div className="flex justify-center pt-8">
+                                    <button
+                                        onClick={() => setPage(p => p + 1)}
+                                        className="bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 px-8 py-3 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2"
+                                    >
+                                        Carregar Mais Vagas
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="text-center text-xs text-gray-400 pt-4 pb-8">
+                                Exibindo {paginatedJobs.length} de {filteredJobs.length} vagas
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Modals */}
+                {selectedJob && (
+                    <>
+                        <ApplicationModal
+                            isOpen={isApplicationModalOpen}
+                            onClose={() => setIsApplicationModalOpen(false)}
+                            jobTitle={selectedJob.title}
+                            onSubmit={handleApplySubmit}
+                        />
+                        <ReportModal
+                            isOpen={isReportModalOpen}
+                            onClose={() => setIsReportModalOpen(false)}
+                            jobTitle={selectedJob.title}
+                            onSubmit={handleReportSubmit}
+                        />
+                        <QuestionModal
+                            isOpen={isQuestionModalOpen}
+                            onClose={() => setIsQuestionModalOpen(false)}
+                            jobTitle={selectedJob.title}
+                            onSubmit={handleQuestionSubmit}
+                        />
+                    </>
+                )}
+
+                {company && ( // Ensure company exists before passing its ID/name
+                    <JobAlertModal
+                        isOpen={isAlertModalOpen}
+                        onClose={() => setIsAlertModalOpen(false)}
+                        companyId={company.id}
+                        companyName={company.name}
+                    />
+                )}
+
+            </div>
+        </PublicProfileLayout>
+    );
+};

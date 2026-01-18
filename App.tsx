@@ -8,6 +8,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard').then(module => ({
 const Marketing = React.lazy(() => import('./pages/Marketing').then(module => ({ default: module.Marketing })));
 const Vagas = React.lazy(() => import('./pages/Vagas').then(module => ({ default: module.Vagas })));
 const Grupos = React.lazy(() => import('./pages/Grupos').then(module => ({ default: module.Grupos })));
+const Configuracao = React.lazy(() => import('./pages/Configuracao').then(module => ({ default: module.Configuracao })));
 const Perfil = React.lazy(() => import('./pages/Perfil').then(module => ({ default: module.Perfil })));
 const Suporte = React.lazy(() => import('./pages/Suporte').then(module => ({ default: module.Suporte })));
 const Plano = React.lazy(() => import('./pages/Plano').then(module => ({ default: module.Plano })));
@@ -16,6 +17,7 @@ const Candidatos = React.lazy(() => import('./pages/Candidatos').then(module => 
 const Curriculos = React.lazy(() => import('./pages/Curriculos').then(module => ({ default: module.Curriculos })));
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda').then(module => ({ default: module.MinhaAgenda })));
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+const PublicPage = React.lazy(() => import('./pages/PublicPage').then(module => ({ default: module.PublicPage })));
 
 import { Theme } from './types';
 import { X, Smartphone, QrCode, RefreshCw, ArrowLeft, LogOut, CheckCircle2 } from 'lucide-react';
@@ -103,6 +105,17 @@ const AppContent: React.FC = () => {
     onOpenConnect: openConnectModal
   };
 
+  const location = useLocation();
+
+  const dashboardPaths = [
+    '/painel', '/anunciar', '/vagas', '/grupos', '/calendario',
+    '/meuplano', '/suporte', '/configuracao', '/perfil',
+    '/candidatos', '/curriculos', '/agenda'
+  ];
+
+  const isDashboardRoute = dashboardPaths.some(path => location.pathname.startsWith(path));
+  const showDashboardUI = isLoggedIn && isDashboardRoute;
+
   // Redirect to painel if logged in and trying to access public routes
   if (isLoggedIn && (location.pathname === '/' || location.pathname === '/login')) {
     return <Navigate to="/painel" replace />;
@@ -110,14 +123,14 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {isLoggedIn && (
+      {showDashboardUI && (
         <Sidebar
           onCreateGroup={handleCreateGroupShortcut}
         />
       )}
 
       <div className="flex flex-col flex-1 w-full overflow-hidden">
-        {isLoggedIn && (
+        {showDashboardUI && (
           <Header
             theme={theme}
             toggleTheme={toggleTheme}
@@ -129,8 +142,8 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        <main className={`flex-1 overflow-y-auto ${isLoggedIn ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}>
-          <div className={isLoggedIn ? "w-full max-w-7xl mx-auto" : "w-full h-full"}>
+        <main className={`flex-1 overflow-y-auto ${showDashboardUI ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}>
+          <div className={showDashboardUI ? "w-full max-w-7xl mx-auto" : "w-full h-full"}>
             <React.Suspense fallback={
               <div className="flex h-full w-full items-center justify-center min-h-[50vh] text-slate-400 gap-3">
                 <RefreshCw className="animate-spin text-blue-500" size={32} />
@@ -140,6 +153,7 @@ const AppContent: React.FC = () => {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/p/:username" element={<PublicPage />} />
                 <Route path="/login" element={<LandingPage autoOpenLogin={true} />} />
 
                 {/* Protected Routes */}
@@ -150,10 +164,14 @@ const AppContent: React.FC = () => {
                 <Route path="/calendario" element={!isLoggedIn ? <Navigate to="/" /> : <Agendamentos />} />
                 <Route path="/meuplano" element={!isLoggedIn ? <Navigate to="/" /> : <Plano />} />
                 <Route path="/suporte" element={!isLoggedIn ? <Navigate to="/" /> : <Suporte />} />
+                <Route path="/configuracao" element={!isLoggedIn ? <Navigate to="/" /> : <Configuracao />} />
                 <Route path="/perfil" element={!isLoggedIn ? <Navigate to="/" /> : <Perfil />} />
                 <Route path="/candidatos" element={!isLoggedIn ? <Navigate to="/" /> : <Candidatos />} />
                 <Route path="/curriculos" element={!isLoggedIn ? <Navigate to="/" /> : <Curriculos />} />
                 <Route path="/agenda" element={!isLoggedIn ? <Navigate to="/" /> : <MinhaAgenda />} />
+
+                {/* Public Profile Route (Root Level) */}
+                <Route path="/:username" element={<PublicPage />} />
 
                 {/* Catch all */}
                 <Route path="*" element={<Navigate to={isLoggedIn ? "/painel" : "/"} replace />} />

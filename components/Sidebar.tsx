@@ -34,7 +34,7 @@ const menuItems = [
   { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
-
+  { path: '/perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
 ];
 
@@ -116,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
 
 
       {/* Footer / User Profile */}
-      <Link to="/perfil" className="p-5 border-t border-white/5 bg-blue-900/20 px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
+      <Link to="/configuracao" className="p-5 border-t border-white/5 bg-blue-900/20 px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
             <Settings size={24} />

@@ -103,6 +103,7 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [jobDraft, setJobDraft] = useState<Partial<Vaga>>({});
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [showFooterInImage, setShowFooterInImage] = useState(false);
+  const [salaryEnabled, setSalaryEnabled] = useState(false);
 
   // Persistence Logic
   useEffect(() => {
@@ -118,6 +119,7 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
           setJobDraft(parsed.jobDraft || {});
           setEditingJobId(parsed.editingJobId || null);
           setShowFooterInImage(parsed.showFooterInImage || false);
+          setSalaryEnabled(parsed.salaryEnabled || false);
         }
       } catch (e) {
         console.error("Error restoring job draft", e);
@@ -133,19 +135,18 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
         jobCreationStep,
         jobDraft,
         editingJobId,
-        showFooterInImage
+        showFooterInImage,
+        salaryEnabled
       };
       localStorage.setItem('job_creation_persistence', JSON.stringify(stateToSave));
     } else {
       // If closed, check if we should clear. 
       // If just navigating away, it won't trigger this 'else' (unmount happens).
-      // If user explicitly CLOSES modal, we probably want to clear.
-      // But the user's issue is accidental closure/nav. 
-      // If they click 'X' to close, they likely mean to discard.
+      // If user explicitly CLOSES modal, they likely mean to discard.
       // So clearing on 'falsy' is correct for explicit action, but we need to distinguish 'unmount' from 'state change to false'.
       // Actually, this effect runs on state change. If isJobModalOpen changes to false, we clear.
     }
-  }, [isJobModalOpen, jobCreationStep, jobDraft, editingJobId, showFooterInImage]);
+  }, [isJobModalOpen, jobCreationStep, jobDraft, editingJobId, showFooterInImage, salaryEnabled]);
 
   const clearPersistence = () => {
     localStorage.removeItem('job_creation_persistence');
@@ -291,6 +292,7 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
         footerEnabled: j.footer_enabled,
         observation: j.observation,
         showObservation: j.show_observation,
+        salary: j.salary,
         contacts: (j.job_contacts && j.job_contacts.length > 0)
           ? j.job_contacts.map((c: any) => ({
             type: c.type === 'whatsapp' ? 'WhatsApp' :
@@ -392,9 +394,11 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
       contacts: job.contacts || [],
       imageUrl: job.imageUrl,
       observation: job.observation,
-      showObservation: job.showObservation
+      showObservation: job.showObservation,
+      salary: job.salary
     });
     setShowFooterInImage(job.footerEnabled || false);
+    setSalaryEnabled(!!job.salary);
     setAttachedFile(null); // Limpar qualquer arquivo anterior
     setJobCreationStep(job.type === 'file' ? 'upload' : 'form');
     setIsJobModalOpen(true);
@@ -502,7 +506,8 @@ Função: *${j.role || j.title || ''}*
 Cód. Vaga: *${code}*
 -----------------------------  
 *Vínculo:* ${j.bond || 'CLT'}${!j.hideCompany ? `
-*Empresa:* ${j.companyName || ''}` : ''}
+*Empresa:* ${j.companyName || ''}` : ''}${salaryEnabled && j.salary ? `
+*Salário:* ${j.salary}` : ''}
 *Cidade/Bairro:* ${j.city || ''} - ${j.region || ''}
 *Requisitos:* ${j.requirements || ''}
 *Benefícios:* ${j.benefits || ''}
@@ -592,6 +597,7 @@ Cód. Vaga: *${code}*
         activities: jobDraft.activities,
         requirements: jobDraft.requirements,
         benefits: jobDraft.benefits,
+        salary: salaryEnabled ? jobDraft.salary : null,
 
         // Image fields
         image_url: imageUrl,
@@ -1452,51 +1458,62 @@ Cód. Vaga: *${code}*
                 {jobCreationStep === 'form' && (
                   <div className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                      {/* Row 1 */}
-                      <div className="md:col-span-6 space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors"><Briefcase size={18} /></div>
-                          <input type="text" value={jobDraft.role || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })} placeholder="Ex: Auxiliar de Limpeza"
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
-                        </div>
-                      </div>
-                      <div className="md:col-span-6 space-y-1.5">
-                        <div className="flex justify-between items-center px-1">
-                          <label className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-semibold">Empresa</label>
-                          <button
-                            onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}
-                            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                          >
-                            {jobDraft.hideCompany ? (
-                              <><Eye size={12} /> Mostrar Nome</>
-                            ) : (
-                              <><EyeOff size={12} /> Ocultar na Vaga</>
-                            )}
-                          </button>
-                        </div>
+                      {/* Grid Layout: 2 Rows of 3 Columns */}
+                      <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6">
 
-                        <div className="relative group">
-                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                            <Building2 size={18} />
+                        {/* ROW 1: Cargo, Empresa, Vínculo */}
+
+                        {/* 1. Cargo (Role) */}
+                        <div className="md:col-span-4 space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Função / Cargo <span className="text-red-500">*</span></label>
+                          <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                              <Briefcase size={18} />
+                            </div>
+                            <input
+                              type="text"
+                              value={jobDraft.role || ''}
+                              onFocus={scrollToCenter}
+                              onChange={e => setJobDraft({ ...jobDraft, role: e.target.value })}
+                              placeholder="Ex: Auxiliar de Limpeza"
+                              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                            />
                           </div>
-                          <input
-                            type="text"
-                            disabled={jobDraft.hideCompany}
-                            onFocus={scrollToCenter}
-                            value={jobDraft.companyName || ''}
-                            onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
-                            placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
-                            className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
-                            ${jobDraft.hideCompany ? 'opacity-60 cursor-not-allowed select-none bg-slate-100 dark:bg-slate-900/50' : 'border-slate-100 dark:border-slate-800'}
-                            `}
-                          />
                         </div>
-                      </div>
 
-                      {/* Row 2: Vínculo (30%), Cidade (30%), Região (40%) */}
-                      <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-10 gap-6">
-                        <div className="md:col-span-3 space-y-1.5">
+                        {/* 2. Empresa (Company) */}
+                        <div className="md:col-span-4 space-y-1.5">
+                          <div className="flex items-center gap-2 h-4 ml-1">
+                            <label className={`text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer select-none ${!jobDraft.hideCompany ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}
+                              onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}>
+                              {!jobDraft.hideCompany ? "Ocultar Empresa" : "Exibir Empresa"}
+                            </label>
+                            <div onClick={() => setJobDraft({ ...jobDraft, hideCompany: !jobDraft.hideCompany, companyName: jobDraft.hideCompany ? jobDraft.companyName : '' })}
+                              className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${!jobDraft.hideCompany ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-sm ${!jobDraft.hideCompany ? 'left-[18px]' : 'left-0.5'}`} />
+                            </div>
+                          </div>
+
+                          <div className="relative group">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                              <Building2 size={18} />
+                            </div>
+                            <input
+                              type="text"
+                              disabled={jobDraft.hideCompany}
+                              onFocus={scrollToCenter}
+                              value={jobDraft.companyName || ''}
+                              onChange={e => setJobDraft({ ...jobDraft, companyName: e.target.value })}
+                              placeholder={jobDraft.hideCompany ? "Nome oculto na divulgação" : "Nome da empresa"}
+                              className={`w-full bg-slate-50 dark:bg-slate-800/50 border rounded-2xl pl-12 pr-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600
+                                ${jobDraft.hideCompany ? 'opacity-60 cursor-not-allowed select-none bg-slate-100 dark:bg-slate-900/50' : 'border-slate-100 dark:border-slate-800'}
+                                `}
+                            />
+                          </div>
+                        </div>
+
+                        {/* 3. Vínculo (Bond) */}
+                        <div className="md:col-span-4 space-y-1.5">
                           <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Vínculo</label>
                           <div className="relative group">
                             <select value={jobDraft.bond} onChange={e => setJobDraft({ ...jobDraft, bond: e.target.value as any })}
@@ -1513,7 +1530,10 @@ Cód. Vaga: *${code}*
                           </div>
                         </div>
 
-                        <div className="md:col-span-3 space-y-1.5">
+                        {/* ROW 2: Cidade, Região, Salário */}
+
+                        {/* 4. Cidade (City) */}
+                        <div className="md:col-span-4 space-y-1.5">
                           <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Cidade</label>
                           <div className="relative group">
                             <input type="text" value={jobDraft.city || ''} onFocus={scrollToCenter} onChange={e => setJobDraft({ ...jobDraft, city: e.target.value })} placeholder="Sorocaba"
@@ -1521,6 +1541,7 @@ Cód. Vaga: *${code}*
                           </div>
                         </div>
 
+                        {/* 5. Região (Region) */}
                         <div className="md:col-span-4 space-y-1.5">
                           <label className="text-[10px] uppercase tracking-widest ml-1 text-slate-600 dark:text-slate-400 font-semibold">Região / Bairro</label>
                           <div className="relative group">
@@ -1528,6 +1549,31 @@ Cód. Vaga: *${code}*
                               className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600" />
                           </div>
                         </div>
+
+                        {/* 6. Salário (Salary) */}
+                        <div className="md:col-span-4 space-y-1.5">
+                          <div className="flex items-center gap-2 h-4 ml-1">
+                            <label className={`text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer select-none ${salaryEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`} onClick={() => setSalaryEnabled(!salaryEnabled)}>
+                              {salaryEnabled ? "Ocultar Salário" : "Exibir Salário"}
+                            </label>
+                            <div onClick={() => setSalaryEnabled(!salaryEnabled)} className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${salaryEnabled ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-sm ${salaryEnabled ? 'left-[18px]' : 'left-0.5'}`} />
+                            </div>
+                          </div>
+
+                          <div className={`relative group transition-all duration-300 ${salaryEnabled ? 'opacity-100' : 'opacity-50 grayscale'}`}>
+                            <input
+                              disabled={!salaryEnabled}
+                              type="text"
+                              value={jobDraft.salary || ''}
+                              onFocus={scrollToCenter}
+                              onChange={e => setJobDraft({ ...jobDraft, salary: e.target.value })}
+                              placeholder="Ex: R$ 2.500,00"
+                              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:ring-2 ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+
                       </div>
 
                       {/* Detailed Fields Area */}

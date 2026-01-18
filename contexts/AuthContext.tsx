@@ -112,8 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                setLoading(true); // Prevent flash of content/onboarding
-                fetchProfileData(session.user.id).then(() => setLoading(false));
+                // Do not set loading(true) here to avoid unmounting the app and losing local state
+                // Just fetch/update data in the background
+                fetchProfileData(session.user.id).catch(console.error);
             } else {
                 setProfile(null);
                 setCompany(null);

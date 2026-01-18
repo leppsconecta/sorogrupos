@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
     if (path === '/vagas') return 'Vagas';
     if (path === '/marketing') return 'Marketing';
     if (path === '/agendamentos') return 'Agendamentos';
-    if (path === '/perfil') return 'Perfil';
+    if (path === '/configuracao') return 'Configuração';
     if (path === '/meuplano') return 'Meu Plano';
     if (path === '/suporte') return 'Suporte';
     return 'Painel';

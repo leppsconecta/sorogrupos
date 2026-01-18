@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { CheckCircle2, Building, User, Smartphone, MapPin, Mail, ArrowRight, AlertCircle, Globe, Facebook, Instagram, Linkedin, Plus, Minus } from 'lucide-react';
+import { CheckCircle2, Building, User, Smartphone, MapPin, Mail, ArrowRight, AlertCircle, Globe, Facebook, Instagram, Linkedin, Plus, Minus, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFeedback } from '../contexts/FeedbackContext';
 
@@ -29,6 +29,15 @@ export const OnboardingModal: React.FC = () => {
     const [companyEmail, setCompanyEmail] = useState('');
     const [companyPhone, setCompanyPhone] = useState('');
     const [companyCep, setCompanyCep] = useState('');
+    const [companyAddress, setCompanyAddress] = useState('');
+    const [companyNumber, setCompanyNumber] = useState('');
+    const [companyComplement, setCompanyComplement] = useState('');
+    const [companyNeighborhood, setCompanyNeighborhood] = useState('');
+    const [companyCity, setCompanyCity] = useState('');
+    const [companyState, setCompanyState] = useState('');
+
+    const [loadingCep, setLoadingCep] = useState(false);
+
     const [companySite, setCompanySite] = useState('');
 
     const [showSocials, setShowSocials] = useState(false);
@@ -58,7 +67,13 @@ export const OnboardingModal: React.FC = () => {
             setCompanyName(company.name || '');
             setCompanyEmail(company.email || '');
             setCompanyPhone(company.whatsapp || '');
-            setCompanyCep(company.zip_code || '');
+            setCompanyCep(company.zip_code || company.cep || '');
+            setCompanyAddress(company.address || '');
+            setCompanyNumber(company.number || '');
+            setCompanyComplement(company.complement || '');
+            setCompanyNeighborhood(company.neighborhood || '');
+            setCompanyCity(company.city || '');
+            setCompanyState(company.state || '');
             setCompanySite(company.website || '');
 
             if (company.instagram || company.facebook || company.linkedin) {
@@ -99,6 +114,30 @@ export const OnboardingModal: React.FC = () => {
         let formatted = numbers;
         if (numbers.length > 5) formatted = `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
         setCompanyCep(formatted);
+    };
+
+    const handleCepBlur = async () => {
+        const cepClean = companyCep.replace(/\D/g, '');
+        if (cepClean.length !== 8) return;
+
+        setLoadingCep(true);
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cepClean}/json/`);
+            const data = await response.json();
+
+            if (!data.erro) {
+                setCompanyAddress(data.logradouro);
+                setCompanyNeighborhood(data.bairro);
+                setCompanyCity(data.localidade);
+                setCompanyState(data.uf);
+
+                // Optional: focus number field?
+            }
+        } catch (error) {
+            console.error("Erro ao buscar CEP:", error);
+        } finally {
+            setLoadingCep(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +191,13 @@ export const OnboardingModal: React.FC = () => {
                         email: companyEmail,
                         whatsapp: dbCompanyPhone,
                         zip_code: companyCep.replace(/\D/g, ''),
+                        cep: companyCep,
+                        address: companyAddress,
+                        number: companyNumber,
+                        complement: companyComplement,
+                        neighborhood: companyNeighborhood,
+                        city: companyCity,
+                        state: companyState,
                         website: companySite,
                         instagram: companyInstagram,
                         facebook: companyFacebook,
@@ -369,33 +415,117 @@ export const OnboardingModal: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Site (Opcional)</label>
-                                    <div className="relative">
-                                        <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input
-                                            type="text"
-                                            value={companySite}
-                                            onChange={e => setCompanySite(e.target.value)}
-                                            className="w-full bg-slate-50 border-none rounded-xl pl-10 pr-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
-                                            placeholder="www.suaempresa.com.br"
-                                        />
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">CEP</label>
+                                        <div className="relative">
+                                            <input
+                                                required
+                                                type="text"
+                                                value={companyCep}
+                                                onChange={e => handleCepChange(e.target.value)}
+                                                onBlur={handleCepBlur}
+                                                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                                placeholder="00000-000"
+                                                maxLength={9}
+                                            />
+                                            {loadingCep && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <Loader2 size={16} className="text-blue-500 animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Site (Opcional)</label>
+                                        <div className="relative">
+                                            <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                value={companySite}
+                                                onChange={e => setCompanySite(e.target.value)}
+                                                className="w-full bg-slate-50 border-none rounded-xl pl-10 pr-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                                placeholder="www.suaempresa.com.br"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">CEP</label>
-                                    <div className="relative">
+                                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Endereço (Rua/Av)</label>
+                                    <input
+                                        required
+                                        type="text"
+                                        value={companyAddress}
+                                        onChange={e => setCompanyAddress(e.target.value)}
+                                        className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                        placeholder="Rua Exemplo"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Número</label>
                                         <input
                                             required
                                             type="text"
-                                            value={companyCep}
-                                            onChange={e => handleCepChange(e.target.value)}
+                                            value={companyNumber}
+                                            onChange={e => setCompanyNumber(e.target.value)}
                                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
-                                            placeholder="00000-000"
+                                            placeholder="123"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Complemento</label>
+                                        <input
+                                            type="text"
+                                            value={companyComplement}
+                                            onChange={e => setCompanyComplement(e.target.value)}
+                                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                            placeholder="Sala 1, Bloco B"
                                         />
                                     </div>
                                 </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Bairro</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            value={companyNeighborhood}
+                                            onChange={e => setCompanyNeighborhood(e.target.value)}
+                                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 ring-blue-500/20 transition-all placeholder:font-normal"
+                                            placeholder="Bairro"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Cidade</label>
+                                        <input
+                                            required
+                                            readOnly
+                                            type="text"
+                                            value={companyCity}
+                                            onChange={e => setCompanyCity(e.target.value)}
+                                            className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm text-slate-500 outline-none cursor-not-allowed"
+                                            placeholder="Cidade"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">UF</label>
+                                        <input
+                                            required
+                                            readOnly
+                                            type="text"
+                                            value={companyState}
+                                            onChange={e => setCompanyState(e.target.value)}
+                                            className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm text-slate-500 outline-none cursor-not-allowed"
+                                            placeholder="UF"
+                                        />
+                                    </div>
+                                </div>
+
                             </div>
 
                             {/* Social Media Toggle */}

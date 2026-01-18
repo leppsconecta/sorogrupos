@@ -3,6 +3,23 @@ import React from 'react';
 
 export type Theme = 'light' | 'dark';
 
+export interface ConfirmOptions {
+  type: 'info' | 'warning' | 'danger';
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm?: () => void;
+}
+
+export interface ToastMessage {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title?: string;
+  message: string;
+  duration?: number;
+}
+
 export interface Folder {
   id: string;
   name: string;
@@ -64,6 +81,7 @@ export interface Vaga {
   companyName?: string;
   hideCompany?: boolean;
   bond?: 'CLT' | 'Jurídico' | 'Freelance' | 'Temporário';
+  salary?: string;
   city?: string;
   region?: string;
   benefits?: string;
