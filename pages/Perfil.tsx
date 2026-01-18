@@ -254,25 +254,51 @@ export const Perfil: React.FC = () => {
         setUploadingLogo(true);
 
         try {
+            // Logic to ensure only 1 image per company -> Delete old ones first
+            // We use a prefix pattern
             const fileExt = file.name.split('.').pop();
-            const fileName = `${company.id}-${Date.now()}.${fileExt}`;
-            const filePath = `${fileName}`;
+            const baseFileName = `${company.id}-logo`;
 
+            // 1. List existing files to find old one
+            const { data: listData } = await supabase.storage
+                .from('company-logos')
+                .list('', { search: baseFileName });
+
+            // 2. Delete existing files
+            if (listData && listData.length > 0) {
+                const filesToRemove = listData.map(f => f.name);
+                await supabase.storage
+                    .from('company-logos')
+                    .remove(filesToRemove);
+            }
+
+            // 3. Upload new file
+            const newFileName = `${baseFileName}.${fileExt}`;
             const { error: uploadError } = await supabase.storage
                 .from('company-logos')
-                .upload(filePath, file);
+                .upload(newFileName, file, {
+                    cacheControl: '0',
+                    upsert: true
+                });
 
             if (uploadError) throw uploadError;
 
+            // 4. Get Public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('company-logos')
-                .getPublicUrl(filePath);
+                .getPublicUrl(newFileName);
 
-            setFormData(prev => ({ ...prev, logo_url: publicUrl }));
+            // 5. Append Timestamp for Cache Busting
+            const publicUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+
+            setFormData(prev => ({ ...prev, logo_url: publicUrlWithTimestamp }));
 
             // Save immediately
-            await supabase.from('companies').update({ logo_url: publicUrl }).eq('id', company.id);
+            await supabase.from('companies').update({ logo_url: publicUrlWithTimestamp }).eq('id', company.id);
             toast({ type: 'success', title: 'Logo Atualizado', message: 'Logo da empresa enviado com sucesso!' });
+
+            // Force refresh context
+            await refreshProfile();
 
         } catch (error: any) {
             toast({ type: 'error', title: 'Erro no Upload', message: error.message });
@@ -745,6 +771,9 @@ export const Perfil: React.FC = () => {
                                         linkedin: formData.linkedin
                                     }}
                                     loading={false}
+                                    isOwner={true}
+                                    onLogoUpload={handleLogoUpload}
+                                    isUploadingLogo={uploadingLogo}
                                 >
 
                                     {/* Preview Controls Overlay */}
@@ -759,14 +788,7 @@ export const Perfil: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <label className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-2 transition-all shadow-sm">
-                                                <Camera size={14} /> Alterar Capa
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleCoverUpload} disabled={uploadingCover} />
-                                            </label>
-                                            <label className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-2 transition-all shadow-sm">
-                                                <Camera size={14} /> Alterar Logo
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} />
-                                            </label>
+                                            {/* Buttons removed as requested */}
                                         </div>
                                     </div>
 

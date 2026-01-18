@@ -1,6 +1,6 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { CompanyProfile, Job } from './types';
-import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown } from 'lucide-react';
+import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown, Camera } from 'lucide-react';
 import ContactOptionsModal from './modals/ContactOptionsModal';
 import AddressModal from './modals/AddressModal';
 
@@ -11,9 +11,12 @@ interface PublicProfileLayoutProps {
     loading: boolean;
     error?: string;
     children: ReactNode;
+    isOwner?: boolean;
+    onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    isUploadingLogo?: boolean;
 }
 
-const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, loading, error, children }) => {
+const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, loading, error, children, isOwner, onLogoUpload, isUploadingLogo }) => {
     const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -75,7 +78,34 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                             )}
 
                             {/* Logo */}
-                            <div className={`relative z-20 mx-auto lg:mx-0 bg-white rounded-[20px] border-4 border-white shadow-md overflow-hidden mb-3 transition-all ${isSidebarCollapsed ? 'w-10 h-10 lg:mb-2 border-2 -mt-0' : 'w-52 h-52 lg:w-20 lg:h-20 lg:-mt-10'}`}>
+                            <label
+                                className={`relative z-20 mx-auto lg:mx-0 bg-white rounded-[20px] border-4 border-white shadow-md overflow-hidden mb-3 transition-all block
+                                ${isSidebarCollapsed ? 'w-10 h-10 lg:mb-2 border-2 -mt-0' : 'w-52 h-52 lg:w-20 lg:h-20 lg:-mt-10'}
+                                ${isOwner ? 'cursor-pointer group' : ''}`}
+                            >
+                                {isOwner && !isUploadingLogo && (
+                                    <>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={onLogoUpload}
+                                        />
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30">
+                                            <div className="text-white flex flex-col items-center gap-1">
+                                                <Camera size={20} />
+                                                <span className="text-[10px] font-bold uppercase">Alterar</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {isUploadingLogo && (
+                                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-40">
+                                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+
                                 {company.logo_url ? (
                                     <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain p-1.5" />
                                 ) : (
@@ -83,7 +113,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                                         <Building2 size={isSidebarCollapsed ? 18 : 28} />
                                     </div>
                                 )}
-                            </div>
+                            </label>
 
                             {/* Desktop Collapsed Content (Icons Only) - HIDDEN ON MOBILE */}
                             {isSidebarCollapsed && (
