@@ -12,7 +12,9 @@ import {
   FileText,
   Calendar,
   Plus,
-  Settings
+  Settings,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +22,8 @@ import { Logo } from './Logo';
 
 interface SidebarProps {
   onCreateGroup?: () => void;
+  theme?: 'light' | 'dark';
+  toggleTheme?: () => void;
 }
 
 const WhatsAppIcon = ({ size = 22 }: { size?: number }) => (
@@ -34,7 +38,7 @@ const menuItems = [
   { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
-  { path: '/perfil', label: 'Perfil', icon: <UserCircle size={22} /> },
+
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
 ];
 
@@ -44,7 +48,7 @@ const comingSoonItems = [
   { path: '/agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTheme }) => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -116,17 +120,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup }) => {
 
 
       {/* Footer / User Profile */}
-      <Link to="/configuracao" className="p-5 border-t border-white/5 bg-blue-900/20 px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-            <Settings size={24} />
+      <div className="border-t border-white/5 bg-blue-900/20">
+        {/* Theme Toggle (Sidebar) */}
+        {toggleTheme && (
+          <div className="px-5 pt-4 pb-2">
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-950/50 hover:bg-blue-900/50 text-blue-200 hover:text-white transition-all border border-blue-800/30"
+            >
+              <span className="text-xs font-semibold uppercase tracking-wider">Modo Escuro</span>
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-white truncate group-hover:text-blue-200 transition-colors">Configurações</p>
-            <p className="text-[10px] text-blue-400 font-medium truncate group-hover:text-blue-300 transition-colors">{user?.email}</p>
+        )}
+
+        <Link to="/configuracao" className="p-5 block px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+              <Settings size={24} />
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-white truncate group-hover:text-blue-200 transition-colors">Configurações</p>
+              <p className="text-[10px] text-blue-400 font-medium truncate group-hover:text-blue-300 transition-colors">{user?.email}</p>
+            </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
     </aside>
   );
 };

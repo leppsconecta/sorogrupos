@@ -2,11 +2,11 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CreditCard,
-  Moon,
-  Sun,
+
   LogOut,
   CheckCircle2,
-  Menu
+  Menu,
+  User
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -95,13 +95,13 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
             </button>
           )}
 
-          {/* Dark Mode Toggle */}
+          {/* Minha Página Button */}
           <button
-            onClick={toggleTheme}
-            className="p-2.5 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-slate-900 rounded-xl transition-all"
-            title="Mudar Tema"
+            onClick={() => navigate('/perfil')}
+            className="flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider"
           >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            <User size={18} />
+            <span className="hidden lg:inline">Minha página</span>
           </button>
 
           {/* Separator */}

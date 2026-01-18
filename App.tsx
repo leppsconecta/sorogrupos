@@ -126,6 +126,8 @@ const AppContent: React.FC = () => {
       {showDashboardUI && (
         <Sidebar
           onCreateGroup={handleCreateGroupShortcut}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
 

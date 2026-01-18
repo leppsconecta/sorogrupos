@@ -44,6 +44,7 @@ import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
 import FeaturedJobSelectionModal from '../components/public/modals/FeaturedJobSelectionModal';
+import CompanyProfileCard from '../components/public/CompanyProfileCard';
 
 // Helper Components
 const InputField = ({ label, icon: Icon, helper, ...props }: any) => (
@@ -462,11 +463,14 @@ export const Perfil: React.FC = () => {
 
     return (
         <div className="max-w-7xl mx-auto pb-20 animate-fadeIn px-6">
+
+
+
             {/* Header Removed as per request, just the container */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col">
 
                 {/* Link Display - Top Public Link */}
-                <div className="flex justify-start items-center p-2 rounded-2xl">
+                <div className="flex justify-start items-center p-2 rounded-2xl mb-6">
                     <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
                         <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-full shadow-sm">
                             <span className="text-slate-400 text-sm font-bold">soroempregos.com/</span>
@@ -768,53 +772,42 @@ export const Perfil: React.FC = () => {
 
 
 
-                            {/* PREVIEW AREA USING SHARED LAYOUT */}
-                            <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-white">
-                                <PublicProfileLayout
-                                    company={{
-                                        id: company?.id || '',
-                                        name: formData.name,
-                                        username: formData.username,
-                                        description: formData.description,
-                                        website: formData.website,
-                                        profile_header_color: formData.profile_header_color,
-                                        profile_title_color: formData.profile_title_color,
-                                        zip_code: formData.cep,
-                                        address: formData.address,
-                                        number: formData.number,
-                                        neighborhood: formData.neighborhood,
-                                        city: formData.city,
-                                        state: formData.state,
-                                        complement: formData.complement,
-                                        logo_url: formData.logo_url,
-                                        cover_url: formData.cover_url,
-                                        phone: formData.phone,
-                                        whatsapp: formData.whatsapp,
-                                        instagram: formData.instagram,
-                                        facebook: formData.facebook,
-                                        linkedin: formData.linkedin
-                                    }}
-                                    loading={false}
-                                    isOwner={true}
-                                    onLogoUpload={handleLogoUpload}
-                                    isUploadingLogo={uploadingLogo}
-                                >
+                            {/* PREVIEW AREA (Refactored to remove PublicProfileLayout wrapper from inside, keeping children) */}
+                            <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-white pb-8">
+                                <div className="p-4 lg:p-8">
 
-                                    {/* Preview Controls Overlay */}
-                                    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center justify-between gap-3 mx-4 lg:mx-0">
-                                        <div className="flex items-center gap-3">
-                                            <Info className="text-yellow-600 shrink-0" size={18} />
-                                            <div>
-                                                <h4 className="text-sm font-bold text-yellow-800">Modo de Pré-visualização</h4>
-                                                <p className="text-xs text-yellow-700">
-                                                    É assim que sua página aparecerá para o público.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {/* Buttons removed as requested */}
-                                        </div>
+                                    <div className="mb-8">
+                                        <CompanyProfileCard
+                                            company={{
+                                                id: company?.id || '',
+                                                name: formData.name,
+                                                username: formData.username,
+                                                description: formData.description,
+                                                website: formData.website,
+                                                profile_header_color: formData.profile_header_color,
+                                                profile_title_color: formData.profile_title_color,
+                                                zip_code: formData.cep,
+                                                address: formData.address,
+                                                number: formData.number,
+                                                neighborhood: formData.neighborhood,
+                                                city: formData.city,
+                                                state: formData.state,
+                                                complement: formData.complement,
+                                                logo_url: formData.logo_url,
+                                                cover_url: formData.cover_url,
+                                                phone: formData.phone,
+                                                whatsapp: formData.whatsapp,
+                                                instagram: formData.instagram,
+                                                facebook: formData.facebook,
+                                                linkedin: formData.linkedin
+                                            }}
+                                            isOwner={true}
+                                            onLogoUpload={handleLogoUpload}
+                                            isUploadingLogo={uploadingLogo}
+                                        />
                                     </div>
+
+
 
                                     {/* Filters Demo */}
                                     <Filters
@@ -873,39 +866,39 @@ export const Perfil: React.FC = () => {
                                             />
                                         ))}
                                     </div>
-                                </PublicProfileLayout>
+                                </div>
                             </div>
-
-
-                            {/* Modals for Preview */}
-                            {selectedJob && (
-                                <>
-                                    <ApplicationModal
-                                        isOpen={isApplicationModalOpen}
-                                        onClose={() => setIsApplicationModalOpen(false)}
-                                        jobTitle={selectedJob.title}
-                                    />
-                                    <ReportModal
-                                        isOpen={isReportModalOpen}
-                                        onClose={() => setIsReportModalOpen(false)}
-                                        jobTitle={selectedJob.title}
-                                    />
-                                    <QuestionModal
-                                        isOpen={isQuestionModalOpen}
-                                        onClose={() => setIsQuestionModalOpen(false)}
-                                        jobTitle={selectedJob.title}
-                                    />
-                                </>
-                            )}
-                            <AlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
-
-                            <FeaturedJobSelectionModal
-                                isOpen={isFeaturedModalOpen}
-                                onClose={() => setIsFeaturedModalOpen(false)}
-                                jobs={jobs}
-                                onToggleFeatured={toggleFeatured}
-                            />
                         </div>
+
+
+                        {/* Modals for Preview */}
+                        {selectedJob && (
+                            <>
+                                <ApplicationModal
+                                    isOpen={isApplicationModalOpen}
+                                    onClose={() => setIsApplicationModalOpen(false)}
+                                    jobTitle={selectedJob.title}
+                                />
+                                <ReportModal
+                                    isOpen={isReportModalOpen}
+                                    onClose={() => setIsReportModalOpen(false)}
+                                    jobTitle={selectedJob.title}
+                                />
+                                <QuestionModal
+                                    isOpen={isQuestionModalOpen}
+                                    onClose={() => setIsQuestionModalOpen(false)}
+                                    jobTitle={selectedJob.title}
+                                />
+                            </>
+                        )}
+                        <AlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
+
+                        <FeaturedJobSelectionModal
+                            isOpen={isFeaturedModalOpen}
+                            onClose={() => setIsFeaturedModalOpen(false)}
+                            jobs={jobs}
+                            onToggleFeatured={toggleFeatured}
+                        />
                     </div>
                 </div>
             </div>
