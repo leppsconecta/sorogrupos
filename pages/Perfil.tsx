@@ -25,6 +25,8 @@ import {
     Facebook,
     Linkedin,
     ExternalLink,
+    Star,
+    Plus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
@@ -41,6 +43,7 @@ import ApplicationModal from '../components/public/modals/ApplicationModal';
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
+import FeaturedJobSelectionModal from '../components/public/modals/FeaturedJobSelectionModal';
 
 // Helper Components
 const InputField = ({ label, icon: Icon, helper, ...props }: any) => (
@@ -107,6 +110,7 @@ export const Perfil: React.FC = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
 
     // Username Verification State
     const [checkingUsername, setCheckingUsername] = useState(false);
@@ -141,30 +145,8 @@ export const Perfil: React.FC = () => {
         }
     ];
 
-    const getPreviewJobs = (): Job[] => {
-        if (jobs.length === 0) return MOCK_JOBS;
 
-        return jobs.map(j => ({
-            id: j.id,
-            title: j.role || j.title,
-            company: formData.name || 'Sua Empresa',
-            location: j.city || 'Sorocaba, SP',
-            type: (j.type === 'PJ' ? 'PJ' : j.type === 'Freelance' ? 'Freelance' : 'CLT') as any,
-            salary: j.salary_range ? `R$ ${j.salary_range}` : undefined,
-            postedAt: 'Recente',
-            description: j.description || 'Sem descrição',
-            requirements: [],
-            benefits: [],
-            activities: []
-        }));
-    };
 
-    const previewJobs = getPreviewJobs().filter(job => {
-        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.location.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
-        return matchesSearch && matchesType;
-    });
 
     useEffect(() => {
         if (company) {
@@ -194,16 +176,45 @@ export const Perfil: React.FC = () => {
         }
     }, [company]);
 
+
     const fetchJobs = async () => {
-        if (!company?.id) return;
+        if (!user?.id) return;
         const { data, error } = await supabase
             .from('jobs')
             .select('*')
-            .eq('company_id', company.id)
+            .eq('user_id', user.id)
             .eq('status', 'active')
             .order('created_at', { ascending: false });
 
         if (data) setJobs(data);
+    };
+
+    const toggleFeatured = async (job: any) => {
+        if (!company) return;
+
+        // Check limit if turning ON
+        if (!job.is_featured) {
+            const featuredCount = jobs.filter(j => j.is_featured).length;
+            if (featuredCount >= 5) {
+                toast({ type: 'warning', title: 'Limite Atingido', message: 'Você só pode destacar até 5 vagas.' });
+                return;
+            }
+        }
+
+        const newValue = !job.is_featured;
+
+        // Optimistic Update
+        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, is_featured: newValue } : j));
+
+        const { error } = await supabase
+            .from('jobs')
+            .update({ is_featured: newValue })
+            .eq('id', job.id);
+
+        if (error) {
+            toast({ type: 'error', title: 'Erro', message: 'Erro ao atualizar destaque.' });
+            setJobs(prev => prev.map(j => j.id === job.id ? { ...j, is_featured: job.is_featured } : j));
+        }
     };
 
     const handleSave = async () => {
@@ -254,17 +265,15 @@ export const Perfil: React.FC = () => {
         setUploadingLogo(true);
 
         try {
-            // Logic to ensure only 1 image per company -> Delete old ones first
-            // We use a prefix pattern
             const fileExt = file.name.split('.').pop();
             const baseFileName = `${company.id}-logo`;
 
-            // 1. List existing files to find old one
+            // List existing files to find old one
             const { data: listData } = await supabase.storage
                 .from('company-logos')
                 .list('', { search: baseFileName });
 
-            // 2. Delete existing files
+            // Delete existing files
             if (listData && listData.length > 0) {
                 const filesToRemove = listData.map(f => f.name);
                 await supabase.storage
@@ -272,32 +281,25 @@ export const Perfil: React.FC = () => {
                     .remove(filesToRemove);
             }
 
-            // 3. Upload new file
+            // Upload new file
             const newFileName = `${baseFileName}.${fileExt}`;
             const { error: uploadError } = await supabase.storage
                 .from('company-logos')
-                .upload(newFileName, file, {
-                    cacheControl: '0',
-                    upsert: true
-                });
+                .upload(newFileName, file, { cacheControl: '0', upsert: true });
 
             if (uploadError) throw uploadError;
 
-            // 4. Get Public URL
+            // Get Public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('company-logos')
                 .getPublicUrl(newFileName);
 
-            // 5. Append Timestamp for Cache Busting
             const publicUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
-
             setFormData(prev => ({ ...prev, logo_url: publicUrlWithTimestamp }));
 
             // Save immediately
             await supabase.from('companies').update({ logo_url: publicUrlWithTimestamp }).eq('id', company.id);
             toast({ type: 'success', title: 'Logo Atualizado', message: 'Logo da empresa enviado com sucesso!' });
-
-            // Force refresh context
             await refreshProfile();
 
         } catch (error: any) {
@@ -330,7 +332,6 @@ export const Perfil: React.FC = () => {
 
             setFormData(prev => ({ ...prev, cover_url: publicUrl }));
 
-            // Save immediately
             await supabase.from('companies').update({ cover_url: publicUrl }).eq('id', company.id);
             toast({ type: 'success', title: 'Capa Atualizada', message: 'Imagem de capa enviada com sucesso!' });
 
@@ -342,26 +343,28 @@ export const Perfil: React.FC = () => {
     };
 
     const toggleJobVisibility = async (jobId: string, currentHidden: boolean) => {
+        const newValue = !currentHidden;
+        // Optimistic Update
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: newValue } : j));
+
         try {
             const { error } = await supabase
                 .from('jobs')
-                .update({ public_hidden: !currentHidden })
+                .update({ public_hidden: newValue })
                 .eq('id', jobId);
 
             if (error) throw error;
 
-            setJobs(jobs.map(j => j.id === jobId ? { ...j, public_hidden: !currentHidden } : j));
-            toast({ type: 'success', title: 'Vaga Atualizada', message: !currentHidden ? 'Vaga oculta da página pública.' : 'Vaga visível na página pública.' });
+            toast({ type: 'success', title: 'Vaga Atualizada', message: newValue ? 'Vaga oculta da página pública.' : 'Vaga visível na página pública.' });
         } catch (err: any) {
+            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: currentHidden } : j));
             toast({ type: 'error', title: 'Erro', message: err.message });
         }
     };
 
     const checkUsernameAvailability = async () => {
         if (!company) return;
-
         const username = formData.username.trim();
-
         if (!username) {
             toast({ type: 'error', title: 'Erro', message: 'O campo username não pode ficar vazio.' });
             return;
@@ -381,22 +384,18 @@ export const Perfil: React.FC = () => {
 
             if (count === 0) {
                 setUsernameAvailable(true);
-                // Auto-save if available
                 const { error: updateError } = await supabase
                     .from('companies')
                     .update({ username: username })
                     .eq('id', company.id);
 
                 if (updateError) throw updateError;
-
                 await refreshProfile();
                 toast({ type: 'success', title: 'Salvo!', message: 'Seu usuário foi atualizado com sucesso.' });
-
             } else {
                 setUsernameAvailable(false);
                 toast({ type: 'error', title: 'Indisponível', message: 'Este usuário já está em uso.' });
             }
-
         } catch (error: any) {
             console.error('Error checking username:', error);
             toast({ type: 'error', title: 'Erro', message: 'Erro ao verificar/salvar: ' + error.message });
@@ -434,10 +433,35 @@ export const Perfil: React.FC = () => {
         }
     };
 
+    const getPreviewJobs = (): Job[] => {
+        if (jobs.length === 0) return MOCK_JOBS;
+
+        return jobs.map(j => ({
+            id: j.id,
+            title: j.role || j.title,
+            company: formData.name || 'Sua Empresa',
+            location: j.city || 'Sorocaba, SP',
+            type: (j.type === 'PJ' ? 'PJ' : j.type === 'Freelance' ? 'Freelance' : 'CLT') as any,
+            salary: j.salary_range ? `R$ ${j.salary_range}` : undefined,
+            postedAt: 'Recente',
+            description: j.description || 'Sem descrição',
+            requirements: [],
+            benefits: [],
+            activities: [],
+            isFeatured: j.is_featured,
+            isHidden: j.public_hidden
+        }));
+    };
+
+    const previewJobs = getPreviewJobs().filter(job => {
+        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            job.location.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
+        return matchesSearch && matchesType;
+    });
 
     return (
         <div className="max-w-7xl mx-auto pb-20 animate-fadeIn px-6">
-
             {/* Header Removed as per request, just the container */}
             <div className="flex flex-col gap-6">
 
@@ -800,13 +824,37 @@ export const Perfil: React.FC = () => {
                                         setSelectedType={setSelectedType}
                                     />
 
-                                    {/* Featured Carousel Preview */}
-                                    <FeaturedCarousel
-                                        jobs={previewJobs.slice(0, 3)}
-                                        onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
-                                    />
+                                    {/* Featured Carousel Preview - Always show header for admin to allow adding */}
+                                    <div className="mb-8">
+                                        <div className="flex items-center justify-between mb-4 px-1">
+                                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                                <Star className="text-yellow-500 fill-yellow-500" size={20} /> Vagas em Destaque
+                                            </h3>
+                                            <button
+                                                onClick={() => setIsFeaturedModalOpen(true)}
+                                                className="text-xs font-bold bg-slate-900 text-white px-4 py-2 rounded-full flex items-center gap-2 hover:bg-indigo-600 transition-colors shadow-lg shadow-slate-900/10"
+                                            >
+                                                <Plus size={14} strokeWidth={3} /> Adicionar Destaque
+                                            </button>
+                                        </div>
 
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 px-1">Todas as Vagas</h3>
+                                        {previewJobs.filter(j => j.isFeatured).length > 0 ? (
+                                            <FeaturedCarousel
+                                                jobs={previewJobs.filter(j => j.isFeatured)}
+                                                onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                                onRemove={(job) => {
+                                                    const originalJob = jobs.find(j => j.id === job.id);
+                                                    if (originalJob) toggleFeatured(originalJob);
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
+                                                <p className="text-slate-500 text-sm font-medium">Nenhuma vaga em destaque. Adicione as principais vagas aqui.</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 px-1 mt-8">Todas as Vagas</h3>
 
                                     {/* Jobs Grid Preview */}
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -817,6 +865,11 @@ export const Perfil: React.FC = () => {
                                                 onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
                                                 onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                                 onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
+                                                showAdminControls={true}
+                                                onToggleHidden={() => {
+                                                    const originalJob = jobs.find(j => j.id === job.id);
+                                                    if (originalJob) toggleJobVisibility(originalJob.id, originalJob.public_hidden);
+                                                }}
                                             />
                                         ))}
                                     </div>
@@ -845,6 +898,13 @@ export const Perfil: React.FC = () => {
                                 </>
                             )}
                             <AlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
+
+                            <FeaturedJobSelectionModal
+                                isOpen={isFeaturedModalOpen}
+                                onClose={() => setIsFeaturedModalOpen(false)}
+                                jobs={jobs}
+                                onToggleFeatured={toggleFeatured}
+                            />
                         </div>
                     </div>
                 </div>
@@ -852,3 +912,4 @@ export const Perfil: React.FC = () => {
         </div>
     );
 };
+

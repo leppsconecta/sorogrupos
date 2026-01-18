@@ -12,6 +12,7 @@ export interface Job {
     benefits: string[];
     activities: string[];
     isFeatured?: boolean;
+    isHidden?: boolean;
 }
 
 export interface JobAlert {

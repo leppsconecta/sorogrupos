@@ -1,16 +1,20 @@
 
 import React, { useState } from 'react';
 import { Job } from './types';
-import { Clock, MapPin, ChevronDown, ChevronUp, Send, HelpCircle, AlertTriangle, Briefcase, DollarSign } from 'lucide-react';
+// Imports updated
+import { Clock, MapPin, ChevronDown, Send, HelpCircle, AlertTriangle, Briefcase, DollarSign, Plus, Star, Eye, EyeOff } from 'lucide-react';
 
 interface JobCardProps {
     job: Job;
     onApply: () => void;
     onReport: () => void;
     onQuestion: () => void;
+    showAdminControls?: boolean;
+    onToggleFeatured?: () => void;
+    onToggleHidden?: () => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, showAdminControls, onToggleFeatured, onToggleHidden }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const getTypeStyles = (type: string) => {
@@ -22,13 +26,18 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion })
         }
     };
 
+    const isJobHidden = job.isHidden;
+
     return (
         <div
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`group bg-white rounded-[32px] border transition-all duration-300 cursor-pointer overflow-hidden relative ${isExpanded
+            className={`group rounded-[32px] border transition-all duration-300 cursor-pointer overflow-hidden relative ${isJobHidden
+                ? 'bg-red-50 border-red-200 hover:border-red-300'
+                : 'bg-white'
+                } ${isExpanded
                     ? 'border-blue-500 shadow-xl ring-4 ring-blue-50 z-20'
-                    : 'border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-100 hover:-translate-y-1'
-                }`}
+                    : 'shadow-sm hover:shadow-xl hover:border-blue-100 hover:-translate-y-1'
+                } ${!isExpanded && !isJobHidden ? 'border-gray-100' : ''}`}
         >
             <div className="p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -40,6 +49,18 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion })
                             <span className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
                                 <Clock size={12} /> {job.postedAt}
                             </span>
+                            {/* Featured Badge */}
+                            {job.isFeatured && (
+                                <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 border border-yellow-200">
+                                    <Star size={10} className="fill-yellow-500 text-yellow-500" /> Destaque
+                                </span>
+                            )}
+                            {/* Hidden Badge */}
+                            {isJobHidden && (
+                                <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 border border-red-200">
+                                    <EyeOff size={10} /> Oculta
+                                </span>
+                            )}
                         </div>
 
                         <div>
@@ -58,15 +79,48 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion })
                         </div>
                     </div>
 
-                    <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
-                        }`}>
-                        <ChevronDown size={20} />
+                    <div className="flex items-center gap-2">
+                        {showAdminControls && (
+                            <div className="flex items-center gap-2 mr-2" onClick={(e) => e.stopPropagation()}>
+                                {onToggleFeatured && (
+                                    <button
+                                        onClick={onToggleFeatured}
+                                        title={job.isFeatured ? "Remover Destaque" : "Adicionar Destaque"}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm border ${job.isFeatured
+                                            ? 'bg-yellow-100 text-yellow-600 border-yellow-200 hover:bg-yellow-200'
+                                            : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-blue-500'
+                                            }`}
+                                    >
+                                        {job.isFeatured ? <Star size={18} className="fill-yellow-500" /> : <Plus size={20} className="stroke-[3]" />}
+                                    </button>
+                                )}
+
+                                {onToggleHidden && (
+                                    <button
+                                        onClick={onToggleHidden}
+                                        title={isJobHidden ? "Exibir Vaga" : "Ocultar Vaga"}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm border ${isJobHidden
+                                            ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200'
+                                            : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        {isJobHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
+                            }`}>
+                            <ChevronDown size={20} />
+                        </div>
                     </div>
                 </div>
 
                 {isExpanded && (
                     <div className="mt-8 pt-8 border-t border-gray-100 animate-slideDown space-y-8" onClick={(e) => e.stopPropagation()}>
 
+                        {/* ... Rest of the card content ... */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="space-y-2">
@@ -103,31 +157,33 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion })
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onApply(); }}
-                                className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 hover:scale-[1.02] shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-xs uppercase flex items-center justify-center gap-2"
-                            >
-                                <Send size={16} strokeWidth={2.5} /> Candidatar-se Agora
-                            </button>
+                        {!showAdminControls && (
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onApply(); }}
+                                    className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 hover:scale-[1.02] shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-xs uppercase flex items-center justify-center gap-2"
+                                >
+                                    <Send size={16} strokeWidth={2.5} /> Candidatar-se Agora
+                                </button>
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onQuestion(); }}
-                                    className="h-12 w-12 sm:w-auto sm:px-6 rounded-xl bg-blue-50 text-blue-600 font-bold hover:bg-blue-100 hover:text-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                    title="Tirar Dúvida"
-                                >
-                                    <HelpCircle size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Dúvida</span>
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onReport(); }}
-                                    className="h-12 w-12 sm:w-auto sm:px-6 rounded-xl bg-red-50 text-red-500 font-bold hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                    title="Reportar Vaga"
-                                >
-                                    <AlertTriangle size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Reportar</span>
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onQuestion(); }}
+                                        className="h-12 w-12 sm:w-auto sm:px-6 rounded-xl bg-blue-50 text-blue-600 font-bold hover:bg-blue-100 hover:text-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        title="Tirar Dúvida"
+                                    >
+                                        <HelpCircle size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Dúvida</span>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onReport(); }}
+                                        className="h-12 w-12 sm:w-auto sm:px-6 rounded-xl bg-red-50 text-red-500 font-bold hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        title="Reportar Vaga"
+                                    >
+                                        <AlertTriangle size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Reportar</span>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>

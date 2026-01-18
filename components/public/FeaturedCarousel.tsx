@@ -1,21 +1,19 @@
 import React from 'react';
 import { Job } from './types';
-import { MapPin, Briefcase, DollarSign, Clock, ArrowRight } from 'lucide-react';
+import { MapPin, Briefcase, DollarSign, Clock, ArrowRight, X } from 'lucide-react';
 
 interface FeaturedCarouselProps {
     jobs: Job[];
     onApply: (job: Job) => void;
+    onRemove?: (job: Job) => void;
 }
 
-const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply }) => {
+const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply, onRemove }) => {
     if (jobs.length === 0) return null;
 
     return (
-        <div className="mb-8">
-            <h3 className="text-xl font-bold text-[#1a234a] mb-4 flex items-center gap-2">
-                <span className="w-2 h-8 bg-blue-600 rounded-full block"></span>
-                Vagas em Destaque
-            </h3>
+        <div className="mb-0">
+            {/* Header removed from here as it is handled in parent */}
 
             {/* Carousel Container */}
             <div className="flex overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide snap-x snap-mandatory gap-4">
@@ -30,6 +28,17 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply }) =>
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <Briefcase size={64} className="text-white transform rotate-12" />
                             </div>
+
+                            {onRemove && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onRemove(job); }}
+                                    className="absolute top-3 right-3 w-8 h-8 bg-black/20 hover:bg-red-500 hover:text-white backdrop-blur-sm rounded-full flex items-center justify-center text-white/70 transition-all z-30"
+                                    title="Remover dos destaques"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+
                             <div className="relative z-10">
                                 <span className="inline-block px-2 py-1 rounded-lg bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider mb-2 backdrop-blur-sm border border-white/10">
                                     {job.type}

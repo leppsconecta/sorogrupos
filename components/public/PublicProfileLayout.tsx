@@ -59,12 +59,22 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
             <div className="max-w-7xl mx-auto px-4 md:px-6 pt-0 pb-20 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-8">
 
-                    {/* START SIDEBAR (Right/Top on Mobile) */}
+                    {/* START SIDEBAR (Right/Top on Mobile, Left on Desktop) */}
                     {/* On Desktop: Col Span 4, Sticky. On Mobile: Col Span 12, Stacked */}
-                    <div className={`lg:col-span-4 lg:order-2 transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-[80px] lg:col-span-1' : ''}`}>
+                    <div className={`lg:col-span-4 lg:order-1 transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-[80px] lg:col-span-1' : ''}`}>
 
 
-                        <div className={`bg-white rounded-[24px] shadow-lg border border-white/50 p-4 lg:sticky lg:top-24 text-center lg:text-left transition-all hover:shadow-xl ${isSidebarCollapsed ? 'lg:p-3 lg:flex lg:flex-col lg:items-center lg:gap-3 lg:w-[70px]' : ''}`}>
+                        <div className={`bg-white rounded-[24px] shadow-lg border border-white/50 p-4 lg:p-0 lg:sticky lg:top-24 text-center lg:text-left transition-all hover:shadow-xl overflow-hidden ${isSidebarCollapsed ? 'lg:p-3 lg:flex lg:flex-col lg:items-center lg:gap-3 lg:w-[70px]' : ''}`}>
+
+                            {/* Desktop Cover Area (Hidden on Mobile) */}
+                            {!isSidebarCollapsed && (
+                                <div
+                                    className="hidden lg:block w-full h-32 bg-slate-800 relative"
+                                    style={{ backgroundColor: company.profile_header_color || '#1e293b' }}
+                                >
+                                    {/* Optional: Add a subtle overlay or pattern here if desired */}
+                                </div>
+                            )}
 
                             {/* Close Button (Expanded Desktop Only) */}
                             {!isSidebarCollapsed && (
@@ -80,7 +90,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                             {/* Logo */}
                             <label
                                 className={`relative z-20 mx-auto lg:mx-0 bg-white rounded-[20px] border-4 border-white shadow-md overflow-hidden mb-3 transition-all block
-                                ${isSidebarCollapsed ? 'w-10 h-10 lg:mb-2 border-2 -mt-0' : 'w-52 h-52 lg:w-20 lg:h-20 lg:-mt-10'}
+                                ${isSidebarCollapsed ? 'w-10 h-10 lg:mb-2 border-2 -mt-0' : 'w-52 h-52 lg:w-32 lg:h-32 lg:-mt-16 lg:ml-6'}
                                 ${isOwner ? 'cursor-pointer group' : ''}`}
                             >
                                 {isOwner && !isUploadingLogo && (
@@ -154,7 +164,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                             <div className={`animate-fadeIn pt-1 ${isSidebarCollapsed ? 'block lg:hidden' : 'block'}`}>
 
                                 {/* Header Info (Always Visible on Mobile) */}
-                                <div className="flex flex-col gap-0.5 mb-3">
+                                <div className={`flex flex-col gap-0.5 mb-3 ${!isSidebarCollapsed ? 'lg:px-6 lg:mt-2' : ''}`}>
                                     <h1 className="text-lg font-black text-[#1a234a] leading-tight">
                                         {company.name}
                                     </h1>
@@ -163,7 +173,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                                     </div>
                                 </div>
 
-                                <p className="text-gray-500 text-[11px] font-medium leading-relaxed mb-4 line-clamp-3">
+                                <p className={`text-gray-500 text-[11px] font-medium leading-relaxed mb-4 line-clamp-3 ${!isSidebarCollapsed ? 'lg:px-6' : ''}`}>
                                     {company.description || 'Empresa parceira SoroEmpregos.'}
                                 </p>
 
@@ -180,7 +190,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                                 <div className={`${isMobileContactsOpen ? 'block' : 'hidden'} lg:block transition-all`}>
 
                                     {/* Contact Buttons */}
-                                    <div className="flex flex-col gap-2 mb-3">
+                                    <div className={`flex flex-col gap-2 mb-3 ${!isSidebarCollapsed ? 'lg:px-6' : ''}`}>
                                         {(company.phone || company.whatsapp) && (
                                             <button
                                                 onClick={() => setIsContactModalOpen(true)}
@@ -231,7 +241,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
 
                                     {/* City - State Display */}
                                     {cityState && (
-                                        <div className="text-center lg:text-left mb-4">
+                                        <div className={`text-center lg:text-left mb-4 ${!isSidebarCollapsed ? 'lg:px-6' : ''}`}>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                                                 <MapPin size={9} /> {cityState}
                                             </span>
@@ -239,7 +249,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                                     )}
 
                                     {/* Socials Row */}
-                                    <div className="space-y-2 pt-4 border-t border-gray-100 text-[10px] font-semibold text-gray-500">
+                                    <div className={`space-y-2 pt-4 border-t border-gray-100 text-[10px] font-semibold text-gray-500 ${!isSidebarCollapsed ? 'lg:px-6 lg:pb-6' : ''}`}>
                                         <div className="flex gap-1.5 justify-center lg:justify-start pt-1">
                                             {company.instagram && (
                                                 <a href={`https://instagram.com/${company.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-pink-50 text-gray-400 hover:text-[#E1306C] flex items-center justify-center transition-colors">
@@ -265,8 +275,8 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                     </div>
                     {/* END SIDEBAR */}
 
-                    {/* START MAIN CONTENT (Left) */}
-                    <div className={`${isSidebarCollapsed ? 'lg:col-span-11' : 'lg:col-span-8'} lg:order-1 space-y-8 animate-slideUpFade delay-100 transition-all duration-300`}>
+                    {/* START MAIN CONTENT (Left content now moved to right visually by flex order, but structurally remains consistent) */}
+                    <div className={`${isSidebarCollapsed ? 'lg:col-span-11' : 'lg:col-span-8'} lg:order-2 space-y-8 animate-slideUpFade delay-100 transition-all duration-300`}>
                         {children}
                     </div>
                     {/* END MAIN CONTENT */}
