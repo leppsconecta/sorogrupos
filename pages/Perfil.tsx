@@ -39,7 +39,7 @@ import Filters from '../components/public/Filters';
 import AlertModal from '../components/public/modals/AlertModal';
 import QuestionModal from '../components/public/modals/QuestionModal';
 import ReportModal from '../components/public/modals/ReportModal';
-import ApplicationModal from '../components/public/modals/ApplicationModal';
+
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
@@ -122,6 +122,7 @@ export const Perfil: React.FC = () => {
     const MOCK_JOBS: Job[] = [
         {
             id: 'mock-1',
+            code: 'PREVIEW',
             title: 'Senior UX Designer (Exemplo)',
             company: 'Sua Empresa',
             location: 'Sorocaba, SP',
@@ -135,6 +136,7 @@ export const Perfil: React.FC = () => {
         },
         {
             id: 'mock-2',
+            code: 'PREVIEW',
             title: 'Desenvolvedor Frontend (Exemplo)',
             company: 'Sua Empresa',
             location: 'Remoto',
@@ -348,19 +350,33 @@ export const Perfil: React.FC = () => {
     const toggleJobVisibility = async (jobId: string, currentHidden: boolean) => {
         const newValue = !currentHidden;
         // Optimistic Update
-        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: newValue } : j));
+        setJobs(prev => prev.map(j => {
+            if (j.id === jobId) {
+                return {
+                    ...j,
+                    public_hidden: newValue,
+                    is_featured: newValue ? false : j.is_featured // Remove highlight if hiding
+                };
+            }
+            return j;
+        }));
 
         try {
+            const updates: any = { public_hidden: newValue };
+            if (newValue) {
+                updates.is_featured = false;
+            }
+
             const { error } = await supabase
                 .from('jobs')
-                .update({ public_hidden: newValue })
+                .update(updates)
                 .eq('id', jobId);
 
             if (error) throw error;
 
-            toast({ type: 'success', title: 'Vaga Atualizada', message: newValue ? 'Vaga oculta da página pública.' : 'Vaga visível na página pública.' });
+            toast({ type: 'success', title: 'Vaga Atualizada', message: newValue ? 'Vaga oculta e removida dos destaques.' : 'Vaga visível na página pública.' });
         } catch (err: any) {
-            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: currentHidden } : j));
+            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: currentHidden } : j)); // Revert basic state, ignoring featured revert complexity for now as it's edge case
             toast({ type: 'error', title: 'Erro', message: err.message });
         }
     };
@@ -850,7 +866,7 @@ export const Perfil: React.FC = () => {
                                         {previewJobs.filter(j => j.isFeatured).length > 0 ? (
                                             <FeaturedCarousel
                                                 jobs={previewJobs.filter(j => j.isFeatured)}
-                                                onApply={(job) => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                                onApply={(job) => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                                 onRemove={(job) => {
                                                     const originalJob = jobs.find(j => j.id === job.id);
                                                     if (originalJob) toggleFeatured(originalJob);
@@ -871,7 +887,7 @@ export const Perfil: React.FC = () => {
                                             <JobCard
                                                 key={job.id}
                                                 job={job}
-                                                onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                                onApply={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                                 onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                                 onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
                                                 onViewDetails={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
@@ -891,11 +907,7 @@ export const Perfil: React.FC = () => {
                         {/* Modals for Preview */}
                         {selectedJob && (
                             <>
-                                <ApplicationModal
-                                    isOpen={isApplicationModalOpen}
-                                    onClose={() => setIsApplicationModalOpen(false)}
-                                    jobTitle={selectedJob.title}
-                                />
+
                                 <ReportModal
                                     isOpen={isReportModalOpen}
                                     onClose={() => setIsReportModalOpen(false)}

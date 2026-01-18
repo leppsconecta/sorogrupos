@@ -86,7 +86,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
                             {/* Hidden Badge */}
                             {isJobHidden && (
                                 <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 border border-red-200">
-                                    <EyeOff size={10} /> Oculta
+                                    <EyeOff size={10} /> ( Removida do site )
                                 </span>
                             )}
                         </div>
@@ -138,10 +138,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, onReport, onQuestion, s
                             </div>
                         )}
 
-                        <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded && !onViewDetails ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
-                            }`}>
-                            {onViewDetails ? <Eye size={20} /> : <ChevronDown size={20} />}
-                        </div>
+                        {!showAdminControls && (
+                            <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-full border transition-all duration-300 ${isExpanded && !onViewDetails ? 'bg-blue-600 border-blue-600 text-white rotate-180' : 'bg-gray-50 border-gray-200 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
+                                }`}>
+                                {onViewDetails ? <Eye size={20} /> : <ChevronDown size={20} />}
+                            </div>
+                        )}
                     </div>
                 </div>
 

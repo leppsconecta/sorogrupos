@@ -39,8 +39,9 @@ import { Vaga, Folder, JobContact, SavedJobContact } from '../types';
 import { supabase } from '../lib/supabase';
 import { SavedContactsModal } from '../components/SavedContactsModal';
 import { ActionsModal } from '../components/ActionsModal';
-import JobDetailModal from '../components/public/modals/JobDetailModal';
+import JobDetailModal, { JobDetailContent } from '../components/public/modals/JobDetailModal';
 import JobCard from '../components/public/JobCard';
+import { WhatsAppPreviewCard } from '../components/admin/WhatsAppPreviewCard';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
@@ -99,6 +100,9 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
   const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview'>('selection');
+
+  // Preview Mode State
+  const [previewMode, setPreviewMode] = useState<'whatsapp' | 'site'>('whatsapp');
 
   // Draft da Vaga sendo criada
   const [jobDraft, setJobDraft] = useState<Partial<Vaga>>({});
@@ -1717,86 +1721,59 @@ Cód. Vaga: *${code}*
                 )}
 
                 {jobCreationStep === 'preview' && (
-                  <div className="space-y-6">
-                    <div
-                      className="bg-[#F0F2F5] dark:bg-[#0b141a] p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-900 shadow-inner relative min-h-[400px]"
-                      style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px)', backgroundSize: '20px 20px' }}
-                    >
+                  <div className="space-y-6 flex flex-col items-center">
 
-                      <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-sm shadow-sm max-w-lg mx-auto mt-8 border border-slate-100 dark:border-slate-700 relative scale-[0.85] sm:scale-100 origin-top">
-                        {/* Triangle Tail */}
-                        <svg viewBox="0 0 8 13" height="13" width="8" className="absolute top-0 -left-2 text-white dark:text-[#202c33] fill-current"><path opacity="0.13" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
+                    {/* Toggle Switch */}
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 mb-2">
+                      <button
+                        onClick={() => setPreviewMode('whatsapp')}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'whatsapp' ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        Prévia WhatsApp
+                      </button>
+                      <button
+                        onClick={() => setPreviewMode('site')}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'site' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        Prévia Site
+                      </button>
+                    </div>
 
-                        {/* Content */}
-                        {jobDraft.type === 'file' ? (
-                          <div className="space-y-3">
-                            {(attachedFile || jobDraft.imageUrl) ? (
-                              <div className="rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 relative shadow-sm">
-                                <img
-                                  src={attachedFile ? URL.createObjectURL(attachedFile) : jobDraft.imageUrl}
-                                  alt="Vaga"
-                                  className="w-full h-auto object-contain max-h-[400px]"
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-40 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400 border border-dashed border-slate-300 dark:border-slate-700">
-                                <ImageIcon size={32} className="opacity-50 mb-1" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Sem Imagem</span>
-                              </div>
-                            )}
-
-                            <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap font-sans">
-                              {generatePreviewText().split('\n').map((line, i) => (
-                                <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
-                                  {line.split(/(\*[^*]+\*)/g).map((part, j) => (
-                                    part.startsWith('*') && part.endsWith('*') ? (
-                                      <strong key={j} className="font-bold">{part.slice(1, -1)}</strong>
-                                    ) : (
-                                      <span key={j}>{part}</span>
-                                    )
-                                  ))}
-                                  {i === 0 && (
-                                    <button
-                                      onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                                      className="ml-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
-                                    >
-                                      <Edit2 size={10} /> Alterar Emoji
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[14.2px] text-slate-800 dark:text-slate-200 leading-[1.4] whitespace-pre-wrap font-sans">
-                            {generatePreviewText().split('\n').map((line, i) => (
-                              <div key={i} className="flex items-start flex-wrap gap-1 min-h-[20px]">
-                                {line.split(/(\*[^*]+\*)/g).map((part, j) => (
-                                  part.startsWith('*') && part.endsWith('*') ? (
-                                    <strong key={j} className="font-bold">{part.slice(1, -1)}</strong>
-                                  ) : (
-                                    <span key={j}>{part}</span>
-                                  )
-                                ))}
-                                {i === 0 && (
-                                  <button
-                                    onClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
-                                    className="ml-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase transition-all hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
-                                  >
-                                    <Edit2 size={10} /> Alterar Emoji
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex justify-end mt-2 gap-1 items-center opacity-60">
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <Check size={14} className="text-blue-500" />
+                    <div className="w-full max-w-2xl">
+                      {previewMode === 'whatsapp' ? (
+                        <WhatsAppPreviewCard
+                          type={jobDraft.type as any}
+                          imageUrl={jobDraft.imageUrl}
+                          attachedFile={attachedFile}
+                          previewText={generatePreviewText()}
+                          onEmojiClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
+                        />
+                      ) : (
+                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+                          <JobDetailContent
+                            job={{
+                              id: jobDraft.id || 'preview',
+                              code: jobDraft.jobCode || 'PREVIEW',
+                              title: jobDraft.role || jobDraft.title || '',
+                              company: jobDraft.companyName || company?.name || '',
+                              location: `${jobDraft.city || ''} - ${jobDraft.region || ''}`,
+                              type: (jobDraft.bond?.includes('CLT') ? 'CLT' : jobDraft.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+                              salary: salaryEnabled ? jobDraft.salary : undefined,
+                              postedAt: 'Agora mesmo',
+                              description: jobDraft.observation || (jobDraft.type === 'file' ? 'Vaga modo imagem.' : ''),
+                              requirements: jobDraft.requirements ? jobDraft.requirements.split('\n').filter(i => i.trim()) : [],
+                              benefits: jobDraft.benefits ? jobDraft.benefits.split('\n').filter(i => i.trim()) : [],
+                              activities: jobDraft.activities ? jobDraft.activities.split('\n').filter(i => i.trim()) : [],
+                              isFeatured: true,
+                              isHidden: false
+                            }}
+                            onApply={() => { }}
+                            onReport={() => { }}
+                            onQuestion={() => { }}
+                            showFooter={false}
+                          />
                         </div>
-
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1982,31 +1959,126 @@ Cód. Vaga: *${code}*
       />
 
 
-      {
-        <JobDetailModal
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          job={viewingJob ? {
-            id: viewingJob.id,
-            code: viewingJob.jobCode || '---',
-            title: viewingJob.role || viewingJob.title || '',
-            company: viewingJob.companyName || company?.name || 'Sua Empresa',
-            location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
-            type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
-            salary: viewingJob.salary,
-            postedAt: viewingJob.date || 'Hoje',
-            description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
-            requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => i.trim()) : [],
-            benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => i.trim()) : [],
-            activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => i.trim()) : [],
-            isFeatured: viewingJob.is_featured
-          } : null}
-          showFooter={false}
-          onApply={() => alert('Modo de Visualização: Esta ação enviaria o currículo.')}
-          onReport={() => alert('Modo de Visualização: Reportar vaga.')}
-          onQuestion={() => alert('Modo de Visualização: Tirar dúvida.')}
-        />
-      }
+      {/* Modal de Visualização de Vaga (Admin) */}
+      {isViewModalOpen && viewingJob && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setIsViewModalOpen(false)}
+          />
+
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp">
+            {/* Header com Toggle */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 shrink-0">
+              <div className="bg-slate-200 dark:bg-slate-900 p-1 rounded-xl flex items-center gap-1">
+                <button
+                  onClick={() => setPreviewMode('whatsapp')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'whatsapp' ? 'bg-white dark:bg-slate-800 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  WhatsApp
+                </button>
+                <button
+                  onClick={() => setPreviewMode('site')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'site' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Site
+                </button>
+              </div>
+              <button onClick={() => setIsViewModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-900">
+              {previewMode === 'whatsapp' ? (
+                <div className="p-6">
+                  <WhatsAppPreviewCard
+                    type={viewingJob.type === 'image' ? 'file' : viewingJob.type as any}
+                    imageUrl={viewingJob.image_url || viewingJob.imageUrl}
+                    previewText={(() => {
+                      const job = viewingJob;
+                      const emojiTitle = '🟡';
+                      const code = job.jobCode || job.code || '---';
+                      const channels = [
+                        job.contact_whatsapp ? `WhatsApp ${job.contact_whatsapp}` : '',
+                        job.contact_email ? `e-mail ${job.contact_email}` : '',
+                        job.contact_link ? `Link ${job.contact_link}` : '',
+                        job.contact_address ? `${job.contact_address}` : ''
+                      ].filter(Boolean);
+
+                      const channelsText = channels.length > 0 ? channels.join(', ') : 'Entre em contato pelos canais oficiais.';
+
+                      const interessadosText = job.type === 'file'
+                        ? channelsText
+                        : `Enviar curriculo com o nome da vaga/codigo para: ${channelsText}`;
+
+                      const observationText = job.show_observation && job.observation ? `\nObs: ${job.observation}\n` : '';
+
+                      if (job.job_type === 'image' || job.type === 'file') {
+                        return `*${job.companyName || job.company_name || 'Sua Empresa'}* ${emojiTitle}
+----------------------------------
+Função: *${job.role || job.title}*
+Cód. Vaga: *${code}*
+----------------------------------${observationText}
+*Interessados*
+ ${interessadosText}`;
+                      }
+
+                      return `*${job.companyName || job.company_name || 'Sua Empresa'}* ${emojiTitle}
+----------------------------------
+Função: *${job.role || job.title}*
+Cód. Vaga: *${code}*
+----------------------------------
+*Vínculo:* ${job.bond || job.employment_type || 'CLT'}
+*Empresa:* ${job.companyName || job.company_name || 'Confidencial'}
+*Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}${job.salary ? `\n*Salário:* ${job.salary}` : ''}
+*Requisitos:* ${job.requirements || ''}
+*Benefícios:* ${job.benefits || ''}
+*Atividades:* ${job.activities || ''}
+
+*Interessados*
+ ${interessadosText}
+----------------------------------
+
+*Mais informações:*
+➞ ${job.companyName || job.company_name || 'SoroEmpregos'}
+➞ ${company?.phone || ''}
+➞ ${company?.website || ''}`;
+                    })()}
+                    onEmojiClick={() => { }}
+                    showEmojiButton={false}
+                  />
+                </div>
+              ) : (
+                <div className={previewMode === 'site' ? "p-4" : ""}>
+                  <JobDetailContent
+                    job={{
+                      id: viewingJob.id,
+                      code: viewingJob.jobCode || '---',
+                      title: viewingJob.role || viewingJob.title || '',
+                      company: viewingJob.companyName || company?.name || 'Sua Empresa',
+                      location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
+                      type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+                      salary: viewingJob.salary,
+                      postedAt: viewingJob.date || 'Hoje',
+                      description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
+                      requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                      benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                      activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                      isFeatured: viewingJob.is_featured
+                    }}
+                    onApply={() => { }}
+                    onReport={() => { }}
+                    onQuestion={() => { }}
+                    showFooter={false}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Movimentação de Vaga */}
       {

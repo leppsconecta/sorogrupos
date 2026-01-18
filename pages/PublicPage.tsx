@@ -10,7 +10,7 @@ import JobCard from '../components/public/JobCard';
 import AlertModal from '../components/public/modals/AlertModal';
 import QuestionModal from '../components/public/modals/QuestionModal';
 import ReportModal from '../components/public/modals/ReportModal';
-import ApplicationModal from '../components/public/modals/ApplicationModal';
+
 
 import { JobAlertModal } from '../components/public/modals/JobAlertModal';
 import JobDetailModal from '../components/public/modals/JobDetailModal';
@@ -38,7 +38,7 @@ export const PublicPage = () => {
 
     // Modals State
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
 
@@ -156,32 +156,7 @@ export const PublicPage = () => {
     const paginatedJobs = filteredJobs.slice(0, page * JOBS_PER_PAGE);
     const hasMore = paginatedJobs.length < filteredJobs.length;
 
-    const handleApplySubmit = async (formData: any, file: File) => {
-        if (!selectedJob || !company) return;
 
-        // Upload resume
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${company.id} /${selectedJob.id}/${Date.now()}.${fileExt} `;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('resumes')
-            .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        const { error: insertError } = await supabase
-            .from('job_applications')
-            .insert({
-                job_id: selectedJob.id,
-                company_id: company.id,
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                city: 'N/A',
-                resume_url: uploadData.path
-            });
-
-        if (insertError) throw insertError;
-    };
 
     const handleReportSubmit = async (formData: any) => {
         if (!selectedJob || !company) return;
@@ -313,7 +288,7 @@ export const PublicPage = () => {
                                         key={job.id}
                                         job={job}
                                         onViewDetails={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
-                                        onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
+                                        onApply={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
                                         onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                         onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
                                     />
@@ -342,12 +317,7 @@ export const PublicPage = () => {
                 {/* Modals */}
                 {selectedJob && (
                     <>
-                        <ApplicationModal
-                            isOpen={isApplicationModalOpen}
-                            onClose={() => setIsApplicationModalOpen(false)}
-                            jobTitle={selectedJob.title}
-                            onSubmit={handleApplySubmit}
-                        />
+
                         <ReportModal
                             isOpen={isReportModalOpen}
                             onClose={() => setIsReportModalOpen(false)}
@@ -364,7 +334,7 @@ export const PublicPage = () => {
                             isOpen={isDetailModalOpen}
                             onClose={() => setIsDetailModalOpen(false)}
                             job={selectedJob}
-                            onApply={() => { setIsDetailModalOpen(false); setIsApplicationModalOpen(true); }}
+                            onApply={() => { }}
                             onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
                             onQuestion={() => { setIsDetailModalOpen(false); setIsQuestionModalOpen(true); }}
                         />
