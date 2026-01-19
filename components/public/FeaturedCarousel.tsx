@@ -6,9 +6,10 @@ interface FeaturedCarouselProps {
     jobs: Job[];
     onApply: (job: Job) => void;
     onRemove?: (job: Job) => void;
+    headerColor?: string;
 }
 
-const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply, onRemove }) => {
+const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply, onRemove, headerColor }) => {
     if (jobs.length === 0) return null;
 
     return (
@@ -24,7 +25,10 @@ const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply, onRe
                         onClick={() => onApply(job)}
                     >
                         {/* Gradient Header */}
-                        <div className="h-24 bg-gradient-to-br from-[#1a234a] to-[#2a3560] p-6 relative overflow-hidden">
+                        <div
+                            className="h-24 bg-gradient-to-br from-[#1a234a] to-[#2a3560] p-6 relative overflow-hidden transition-colors duration-500"
+                            style={headerColor ? { background: headerColor } : {}}
+                        >
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <Briefcase size={64} className="text-white transform rotate-12" />
                             </div>

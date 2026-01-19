@@ -7,12 +7,11 @@ import { supabase } from '../lib/supabase';
 import Header from '../components/public/Header';
 import Filters from '../components/public/Filters';
 import JobCard from '../components/public/JobCard';
-import AlertModal from '../components/public/modals/AlertModal';
+
 
 import ReportModal from '../components/public/modals/ReportModal';
 
 
-import { JobAlertModal } from '../components/public/modals/JobAlertModal';
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
@@ -42,7 +41,6 @@ export const PublicPage = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
 
-    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
@@ -158,23 +156,7 @@ export const PublicPage = () => {
 
 
 
-    const handleReportSubmit = async (formData: any) => {
-        if (!selectedJob || !company) return;
 
-        const { error } = await supabase
-            .from('job_reports')
-            .insert({
-                job_id: selectedJob.id,
-                company_id: company.id,
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                description: formData.description,
-                status: 'pending'
-            });
-
-        if (error) throw error;
-    };
 
 
 
@@ -225,12 +207,7 @@ export const PublicPage = () => {
                         setSelectedType={setSelectedType}
                     />
 
-                    <button
-                        onClick={() => setIsAlertModalOpen(true)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-indigo-500/20 flex items-center gap-2 animate-pulse hover:animate-none transition-all whitespace-nowrap"
-                    >
-                        <Bell size={18} /> Receber Alertas
-                    </button>
+
                 </div>
 
                 {/* Featured Carousel */}
@@ -243,8 +220,8 @@ export const PublicPage = () => {
 
                         <FeaturedCarousel
                             jobs={featuredJobs}
-
                             onApply={(job) => { setSelectedJob(job); setIsDetailModalOpen(true); }}
+                            headerColor={company.profile_header_color}
                         />
                     </div>
                 )}
@@ -305,7 +282,6 @@ export const PublicPage = () => {
                             isOpen={isReportModalOpen}
                             onClose={() => { setIsReportModalOpen(false); setIsDetailModalOpen(true); }}
                             jobTitle={selectedJob.title}
-                            onSubmit={handleReportSubmit}
                         />
 
                         <JobDetailModal
@@ -314,17 +290,13 @@ export const PublicPage = () => {
                             job={selectedJob}
                             onApply={() => { }}
                             onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
+                            brandColor={company.profile_header_color}
                         />
                     </>
                 )}
 
-                {company && ( // Ensure company exists before passing its ID/name
-                    <JobAlertModal
-                        isOpen={isAlertModalOpen}
-                        onClose={() => setIsAlertModalOpen(false)}
-                        companyId={company.id}
-                        companyName={company.name}
-                    />
+                {company && (
+                    <></>
                 )}
 
             </div>

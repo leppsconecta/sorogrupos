@@ -22,6 +22,7 @@ interface JobDetailModalProps {
     onApply: () => void;
     onReport: () => void;
     showFooter?: boolean;
+    brandColor?: string;
 }
 
 interface JobDetailContentProps {
@@ -30,6 +31,7 @@ interface JobDetailContentProps {
     onReport: () => void;
     showFooter?: boolean;
     onClose?: () => void; // Optional for content view
+    brandColor?: string;
 }
 
 export const JobDetailContent: React.FC<JobDetailContentProps> = ({
@@ -37,7 +39,8 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
     onApply,
     onReport,
     showFooter = true,
-    onClose
+    onClose,
+    brandColor
 }) => {
     const [isShared, setIsShared] = React.useState(false);
 
@@ -174,6 +177,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                     <button
                         onClick={onApply}
                         className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+                        style={brandColor ? { backgroundColor: brandColor } : {}}
                     >
                         <Send size={16} /> Enviar Currículo
                     </button>
@@ -221,7 +225,8 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
     job,
     onApply,
     onReport,
-    showFooter = true
+    showFooter = true,
+    brandColor
 }) => {
     if (!isOpen || !job) return null;
 
@@ -237,6 +242,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 onReport={onReport}
                 showFooter={showFooter}
                 onClose={onClose}
+                brandColor={brandColor}
             />
         </div>
     );

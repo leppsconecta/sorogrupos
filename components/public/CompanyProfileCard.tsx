@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { CompanyProfile } from './types';
-import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown, Camera, Pencil } from 'lucide-react';
+import { Building2, BadgeCheck, MapPin, Globe, Phone, Instagram, Facebook, Linkedin, ChevronLeft, ChevronRight, Share2, X, ChevronDown, Camera, Pencil, Palette } from 'lucide-react';
 import ContactOptionsModal from './modals/ContactOptionsModal';
 import AddressModal from './modals/AddressModal';
+import ColorPickerModal from './modals/ColorPickerModal';
+import LogoUploadModal from './modals/LogoUploadModal';
 import { OfficialWhatsAppIcon } from '../OfficialWhatsAppIcon';
 
 interface CompanyProfileCardProps {
@@ -13,6 +15,7 @@ interface CompanyProfileCardProps {
     isSidebarCollapsed?: boolean;
     onToggleCollapse?: (collapsed: boolean) => void;
     onUpdateDescription?: (newDescription: string) => Promise<void>;
+    onColorChange?: (color: string) => void;
 }
 
 const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
@@ -22,11 +25,41 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
     isUploadingLogo,
     isSidebarCollapsed = false,
     onToggleCollapse,
-    onUpdateDescription
+    onUpdateDescription,
+    onColorChange
 }) => {
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
     const [isMobileContactsOpen, setIsMobileContactsOpen] = useState(false);
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+
+    // Logo Cropper State
+    const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setLogoFile(e.target.files[0]);
+            setIsLogoModalOpen(true);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const handleLogoSave = (blob: Blob) => {
+        if (onLogoUpload && logoFile) {
+            const file = new File([blob], logoFile.name, { type: 'image/jpeg' });
+            // Create synthetic event
+            const syntheticEvent = {
+                target: {
+                    files: [file]
+                }
+            } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+            onLogoUpload(syntheticEvent);
+            setIsLogoModalOpen(false);
+            setLogoFile(null);
+        }
+    };
 
     // Description Editing State
     const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -64,6 +97,19 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                     </div>
                 )}
 
+                {/* Color Picker (Owner Only) - Top Right of Cover */}
+                {!isSidebarCollapsed && isOwner && (
+                    <div className="absolute top-4 right-14 z-20 hidden lg:block">
+                        <button
+                            onClick={() => setIsColorPickerOpen(true)}
+                            className="flex items-center gap-2 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-3 py-1.5 rounded-full cursor-pointer transition-all border border-white/20 shadow-sm group"
+                        >
+                            <Palette size={16} className="group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-bold text-white uppercase tracking-wider">Alterar Cor</span>
+                        </button>
+                    </div>
+                )}
+
                 {/* Close Button (Expanded Desktop Only) */}
                 {!isSidebarCollapsed && onToggleCollapse && (
                     <button
@@ -87,7 +133,7 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                                 type="file"
                                 className="hidden"
                                 accept="image/*"
-                                onChange={onLogoUpload}
+                                onChange={handleFileSelect}
                             />
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30">
                                 <div className="text-white flex flex-col items-center gap-1">
@@ -105,7 +151,7 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                     )}
 
                     {company.logo_url ? (
-                        <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain p-1.5" />
+                        <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain object-center bg-white" />
                     ) : (
                         <div className="flex items-center justify-center w-full h-full bg-gray-50 text-gray-300">
                             <Building2 size={isSidebarCollapsed ? 18 : 28} />
@@ -327,7 +373,8 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                             {(company.phone || company.whatsapp) && (
                                 <button
                                     onClick={() => setIsContactModalOpen(true)}
-                                    className="w-full h-10 rounded-xl bg-[#25D366] text-white font-bold hover:bg-[#20bd5a] shadow-md shadow-green-500/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wide"
+                                    className="w-full h-10 rounded-xl bg-[#25D366] text-white font-bold hover:brightness-110 shadow-md shadow-green-500/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wide"
+                                    style={company.profile_header_color ? { backgroundColor: company.profile_header_color, boxShadow: `0 4px 6px -1px ${company.profile_header_color}33` } : {}}
                                 >
                                     <OfficialWhatsAppIcon size={18} /> WhatsApp
                                 </button>
@@ -413,6 +460,25 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                     address={fullAddress}
                 />
             )}
+
+            <ColorPickerModal
+                isOpen={isColorPickerOpen}
+                onClose={() => setIsColorPickerOpen(false)}
+                initialColor={company.profile_header_color}
+                onSave={(color) => {
+                    if (onColorChange) onColorChange(color);
+                }}
+            />
+
+            <LogoUploadModal
+                isOpen={isLogoModalOpen}
+                onClose={() => {
+                    setIsLogoModalOpen(false);
+                    setLogoFile(null);
+                }}
+                imageFile={logoFile}
+                onSave={handleLogoSave}
+            />
         </>
     );
 };

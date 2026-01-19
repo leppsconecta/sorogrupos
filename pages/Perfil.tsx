@@ -37,7 +37,6 @@ import { useNavigate } from 'react-router-dom';
 import JobCard from '../components/public/JobCard';
 import Filters from '../components/public/Filters';
 import AlertModal from '../components/public/modals/AlertModal';
-import QuestionModal from '../components/public/modals/QuestionModal';
 import ReportModal from '../components/public/modals/ReportModal';
 
 import JobDetailModal from '../components/public/modals/JobDetailModal';
@@ -110,7 +109,6 @@ export const Perfil: React.FC = () => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
     const [isJobDetailModalOpen, setIsJobDetailModalOpen] = useState(false);
@@ -831,10 +829,26 @@ export const Perfil: React.FC = () => {
                                             isUploadingLogo={uploadingLogo}
                                             onUpdateDescription={async (newDesc) => {
                                                 setFormData(prev => ({ ...prev, description: newDesc }));
-                                                const { error } = await supabase.from('companies').update({ description: newDesc }).eq('id', company.id);
+                                                const { error } = await supabase.from('companies').update({ description: newDesc }).eq('id', company?.id);
                                                 if (error) throw error;
                                                 await refreshProfile();
                                                 toast({ type: 'success', title: 'Descrição Atualizada', message: 'Nova descrição salva com sucesso!' });
+                                            }}
+                                            onColorChange={async (color) => {
+                                                setFormData(prev => ({ ...prev, profile_header_color: color }));
+                                                try {
+                                                    const { error } = await supabase
+                                                        .from('companies')
+                                                        .update({ profile_header_color: color })
+                                                        .eq('id', company?.id);
+
+                                                    if (error) throw error;
+                                                    toast({ type: 'success', title: 'Cor Atualizada', message: 'Nova cor da marca salva com sucesso!' });
+                                                    await refreshProfile();
+                                                } catch (error) {
+                                                    console.error('Error saving color:', error);
+                                                    toast({ type: 'error', title: 'Erro', message: 'Falha ao salvar a cor.' });
+                                                }
                                             }}
                                         />
                                     </div>
@@ -871,6 +885,7 @@ export const Perfil: React.FC = () => {
                                                     const originalJob = jobs.find(j => j.id === job.id);
                                                     if (originalJob) toggleFeatured(originalJob);
                                                 }}
+                                                headerColor={formData.profile_header_color}
                                             />
                                         ) : (
                                             <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center">
@@ -889,7 +904,6 @@ export const Perfil: React.FC = () => {
                                                 job={job}
                                                 onApply={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                                 onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
-                                                onQuestion={() => { setSelectedJob(job); setIsQuestionModalOpen(true); }}
                                                 onViewDetails={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                                 showAdminControls={true}
                                                 onToggleHidden={() => {
@@ -913,19 +927,14 @@ export const Perfil: React.FC = () => {
                                     onClose={() => setIsReportModalOpen(false)}
                                     jobTitle={selectedJob.title}
                                 />
-                                <QuestionModal
-                                    isOpen={isQuestionModalOpen}
-                                    onClose={() => setIsQuestionModalOpen(false)}
-                                    jobTitle={selectedJob.title}
-                                />
                                 <JobDetailModal
                                     isOpen={isJobDetailModalOpen}
                                     onClose={() => setIsJobDetailModalOpen(false)}
                                     job={selectedJob}
                                     onApply={() => { }}
                                     onReport={() => { }}
-                                    onQuestion={() => { }}
                                     showFooter={false}
+                                    brandColor={formData.profile_header_color}
                                 />
                             </>
                         )}
