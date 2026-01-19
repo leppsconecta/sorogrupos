@@ -587,7 +587,11 @@ export const Candidatos: React.FC = () => {
                                     return matchesStatus && matchesSearch;
                                 })
                                 .map(candidate => (
-                                    <div key={candidate.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 justify-between transition-all hover:shadow-md">
+                                    <div
+                                        key={candidate.id}
+                                        className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 justify-between transition-all hover:shadow-md cursor-pointer group/card"
+                                        onClick={() => setPreviewCandidate(candidate)}
+                                    >
                                         <div className="flex items-center gap-3 w-full">
                                             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-lg shrink-0 overflow-hidden">
                                                 {/* Use mock avatar logic if needed, or just initials */}
