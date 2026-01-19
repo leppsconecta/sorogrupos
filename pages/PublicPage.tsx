@@ -10,6 +10,7 @@ import JobCard from '../components/public/JobCard';
 
 
 import ReportModal from '../components/public/modals/ReportModal';
+import ApplicationModal from '../components/public/modals/ApplicationModal';
 
 
 import JobDetailModal from '../components/public/modals/JobDetailModal';
@@ -39,6 +40,7 @@ export const PublicPage = () => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -249,7 +251,7 @@ export const PublicPage = () => {
                                         key={job.id}
                                         job={job}
                                         onViewDetails={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
-                                        onApply={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
+                                        onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
                                         onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                     />
                                 ))}
@@ -284,11 +286,18 @@ export const PublicPage = () => {
                             jobTitle={selectedJob.title}
                         />
 
+                        <ApplicationModal
+                            isOpen={isApplicationModalOpen}
+                            onClose={() => { setIsApplicationModalOpen(false); }}
+                            jobTitle={selectedJob.title}
+                            jobOwnerId={company.owner_id} // Pass owner ID for webhook
+                        />
+
                         <JobDetailModal
                             isOpen={isDetailModalOpen}
                             onClose={() => setIsDetailModalOpen(false)}
                             job={selectedJob}
-                            onApply={() => { }}
+                            onApply={() => { setIsDetailModalOpen(false); setIsApplicationModalOpen(true); }}
                             onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
                             brandColor={company.profile_header_color}
                         />
