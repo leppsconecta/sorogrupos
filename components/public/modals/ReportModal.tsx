@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Megaphone, CheckCircle, AlertCircle } from 'lucide-react';
 import { InputMask } from '@react-input/mask';
 
@@ -6,13 +6,25 @@ interface ReportModalProps {
     isOpen: boolean;
     onClose: () => void;
     jobTitle: string;
+    userId: string;
+    jobCode: string;
+    jobId: string;
 }
 
-const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, jobTitle }) => {
+const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, jobTitle, userId, jobCode, jobId }) => {
     const [formData, setFormData] = useState({ name: '', phone: '', email: '', description: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setFormData({ name: '', phone: '', email: '', description: '' });
+            setIsSuccess(false);
+            setError('');
+            setIsSubmitting(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -42,19 +54,20 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, jobTitle }) 
         setIsSubmitting(true);
 
         try {
-            // Parses phone for payload: (15) 91234-1234 -> ddd: 15, contato: 912341234
+            // Parses phone for payload: (15) 91234-1234 -> 5515912341234
             const ddd = cleanPhone.substring(0, 2);
-            const contato = cleanPhone.substring(2);
+            const number = cleanPhone.substring(2);
+            const formattedPhone = `55${ddd}${number}`;
 
             const payload = {
                 name: formData.name,
+                phone: formattedPhone,
                 email: formData.email,
-                phone: formData.phone,
-                dddi: 55,
-                ddd: parseInt(ddd),
-                contato: parseInt(contato),
+                user_id: userId,
+                code_job: jobCode,
+                job_id: jobId,
                 description: formData.description,
-                jobTitle: jobTitle
+                name_job: jobTitle
             };
 
             const response = await fetch('https://webhook.leppsconecta.com.br/webhook/38a97491-c52b-4378-8024-7cd2c90959e4', {

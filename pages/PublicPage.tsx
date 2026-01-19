@@ -284,6 +284,9 @@ export const PublicPage = () => {
                             isOpen={isReportModalOpen}
                             onClose={() => { setIsReportModalOpen(false); setIsDetailModalOpen(true); }}
                             jobTitle={selectedJob.title}
+                            userId={company.owner_id}
+                            jobCode={selectedJob.code}
+                            jobId={selectedJob.id}
                         />
 
                         <ApplicationModal
