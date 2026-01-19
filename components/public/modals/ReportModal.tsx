@@ -172,7 +172,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, jobTitle }) 
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Telefone</label>
                                         <InputMask
-                                            mask="(__) 9 ____-____"
+                                            mask="(__) _ ____-____"
                                             replacement={{ _: /\d/ }}
                                             placeholder="(15) 9 1234-1234"
                                             type="tel"
