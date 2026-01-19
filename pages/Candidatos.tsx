@@ -63,25 +63,17 @@ interface NavigationState {
     name: string;
 }
 
-// --- Mock Data Generator ---
-const generateMockCandidates = (jobId: string, count: number): Candidate[] => {
-    const firstNames = ['Ana', 'João', 'Maria', 'Pedro', 'Lucas', 'Julia', 'Carlos', 'Beatriz', 'Felipe', 'Mariana'];
-    const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes'];
-    const cities = ['Sorocaba', 'Votorantim', 'Itu', 'Salto', 'São Roque', 'Ibiúna'];
-
-    return Array.from({ length: count }).map((_, i) => ({
-        id: `mock-${jobId}-${i}`,
-        job_id: jobId,
-        name: `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`,
-        email: `candidato${i}@exemplo.com`,
-        phone: '15999999999',
-        resume_url: '',
-        status: Math.random() > 0.7 ? 'rejected' : Math.random() > 0.8 ? 'approved' : 'pending',
-        created_at: new Date(Date.now() - Math.floor(Math.random() * 1000000000)).toISOString(),
-        age: Math.floor(Math.random() * (45 - 20) + 20),
-        sex: Math.random() > 0.5 ? 'Masculino' : 'Feminino',
-        city: cities[Math.floor(Math.random() * cities.length)]
-    }));
+// Helper to calculate age from date string YYYY-MM-DD
+const calculateAge = (birthDate: string) => {
+    if (!birthDate) return undefined;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
 };
 
 export const Candidatos: React.FC = () => {
@@ -130,33 +122,72 @@ export const Candidatos: React.FC = () => {
         setLoading(true);
         try {
             // Parallel Fetch
-            const [companiesRes, sectorsRes, jobsRes] = await Promise.all([
+            const [companiesRes, sectorsRes, jobsRes, applicationsRes] = await Promise.all([
                 supabase.from('folder_companies').select('*').order('name'),
                 supabase.from('sectors').select('*').order('name'),
-                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id, salary, observation, requirements, benefits, activities').eq('user_id', user?.id).eq('status', 'active')
+                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id, salary, observation, requirements, benefits, activities').eq('user_id', user?.id).eq('status', 'active'),
+                supabase.from('job_applications')
+                    .select(`
+                        id,
+                        status,
+                        created_at,
+                        job_id,
+                        candidates (
+                            id,
+                            name,
+                            email,
+                            phone,
+                            city,
+                            state,
+                            sex,
+                            birth_date,
+                            resume_url
+                        )
+                    `)
             ]);
 
             if (companiesRes.error) throw companiesRes.error;
             if (sectorsRes.error) throw sectorsRes.error;
             if (jobsRes.error) throw jobsRes.error;
+            if (applicationsRes.error) throw applicationsRes.error;
 
             const fetchedJobs = jobsRes.data || [];
+            const applications = applicationsRes.data || [];
 
-            // Combine Real Candidates with Mocks
-            // Note: Since user asked for "Create mocks", we will inject them into the jobs.
-            // If we had real candidates, we would fetch them. Here I will prioritize Mocks for demonstration 
-            // but keep the structure ready for real ones or mix them.
-
-            // For this specific request "Crie mocks de curriculos", I'll attach random mocks to each job.
-
+            // Map applications to candidates format
             const jobWithCandidates = fetchedJobs.map(job => {
-                // Generate 5-15 mock candidates per job
-                const mockCandidates = generateMockCandidates(job.id, Math.floor(Math.random() * 10) + 5);
+                const jobApps = applications.filter(app => app.job_id === job.id);
+
+                const mappedCandidates: Candidate[] = jobApps.map((app: any) => ({
+                    id: app.candidates.id, // Use candidate ID or Application ID?
+                    // NOTE: The UI typically treats 'id' as the unique item to update status. 
+                    // However, 'status' is on 'job_applications', not 'candidates'. 
+                    // So we should probably use 'job_applications.id' as the key to update status, 
+                    // or handle the update logic to update job_applications based on candidate_id + job_id.
+                    // Let's use application ID as the 'id' for the UI actions to simplify status updates.
+                    // Wait, existing code might expect 'id' to be candidate id? 
+                    // Let's check handleUpdateStatus. It calls supabase.from('job_candidates').update({ status }).eq('id', candidateId).
+                    // So currently it expects a "row ID" of the relationship table.
+                    // PERFECT. We have 'job_applications' table which replaces 'job_candidates'.
+                    // So we will pass app.id as 'id'.
+
+                    id: app.id, // Application ID (relationship table PK)
+                    job_id: app.job_id,
+                    name: app.candidates.name,
+                    email: app.candidates.email,
+                    phone: app.candidates.phone,
+                    resume_url: app.candidates.resume_url,
+                    status: app.status,
+                    created_at: app.created_at,
+                    age: calculateAge(app.candidates.birth_date),
+                    sex: app.candidates.sex,
+                    city: app.candidates.city
+                }));
 
                 return {
                     ...job,
-                    candidates: mockCandidates,
-                    candidates_count: mockCandidates.length
+                    candidates: mappedCandidates,
+                    candidates_count: mappedCandidates.length
                 };
             });
 
@@ -231,13 +262,14 @@ export const Candidatos: React.FC = () => {
     );
 
     // --- Actions ---
-    const handleUpdateStatus = async (candidateId: string, newStatus: string) => {
+    // --- Actions ---
+    const handleUpdateStatus = async (applicationId: string, newStatus: string) => {
         try {
             // Optimistic Update
             setJobs(prev => prev.map(job => ({
                 ...job,
                 candidates: job.candidates.map(c =>
-                    c.id === candidateId ? { ...c, status: newStatus as any } : c
+                    c.id === applicationId ? { ...c, status: newStatus as any } : c
                 )
             })));
 
@@ -245,15 +277,14 @@ export const Candidatos: React.FC = () => {
                 setSelectedJob(prev => prev ? ({
                     ...prev,
                     candidates: prev.candidates.map(c =>
-                        c.id === candidateId ? { ...c, status: newStatus as any } : c
+                        c.id === applicationId ? { ...c, status: newStatus as any } : c
                     )
                 }) : null);
             }
 
-            // Only attempt DB update if not a mock (mock IDs start with 'mock-')
-            if (!candidateId.startsWith('mock-')) {
-                await supabase.from('job_candidates').update({ status: newStatus }).eq('id', candidateId);
-            }
+            // Update in DB (using job_applications table)
+            await supabase.from('job_applications').update({ status: newStatus }).eq('id', applicationId);
+
         } catch (error) {
             console.error('Error updating status:', error);
         }

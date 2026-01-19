@@ -9,24 +9,34 @@ interface ApplicationModalProps {
     jobTitle: string;
     jobOwnerId: string;
     jobId: string;
+    companyId: string; // Added companyId prop
 }
 
 type Step = 'contact_info' | 'personal_info' | 'verification' | 'success';
 
-const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId }) => {
+const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId, companyId }) => {
     const [step, setStep] = useState<Step>('contact_info');
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
         email: '',
         city: '',
+        state: '',
         sex: '',
         birthDate: ''
     });
     const [verificationCode, setVerificationCode] = useState('');
+    const [generatedToken, setGeneratedToken] = useState('');
+    const [candidateId, setCandidateId] = useState('');
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+
+    // City Autocomplete State
+    const [cities, setCities] = useState<string[]>([]);
+    const [filteredCities, setFilteredCities] = useState<string[]>([]);
+    const [isLoadingCities, setIsLoadingCities] = useState(false);
+    const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
     // Timer state
     const [timeLeft, setTimeLeft] = useState(0);
@@ -35,17 +45,59 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
     // Resume input ref to reset file input
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const UFs = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
     // Reset state on open
     useEffect(() => {
         if (isOpen) {
             setStep('contact_info');
-            setFormData({ name: '', phone: '', email: '', city: '', sex: '', birthDate: '' });
+            setFormData({ name: '', phone: '', email: '', city: '', state: '', sex: '', birthDate: '' });
             setResumeFile(null);
             setVerificationCode('');
+            setGeneratedToken('');
+            setCandidateId('');
             setError('');
             setTimeLeft(0);
+            setCities([]);
         }
     }, [isOpen]);
+
+    // Fetch cities when State changes
+    useEffect(() => {
+        if (formData.state) {
+            const fetchCities = async () => {
+                setIsLoadingCities(true);
+                setFormData(prev => ({ ...prev, city: '' })); // Reset city when state changes
+                try {
+                    const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.state}/municipios?orderBy=nome`);
+                    const data = await response.json();
+                    const cityNames = data.map((c: any) => c.nome);
+                    setCities(cityNames);
+                    setFilteredCities(cityNames);
+                } catch (err) {
+                    console.error("Failed to fetch cities", err);
+                    setCities([]);
+                } finally {
+                    setIsLoadingCities(false);
+                }
+            };
+            fetchCities();
+        } else {
+            setCities([]);
+            setFilteredCities([]);
+        }
+    }, [formData.state]);
+
+    // Filter cities locally as user types
+    useEffect(() => {
+        if (formData.city) {
+            const lower = formData.city.toLowerCase();
+            const filtered = cities.filter(c => c.toLowerCase().includes(lower));
+            setFilteredCities(filtered);
+        } else {
+            setFilteredCities(cities);
+        }
+    }, [formData.city, cities]);
 
     // Timer logic
     useEffect(() => {
@@ -92,7 +144,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
     };
 
     const validateAge = (dateStr: string) => {
-        // format: DD/MM/YYYY (guaranteed by regex check before calling this if needed)
         const parts = dateStr.split('/');
         if (parts.length !== 3) return { valid: false, message: 'Formato inválido.' };
 
@@ -103,17 +154,14 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         const birthDate = new Date(year, month - 1, day);
         const today = new Date();
 
-        // Check if date is valid
         if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day) {
             return { valid: false, message: 'Data inexistente.' };
         }
 
-        // Check if future
         if (birthDate > today) {
             return { valid: false, message: 'A data não pode ser futura.' };
         }
 
-        // Check age >= 13
         let age = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -156,8 +204,13 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
             setStep('personal_info');
         } else if (step === 'personal_info') {
-            if (!formData.city || !formData.sex || !formData.birthDate) {
+            if (!formData.state || !formData.city || !formData.sex || !formData.birthDate) {
                 setError('Preencha todos os campos.');
+                return;
+            }
+
+            if (!cities.includes(formData.city)) {
+                setError('Selecione uma cidade válida da lista.');
                 return;
             }
 
@@ -173,7 +226,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 return;
             }
 
-            // Proceed to request code
             handleRequestCode();
         }
     };
@@ -182,18 +234,81 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         setIsSubmitting(true);
         setError('');
 
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        setGeneratedToken(code);
+
         try {
             const cleanPhone = formData.phone.replace(/\D/g, '');
             const ddd = cleanPhone.substring(0, 2);
             const number = cleanPhone.substring(2);
             const formattedPhone = `55${ddd}${number}`;
 
+            // Format Birth Date
+            const [day, month, year] = formData.birthDate.split('/');
+            const dbBirthDate = `${year}-${month}-${day}`;
+
+            // 1. Upsert Candidate
+            let currCandidateId = '';
+
+            const { data: existingCandidate, error: fetchError } = await supabase
+                .from('candidates')
+                .select('id')
+                .eq('email', formData.email)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error("Error checking candidate:", fetchError);
+            }
+
+            if (existingCandidate) {
+                currCandidateId = existingCandidate.id;
+                const { error: updateError } = await supabase
+                    .from('candidates')
+                    .update({
+                        name: formData.name,
+                        phone: formattedPhone,
+                        city: formData.city,
+                        state: formData.state,
+                        sex: formData.sex,
+                        birth_date: dbBirthDate,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currCandidateId);
+
+                if (updateError) throw new Error('Falha ao atualizar dados do candidato.');
+            } else {
+                const { data: newCandidate, error: insertError } = await supabase
+                    .from('candidates')
+                    .insert({
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formattedPhone,
+                        city: formData.city,
+                        state: formData.state,
+                        sex: formData.sex,
+                        birth_date: dbBirthDate
+                    })
+                    .select('id')
+                    .single();
+
+                if (insertError) throw new Error('Falha ao cadastrar candidato.');
+                currCandidateId = newCandidate.id;
+            }
+
+            setCandidateId(currCandidateId);
+
+            // 2. Send Webhook
             const payload = {
                 type: 'solicita_codigo',
                 user_id: jobOwnerId,
+                job_id: jobId, // Reverted to job_id (lowercase) to fix 500 error
                 phone: formattedPhone,
+                code: code,
+                id_candidate: currCandidateId,
                 formato: '55+ddd+numero'
             };
+
+            console.log('Sending webhook payload:', payload);
 
             const response = await fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
                 method: 'POST',
@@ -201,16 +316,18 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
-                setStep('verification');
-                startTimer();
-            } else {
-                throw new Error('Falha ao solicitar código.');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Webhook failed:', response.status, errorText);
+                throw new Error(`Falha ao enviar solicitação: ${response.status}`);
             }
 
-        } catch (error) {
+            setStep('verification');
+            startTimer();
+
+        } catch (error: any) {
             console.error(error);
-            setError("Erro ao enviar solicitação. Tente novamente.");
+            setError(error.message || "Erro ao enviar solicitação. Tente novamente.");
         } finally {
             setIsSubmitting(false);
         }
@@ -223,35 +340,90 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             const number = cleanPhone.substring(2);
             const formattedPhone = `55${ddd}${number}`;
 
+            // 1. Upload Resume
+            let resumeUrl = '';
+            if (resumeFile) {
+                const fileExt = resumeFile.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('resumes')
+                    .upload(filePath, resumeFile);
+
+                if (uploadError) {
+                    throw new Error('Falha ao enviar currículo.');
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('resumes')
+                    .getPublicUrl(filePath);
+
+                resumeUrl = publicUrl;
+
+                // Update candidate with resume URL
+                if (candidateId) {
+                    const { error: updateResumeError } = await supabase
+                        .from('candidates')
+                        .update({
+                            resume_url: resumeUrl,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', candidateId);
+
+                    if (updateResumeError) console.error("Error updating resume URL:", updateResumeError);
+                }
+            }
+
+            // 2. Check Candidate ID
+            if (!candidateId) throw new Error("ID do candidato não encontrado.");
+
+            // 3. Create Job Application
+            const { error: appError } = await supabase
+                .from('job_applications')
+                .insert({
+                    job_id: jobId,
+                    candidate_id: candidateId,
+                    company_id: companyId, // Added companyId to insert
+                    status: 'pending'
+                });
+
+            if (appError) {
+                if (appError.code === '23505') {
+                    // Ignore unique violation
+                } else {
+                    console.error("Job Application Error:", appError);
+                    throw new Error(`Falha ao registrar candidatura: ${appError.message} (${appError.code})`);
+                }
+            }
+
+            // Success immediately after DB save
+            setStep('success');
+
+            // 4. Send Final Webhook (Background / Fire-and-Forget)
             const data = new FormData();
+            data.append('candidate_id', candidateId);
             data.append('type', 'nova_candidatura');
             data.append('name', formData.name);
             data.append('email', formData.email);
             data.append('phone', formattedPhone);
+            data.append('state', formData.state);
             data.append('city', formData.city);
             data.append('sex', formData.sex);
             data.append('birth_date', formData.birthDate);
             data.append('user_id', jobOwnerId);
             data.append('job_title', jobTitle);
+            if (resumeFile) data.append('file', resumeFile);
 
-            if (resumeFile) {
-                data.append('file', resumeFile);
-            }
-
-            const response = await fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
+            // Don't await response, just log error if happens
+            fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
                 method: 'POST',
                 body: data
-            });
+            }).catch(err => console.error('Final webhook failed in background:', err));
 
-            if (response.ok) {
-                setStep('success');
-            } else {
-                throw new Error('Falha ao enviar candidatura.');
-            }
-
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            setError("Erro ao finalizar candidatura. Tente novamente.");
+            setError(error.message || "Erro ao finalizar candidatura. Tente novamente.");
         } finally {
             setIsSubmitting(false);
         }
@@ -269,37 +441,16 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         setIsSubmitting(true);
 
         try {
-            const cleanPhone = formData.phone.replace(/\D/g, '');
-            const ddd = cleanPhone.substring(0, 2);
-            const number = cleanPhone.substring(2);
-            const formattedPhone = `55${ddd}${number}`;
-
-            const payload = {
-                type: 'valida_codigo',
-                user_id: jobOwnerId,
-                phone: formattedPhone,
-                formato: '55+ddd+numero',
-                token: verificationCode
-            };
-
-            const response = await fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (data && data.confirme_code === true) {
+            // Client-side validation
+            if (verificationCode === generatedToken) {
                 await handleFinalSubmission();
             } else {
-                setError('Código inválido ou expirado.');
+                setError('Código incorreto.');
                 setIsSubmitting(false);
             }
-
         } catch (error) {
             console.error(error);
-            setError("Erro ao validar código. Verifique sua conexão.");
+            setError("Erro ao validar código.");
             setIsSubmitting(false);
         }
     };
@@ -487,19 +638,78 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
                         {step === 'personal_info' && (
                             <form onSubmit={handleNextStep} className="space-y-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cidade *</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                        <input
-                                            type="text"
-                                            placeholder="Ex: Sorocaba"
-                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
-                                            value={formData.city}
-                                            onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                <div className="grid grid-cols-12 gap-3">
+                                    {/* State (UF) */}
+                                    <div className="col-span-3 space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">UF *</label>
+                                        <select
+                                            className="w-full px-2 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm appearance-none text-center"
+                                            value={formData.state}
+                                            onChange={e => setFormData({ ...formData, state: e.target.value })}
                                             required
-                                            autoFocus
-                                        />
+                                        >
+                                            <option value="">UF</option>
+                                            {UFs.map(uf => (
+                                                <option key={uf} value={uf}>{uf}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* City Autocomplete */}
+                                    <div className="col-span-9 space-y-1.5 relative">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cidade *</label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input
+                                                type="text"
+                                                placeholder={isLoadingCities ? "Carregando..." : (formData.state ? "Selecione na lista..." : "Selecione o estado primeiro")}
+                                                className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm ${!formData.state ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                value={formData.city}
+                                                onChange={e => {
+                                                    setFormData({ ...formData, city: e.target.value });
+                                                    setShowCitySuggestions(true);
+                                                }}
+                                                onFocus={() => setShowCitySuggestions(true)}
+                                                onBlur={() => {
+                                                    // Delay hide to allow click
+                                                    setTimeout(() => setShowCitySuggestions(false), 200);
+
+                                                    // Strict Validation on Blur: If current value not in cities, clear it
+                                                    // Using timeout to ensure state updates or clicks process first
+                                                    setTimeout(() => {
+                                                        if (formData.city && !cities.includes(formData.city)) {
+                                                            // Optional: could keep it but validation will fail on submit
+                                                        }
+                                                    }, 300);
+                                                }}
+                                                disabled={!formData.state || isLoadingCities}
+                                                required
+                                            />
+                                            {isLoadingCities && (
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Suggestions Dropdown */}
+                                        {showCitySuggestions && filteredCities.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto custom-scrollbar animate-slideDown">
+                                                {filteredCities.map((city) => (
+                                                    <button
+                                                        key={city}
+                                                        type="button"
+                                                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, city: city });
+                                                            setShowCitySuggestions(false);
+                                                        }}
+                                                    >
+                                                        {city}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

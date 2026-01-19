@@ -295,6 +295,7 @@ export const PublicPage = () => {
                             jobTitle={selectedJob.title}
                             jobOwnerId={company.owner_id} // Pass owner ID for webhook
                             jobId={selectedJob.id}
+                            companyId={company.id}
                         />
 
                         <JobDetailModal

@@ -204,6 +204,87 @@ export type Database = {
                     },
                 ]
             }
+            candidates: {
+                Row: {
+                    id: string
+                    name: string
+                    email: string
+                    phone: string | null
+                    city: string | null
+                    state: string | null
+                    sex: string | null
+                    birth_date: string | null
+                    resume_url: string | null
+                    created_at: string | null
+                    updated_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    name: string
+                    email: string
+                    phone?: string | null
+                    city?: string | null
+                    state?: string | null
+                    sex?: string | null
+                    birth_date?: string | null
+                    resume_url?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    name?: string
+                    email?: string
+                    phone?: string | null
+                    city?: string | null
+                    state?: string | null
+                    sex?: string | null
+                    birth_date?: string | null
+                    resume_url?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                }
+                Relationships: []
+            }
+            job_applications: {
+                Row: {
+                    id: string
+                    job_id: string
+                    candidate_id: string
+                    status: string | null
+                    created_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    job_id: string
+                    candidate_id: string
+                    status?: string | null
+                    created_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    job_id?: string
+                    candidate_id?: string
+                    status?: string | null
+                    created_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "job_applications_job_id_fkey"
+                        columns: ["job_id"]
+                        isOneToOne: false
+                        referencedRelation: "jobs"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "job_applications_candidate_id_fkey"
+                        columns: ["candidate_id"]
+                        isOneToOne: false
+                        referencedRelation: "candidates"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {
             [_ in never]: never
