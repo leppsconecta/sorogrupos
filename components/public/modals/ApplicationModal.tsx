@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, CheckCircle, AlertCircle, Phone, Lock, UploadCloud, RefreshCw, Edit2, FileText, Paperclip, ArrowRight } from 'lucide-react';
+import { X, Send, CheckCircle, AlertCircle, Phone, Lock, UploadCloud, RefreshCw, Edit2, FileText, Paperclip, ArrowRight, User, MapPin, Calendar, ArrowLeft } from 'lucide-react';
 import { InputMask } from '@react-input/mask';
 import { supabase } from '../../../lib/supabase';
 
@@ -11,12 +11,18 @@ interface ApplicationModalProps {
     jobId: string;
 }
 
-type Step = 'form' | 'verification' | 'success';
+type Step = 'contact_info' | 'personal_info' | 'verification' | 'success';
 
 const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId }) => {
-    const [step, setStep] = useState<Step>('form');
-    // Removed 'message' from state
-    const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
+    const [step, setStep] = useState<Step>('contact_info');
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        email: '',
+        city: '',
+        sex: '',
+        birthDate: ''
+    });
     const [verificationCode, setVerificationCode] = useState('');
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,8 +38,8 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
     // Reset state on open
     useEffect(() => {
         if (isOpen) {
-            setStep('form');
-            setFormData({ name: '', phone: '', email: '' });
+            setStep('contact_info');
+            setFormData({ name: '', phone: '', email: '', city: '', sex: '', birthDate: '' });
             setResumeFile(null);
             setVerificationCode('');
             setError('');
@@ -85,12 +91,47 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         }
     };
 
-    const handleRequestCode = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
+    const validateAge = (dateStr: string) => {
+        // format: DD/MM/YYYY (guaranteed by regex check before calling this if needed)
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) return { valid: false, message: 'Formato inválido.' };
+
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+
+        const birthDate = new Date(year, month - 1, day);
+        const today = new Date();
+
+        // Check if date is valid
+        if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day) {
+            return { valid: false, message: 'Data inexistente.' };
+        }
+
+        // Check if future
+        if (birthDate > today) {
+            return { valid: false, message: 'A data não pode ser futura.' };
+        }
+
+        // Check age >= 13
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        if (age < 13) {
+            return { valid: false, message: 'Idade mínima de 13 anos.' };
+        }
+
+        return { valid: true };
+    };
+
+    const handleNextStep = (e: React.FormEvent) => {
+        e.preventDefault();
         setError('');
 
-        if (step === 'form') {
-            // Basic validation for Step 1
+        if (step === 'contact_info') {
             if (!formData.name || !formData.phone || !formData.email) {
                 setError('Preencha os campos obrigatórios.');
                 return;
@@ -112,9 +153,34 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 setError('Por favor, anexe seu currículo.');
                 return;
             }
-        }
 
+            setStep('personal_info');
+        } else if (step === 'personal_info') {
+            if (!formData.city || !formData.sex || !formData.birthDate) {
+                setError('Preencha todos os campos.');
+                return;
+            }
+
+            const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+            if (!dateRegex.test(formData.birthDate)) {
+                setError('Data incompleta.');
+                return;
+            }
+
+            const ageCheck = validateAge(formData.birthDate);
+            if (!ageCheck.valid) {
+                setError(ageCheck.message || 'Data inválida.');
+                return;
+            }
+
+            // Proceed to request code
+            handleRequestCode();
+        }
+    };
+
+    const handleRequestCode = async () => {
         setIsSubmitting(true);
+        setError('');
 
         try {
             const cleanPhone = formData.phone.replace(/\D/g, '');
@@ -162,7 +228,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             data.append('name', formData.name);
             data.append('email', formData.email);
             data.append('phone', formattedPhone);
-            // No message field anymore
+            data.append('city', formData.city);
+            data.append('sex', formData.sex);
+            data.append('birth_date', formData.birthDate);
             data.append('user_id', jobOwnerId);
             data.append('job_title', jobTitle);
 
@@ -193,7 +261,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         e.preventDefault();
         setError('');
 
-        // Validation for Step 2
         if (verificationCode.length < 4) {
             setError('O código deve ter 4 dígitos.');
             return;
@@ -223,7 +290,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
             const data = await response.json();
 
-            // Check for explicit confirmation flag
             if (data && data.confirme_code === true) {
                 await handleFinalSubmission();
             } else {
@@ -238,6 +304,24 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         }
     };
 
+    const getStepTitle = () => {
+        switch (step) {
+            case 'contact_info': return 'Informações de Contato';
+            case 'personal_info': return 'Dados Pessoais';
+            case 'verification': return 'Verificação de Segurança';
+            default: return 'Candidatar-se';
+        }
+    };
+
+    const getStepProgress = () => {
+        switch (step) {
+            case 'contact_info': return 33;
+            case 'personal_info': return 66;
+            case 'verification': return 90;
+            case 'success': return 100;
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
             <div
@@ -249,21 +333,29 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
                 {/* Header */}
                 <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-white relative">
-                    <div className="pr-8">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            {step === 'verification' ? (
-                                <>
-                                    <Lock size={20} className="text-blue-600" />
-                                    Verificação de Segurança
-                                </>
-                            ) : (
-                                <>
-                                    <Send size={20} className="text-blue-600" />
-                                    Candidatar-se
-                                </>
+                    <div className="pr-8 w-full">
+                        <div className="flex items-center gap-2 mb-2">
+                            {step === 'personal_info' && (
+                                <button
+                                    onClick={() => setStep('contact_info')}
+                                    className="p-1 -ml-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    <ArrowLeft size={18} />
+                                </button>
                             )}
-                        </h2>
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-1">{jobTitle}</p>
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                {step === 'verification' ? <Lock size={20} className="text-blue-600" /> : <Send size={20} className="text-blue-600" />}
+                                {getStepTitle()}
+                            </h2>
+                        </div>
+                        {step !== 'success' && (
+                            <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                                <div
+                                    className="h-full bg-blue-600 transition-all duration-500 ease-out"
+                                    style={{ width: `${getStepProgress()}%` }}
+                                />
+                            </div>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -293,40 +385,47 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                     /* Content */
                     <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
 
-                        {step === 'form' ? (
-                            <form onSubmit={handleRequestCode} className="space-y-4">
-                                {error && (
-                                    <div className="bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm font-medium animate-shake">
-                                        <AlertCircle size={16} />
-                                        {error}
-                                    </div>
-                                )}
+                        {error && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm font-medium animate-shake mb-4">
+                                <AlertCircle size={16} />
+                                {error}
+                            </div>
+                        )}
 
+                        {step === 'contact_info' && (
+                            <form onSubmit={handleNextStep} className="space-y-4">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Seu Nome *</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Digite seu nome completo"
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        required
-                                    />
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Digite seu nome completo"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                            required
+                                            autoFocus
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Telefone (WhatsApp) *</label>
-                                        <InputMask
-                                            mask="(__) _ ____-____"
-                                            replacement={{ _: /\d/ }}
-                                            placeholder="(15) 9 1234-1234"
-                                            type="tel"
-                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
-                                            value={formData.phone}
-                                            onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                            required
-                                        />
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">WhatsApp *</label>
+                                        <div className="relative">
+                                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <InputMask
+                                                mask="(__) _ ____-____"
+                                                replacement={{ _: /\d/ }}
+                                                placeholder="(15) 9 1234-1234"
+                                                type="tel"
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                                value={formData.phone}
+                                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">E-mail *</label>
@@ -378,6 +477,69 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                                 <div className="pt-2">
                                     <button
                                         type="submit"
+                                        className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold tracking-wide shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:transform hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        Próxima Etapa <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+
+                        {step === 'personal_info' && (
+                            <form onSubmit={handleNextStep} className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cidade *</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Sorocaba"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                            value={formData.city}
+                                            onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                            required
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Sexo *</label>
+                                        <select
+                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm appearance-none"
+                                            value={formData.sex}
+                                            onChange={e => setFormData({ ...formData, sex: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Selecione</option>
+                                            <option value="Masculino">Masculino</option>
+                                            <option value="Feminino">Feminino</option>
+                                            <option value="Outro">Outro</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Data de Nascimento *</label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <InputMask
+                                                mask="__/__/____"
+                                                replacement={{ _: /\d/ }}
+                                                placeholder="DD/MM/AAAA"
+                                                type="text"
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                                value={formData.birthDate}
+                                                onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2">
+                                    <button
+                                        type="submit"
                                         disabled={isSubmitting}
                                         className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold tracking-wide shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:transform hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:hover:translate-y-0 flex items-center justify-center gap-2 text-sm"
                                     >
@@ -394,19 +556,15 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                                     </button>
                                 </div>
                             </form>
-                        ) : (
+                        )}
+
+
+                        {step === 'verification' && (
                             // Verification Step - Code Only
                             <form onSubmit={handleValidateCode} className="flex flex-col h-full bg-slate-50/50 -mx-6 -my-6 p-6">
 
                                 <div className="flex-1 flex flex-col justify-center items-center gap-4 py-4">
-                                    {error && (
-                                        <div className="w-full bg-red-50 text-red-600 p-3 rounded-xl flex items-center gap-2 text-sm font-medium animate-shake mb-2">
-                                            <AlertCircle size={16} />
-                                            {error}
-                                        </div>
-                                    )}
 
-                                    {/* Minimalist Input */}
                                     <div className="w-full max-w-[180px]">
                                         <input
                                             type="number"
@@ -424,10 +582,10 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
                                     <button
                                         type="button"
-                                        onClick={() => setStep('form')}
+                                        onClick={() => setStep('contact_info')}
                                         className="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1"
                                     >
-                                        Alterar número
+                                        Alterar dados
                                     </button>
                                 </div>
 
