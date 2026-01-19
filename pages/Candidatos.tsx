@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Search, Filter, Briefcase, User, CheckCircle, XCircle, Ban, Eye, ChevronRight, Check, MapPin, Calendar, Clock, Folder, CornerUpLeft, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Briefcase, User, CheckCircle, XCircle, Ban, Eye, ChevronRight, Check, MapPin, Calendar, Clock, Folder, CornerUpLeft, ChevronLeft, Send, Megaphone, Star, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ResumePreviewModal } from '../components/Resumes/ResumePreviewModal';
+import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 // --- Interfaces ---
 
@@ -34,6 +35,12 @@ interface Job {
     sector_id?: string | null;
     candidates_count: number;
     candidates: Candidate[];
+    description?: string;
+    salary?: string;
+    observation?: string;
+    requirements?: string[];
+    activities?: string[];
+    benefits?: string[];
 }
 
 interface CompanyFolder {
@@ -107,7 +114,9 @@ export const Candidatos: React.FC = () => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    const [candidateSearchTerm, setCandidateSearchTerm] = useState('');
 
 
     // --- Fetch Data ---
@@ -124,7 +133,7 @@ export const Candidatos: React.FC = () => {
             const [companiesRes, sectorsRes, jobsRes] = await Promise.all([
                 supabase.from('folder_companies').select('*').order('name'),
                 supabase.from('sectors').select('*').order('name'),
-                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id').eq('user_id', user?.id).eq('status', 'active')
+                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id, salary, observation, requirements, benefits, activities').eq('user_id', user?.id).eq('status', 'active')
             ]);
 
             if (companiesRes.error) throw companiesRes.error;
@@ -271,12 +280,14 @@ export const Candidatos: React.FC = () => {
         <div className="space-y-6">
 
             {/* Stats Header */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard label="Total Candidatos" value={stats.totalCandidates} icon={<User size={18} />} color="blue" />
-                <StatCard label="Vagas Ativas" value={stats.activeJobs} icon={<Briefcase size={18} />} color="indigo" />
-                <StatCard label="Aprovados" value={stats.approved} icon={<CheckCircle size={18} />} color="green" />
-                <StatCard label="Reprovados" value={stats.rejected} icon={<XCircle size={18} />} color="red" />
-            </div>
+            {currentView.level === 'root' && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard label="Total Candidatos" value={stats.totalCandidates} icon={<User size={18} />} color="blue" />
+                    <StatCard label="Vagas Ativas" value={stats.activeJobs} icon={<Briefcase size={18} />} color="indigo" />
+                    <StatCard label="Aprovados" value={stats.approved} icon={<CheckCircle size={18} />} color="green" />
+                    <StatCard label="Reprovados" value={stats.rejected} icon={<XCircle size={18} />} color="red" />
+                </div>
+            )}
 
             {/* Navigation & Toolbar */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center transition-all">
@@ -481,34 +492,69 @@ export const Candidatos: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* View Job Button */}
+                            <div className="flex items-center gap-2 pl-2">
+                                <button
+                                    onClick={() => setIsJobDetailOpen(true)}
+                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2 font-bold text-sm"
+                                    title="Visualizar Vaga"
+                                >
+                                    <Eye size={18} />
+                                    <span className="hidden sm:inline">Ver Vaga</span>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Tabs */}
-                        <div className="flex border-b border-slate-100 px-6 gap-6 bg-white">
-                            {/* Removed 'blocked' status as requested */}
-                            {['all', 'pending', 'approved', 'rejected'].map(status => (
-                                <button
-                                    key={status}
-                                    onClick={() => setStatusFilter(status as any)}
-                                    className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${statusFilter === status
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-slate-400 hover:text-slate-600'
-                                        }`}
-                                >
-                                    {status === 'all' ? 'Todos' : status === 'pending' ? 'Pendentes' : status === 'approved' ? 'Aprovados' : 'Reprovados'}
-                                    <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === status ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                                        {status === 'all'
-                                            ? selectedJob.candidates.length
-                                            : selectedJob.candidates.filter(c => c.status === status).length}
-                                    </span>
-                                </button>
-                            ))}
+                        {/* Search & Tabs */}
+                        <div className="bg-white border-b border-slate-100">
+                            <div className="px-6 pt-4 pb-2">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nome, cidade, idade..."
+                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                        value={candidateSearchTerm}
+                                        onChange={e => setCandidateSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex px-6 gap-6 overflow-x-auto scrollbar-hide">
+                                {['all', 'pending', 'approved', 'rejected'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setStatusFilter(status as any)}
+                                        className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${statusFilter === status
+                                            ? 'border-blue-600 text-blue-600'
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        {status === 'all' ? 'Todos' : status === 'pending' ? 'Pendentes' : status === 'approved' ? 'Aprovados' : 'Reprovados'}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === status ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                            {status === 'all'
+                                                ? selectedJob.candidates.length
+                                                : selectedJob.candidates.filter(c => c.status === status).length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* List */}
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-slate-50">
                             {selectedJob.candidates
-                                .filter(c => statusFilter === 'all' || c.status === statusFilter)
+                                .filter(c => {
+                                    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+                                    const term = candidateSearchTerm.toLowerCase();
+                                    const matchesSearch = candidateSearchTerm === '' ||
+                                        c.name.toLowerCase().includes(term) ||
+                                        (c.city && c.city.toLowerCase().includes(term)) ||
+                                        (c.sex && c.sex.toLowerCase().includes(term)) ||
+                                        (c.age && c.age.toString().includes(term));
+
+                                    return matchesStatus && matchesSearch;
+                                })
                                 .map(candidate => (
                                     <div key={candidate.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 justify-between transition-all hover:shadow-md">
                                         <div className="flex items-center gap-3 w-full">
@@ -578,6 +624,63 @@ export const Candidatos: React.FC = () => {
                 onClose={() => setIsPreviewOpen(false)}
                 candidate={selectedCandidate}
                 onStatusUpdate={handleUpdateStatus}
+            />
+
+            <JobDetailModal
+                isOpen={isJobDetailOpen}
+                onClose={() => setIsJobDetailOpen(false)}
+                job={selectedJob ? {
+                    ...selectedJob,
+                    location: `${selectedJob.city || ''} ${selectedJob.region ? `- ${selectedJob.region}` : ''}`,
+                    postedAt: new Date(selectedJob.created_at).toLocaleDateString(),
+                    type: 'Full-time',
+                    description: selectedJob.observation || selectedJob.description || '',
+                    salary: selectedJob.salary || 'A combinar',
+                    requirements: typeof selectedJob.requirements === 'string' ? (selectedJob.requirements as string).split('\n') : (Array.isArray(selectedJob.requirements) ? selectedJob.requirements : []),
+                    activities: typeof selectedJob.activities === 'string' ? (selectedJob.activities as string).split('\n') : (Array.isArray(selectedJob.activities) ? selectedJob.activities : []),
+                    benefits: typeof selectedJob.benefits === 'string' ? (selectedJob.benefits as string).split('\n') : (Array.isArray(selectedJob.benefits) ? selectedJob.benefits : [])
+                } as any : null}
+                onApply={() => { }}
+                onReport={() => { }}
+                showFooter={false}
+                customFooter={
+                    <div className="flex flex-col sm:flex-row gap-3 w-full">
+                        <button
+                            onClick={() => {
+                                setIsJobDetailOpen(false);
+                                navigate('/anunciar');
+                            }}
+                            className="flex-1 py-3 px-4 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Megaphone size={16} />
+                            Anunciar
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setIsJobDetailOpen(false);
+                                navigate('/perfil');
+                            }}
+                            className="flex-1 py-3 px-4 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Star size={16} />
+                            Destacar
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setIsJobDetailOpen(false);
+                                if (selectedJob) {
+                                    navigate('/vagas', { state: { editingJobId: selectedJob.id, isJobModalOpen: true } });
+                                }
+                            }}
+                            className="flex-1 py-3 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Edit size={16} />
+                            Editar
+                        </button>
+                    </div>
+                }
             />
         </div>
     );

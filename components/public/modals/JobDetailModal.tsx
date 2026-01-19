@@ -23,6 +23,7 @@ interface JobDetailModalProps {
     onReport: () => void;
     showFooter?: boolean;
     brandColor?: string;
+    customFooter?: React.ReactNode;
 }
 
 interface JobDetailContentProps {
@@ -32,6 +33,7 @@ interface JobDetailContentProps {
     showFooter?: boolean;
     onClose?: () => void; // Optional for content view
     brandColor?: string;
+    customFooter?: React.ReactNode;
 }
 
 export const JobDetailContent: React.FC<JobDetailContentProps> = ({
@@ -40,7 +42,8 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
     onReport,
     showFooter = true,
     onClose,
-    brandColor
+    brandColor,
+    customFooter
 }) => {
     const [isShared, setIsShared] = React.useState(false);
 
@@ -172,7 +175,11 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
             </div>
 
             {/* Compact Footer */}
-            {showFooter && (
+            {customFooter ? (
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                    {customFooter}
+                </div>
+            ) : showFooter && (
                 <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
                     <button
                         onClick={onApply}
@@ -226,7 +233,8 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
     onApply,
     onReport,
     showFooter = true,
-    brandColor
+    brandColor,
+    customFooter
 }) => {
     if (!isOpen || !job) return null;
 
@@ -243,6 +251,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 showFooter={showFooter}
                 onClose={onClose}
                 brandColor={brandColor}
+                customFooter={customFooter}
             />
         </div>
     );
