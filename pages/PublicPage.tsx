@@ -294,6 +294,7 @@ export const PublicPage = () => {
                             onClose={() => { setIsApplicationModalOpen(false); }}
                             jobTitle={selectedJob.title}
                             jobOwnerId={company.owner_id} // Pass owner ID for webhook
+                            jobId={selectedJob.id}
                         />
 
                         <JobDetailModal

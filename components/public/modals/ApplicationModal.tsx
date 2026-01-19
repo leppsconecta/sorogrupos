@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, CheckCircle, AlertCircle, Phone, Lock, UploadCloud, RefreshCw, Edit2, FileText, Paperclip, ArrowRight } from 'lucide-react';
 import { InputMask } from '@react-input/mask';
+import { supabase } from '../../../lib/supabase';
 
 interface ApplicationModalProps {
     isOpen: boolean;
     onClose: () => void;
     jobTitle: string;
     jobOwnerId: string;
+    jobId: string;
 }
 
 type Step = 'form' | 'verification' | 'success';
 
-const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId }) => {
+const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId }) => {
     const [step, setStep] = useState<Step>('form');
     // Removed 'message' from state
     const [formData, setFormData] = useState({ name: '', phone: '', email: '' });

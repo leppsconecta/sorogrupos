@@ -36,6 +36,7 @@ const menuItems = [
   { path: '/painel', label: 'Painel', icon: <LayoutDashboard size={22} /> },
   { path: '/calendario', label: 'Calendário', icon: <CalendarDays size={22} /> },
   { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
+  { path: '/candidatos', label: 'Candidatos', icon: <Users size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
 
@@ -43,7 +44,6 @@ const menuItems = [
 ];
 
 const comingSoonItems = [
-  { path: '/candidatos', label: 'Candidatos', icon: <Users size={22} /> },
   { path: '/curriculos', label: 'Currículos', icon: <FileText size={22} /> },
   { path: '/agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
 ];
