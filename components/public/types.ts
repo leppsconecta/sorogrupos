@@ -51,4 +51,5 @@ export interface CompanyProfile {
     instagram?: string;
     facebook?: string;
     linkedin?: string;
+    is_public_active?: boolean;
 }

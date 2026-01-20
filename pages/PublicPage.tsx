@@ -16,7 +16,7 @@ import ApplicationModal from '../components/public/modals/ApplicationModal';
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
-import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info, Star } from 'lucide-react';
+import { Building2, Bell, AlertCircle, Search, MapPin, Filter, Info, Star, Loader2, Briefcase } from 'lucide-react';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
 
@@ -162,26 +162,58 @@ export const PublicPage = () => {
 
 
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-50">
+            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        </div>
+    );
 
-    if (error || !company) {
+    if (error || !company) return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-500">
+            {error || 'Empresa não encontrada.'}
+        </div>
+    );
+
+    // Offline Screen
+    if (company.is_public_active === false) {
         return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <AlertCircle className="text-red-500" size={32} />
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
+                {/* Background Blur Effect */}
+                {company.cover_url && (
+                    <div
+                        className="absolute inset-0 z-0 opacity-20 blur-3xl scale-110"
+                        style={{
+                            backgroundImage: `url(${company.cover_url})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                        }}
+                    ></div>
+                )}
+
+                <div className="z-10 bg-white/10 backdrop-blur-md border border-white/20 p-12 rounded-3xl max-w-lg w-full mx-4 text-center shadow-2xl">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        {company.logo_url ? (
+                            <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                            <Briefcase className="text-slate-800" size={32} />
+                        )}
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Ops! Algo deu errado</h2>
-                    <p className="text-gray-500 mb-6">{error || 'Empresa não encontrada.'}</p>
-                    <button onClick={() => navigate('/')} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">
-                        Voltar para o Início
-                    </button>
+
+                    <h1 className="text-3xl font-bold text-white mb-2">{company.name}</h1>
+                    <div className="w-16 h-1 bg-indigo-500 rounded-full mx-auto mb-6"></div>
+
+                    <h2 className="text-xl font-bold text-white/90 mb-4">Página Temporariamente Indisponível</h2>
+                    <p className="text-slate-300 leading-relaxed mb-8">
+                        No momento, esta página de carreiras está offline.
+                        Mas não se preocupe, você pode conferir centenas de outras vagas em nossa plataforma principal.
+                    </p>
+
+                    <a
+                        href="https://soroempregos.com.br"
+                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all transform hover:scale-105 shadow-lg shadow-indigo-600/20"
+                    >
+                        Acessar SoroEmpregos.com
+                    </a>
                 </div>
             </div>
         );

@@ -96,7 +96,8 @@ export const Perfil: React.FC = () => {
         whatsapp: '',
         instagram: '',
         facebook: '',
-        linkedin: ''
+        linkedin: '',
+        is_public_active: true
     });
 
     const [loadingCep, setLoadingCep] = useState(false);
@@ -173,7 +174,8 @@ export const Perfil: React.FC = () => {
                 whatsapp: company.whatsapp || '',
                 instagram: company.instagram || '',
                 facebook: company.facebook || '',
-                linkedin: company.linkedin || ''
+                linkedin: company.linkedin || '',
+                is_public_active: company.is_public_active ?? true
             });
             fetchJobs();
         }
@@ -246,6 +248,7 @@ export const Perfil: React.FC = () => {
                     instagram: formData.instagram,
                     facebook: formData.facebook,
                     linkedin: formData.linkedin,
+                    is_public_active: formData.is_public_active,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', company.id);
@@ -444,6 +447,33 @@ export const Perfil: React.FC = () => {
         return matchesSearch && matchesType;
     });
 
+    const handleTogglePublicActive = async () => {
+        if (!company) return;
+
+        const newValue = !formData.is_public_active;
+
+        // Optimistic update
+        setFormData(prev => ({ ...prev, is_public_active: newValue }));
+
+        try {
+            const { error } = await supabase
+                .from('companies')
+                .update({ is_public_active: newValue })
+                .eq('id', company.id);
+
+            if (error) throw error;
+            toast({
+                type: 'success',
+                title: newValue ? 'Página Publicada' : 'Página Oculta',
+                message: newValue ? 'Sua página agora está visível para todos.' : 'Sua página está offline.'
+            });
+        } catch (err: any) {
+            // Revert on error
+            setFormData(prev => ({ ...prev, is_public_active: !newValue }));
+            toast({ type: 'error', title: 'Erro', message: 'Falha ao atualizar status.' });
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto pb-20 animate-fadeIn px-6">
 
@@ -497,6 +527,24 @@ export const Perfil: React.FC = () => {
                             <Copy size={16} />
                             Copiar Link
                         </button>
+
+                        {/* Toggle Public Page */}
+                        <div
+                            onClick={handleTogglePublicActive}
+                            className={`h-9 px-3 rounded-full flex items-center gap-2 cursor-pointer transition-all border ${formData.is_public_active
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                }`}
+                            title={formData.is_public_active ? "Página Pública Ativa" : "Página Pública Desativada"}
+                        >
+                            <div className={`w-8 h-4 rounded-full p-0.5 transition-colors relative ${formData.is_public_active ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${formData.is_public_active ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                            </div>
+                            <span className="text-xs font-bold uppercase hidden md:inline">
+                                {formData.is_public_active ? 'ON' : 'OFF'}
+                            </span>
+                        </div>
+
                         <button
                             onClick={() => {
                                 const finalUsername = formData.username || company?.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -693,7 +741,10 @@ export const Perfil: React.FC = () => {
                             <div className={`transition-all duration-500 ease-in-out border-b border-slate-200 bg-white ${showSettings ? 'max-h-[800px] opacity-100 py-8 px-8' : 'max-h-0 opacity-0 py-0 overflow-hidden'}`}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-4">
-                                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><Palette size={18} /> Aparência</h4>
+
+
+                                        <h4 className="font-bold text-slate-800 flex items-center gap-2 pt-2"><Palette size={18} /> Aparência</h4>
+
 
                                         <div className="space-y-2">
                                             <label className="text-xs font-bold text-slate-500 uppercase">Fundo do Topo</label>
@@ -784,6 +835,20 @@ export const Perfil: React.FC = () => {
 
                             {/* PREVIEW AREA (Refactored to remove PublicProfileLayout wrapper from inside, keeping children) */}
                             <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-white pb-8">
+                                {/* Blur Overlay if Offline */}
+                                {formData.is_public_active === false && (
+                                    <div className="absolute inset-0 z-50 bg-slate-900/10 backdrop-blur-sm flex items-center justify-center rounded-[2.5rem]">
+                                        <div className="bg-white/90 p-6 rounded-2xl shadow-xl border border-white max-w-sm text-center">
+                                            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                <EyeOff className="text-slate-400" size={24} />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 mb-1">Página Offline</h3>
+                                            <p className="text-xs text-slate-500">
+                                                Seu perfil público está desativado. Usuários verão uma tela de manutenção.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="p-4 lg:p-8">
 
                                     {/* Mock Header/Filters */}
