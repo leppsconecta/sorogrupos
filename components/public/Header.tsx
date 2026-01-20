@@ -68,6 +68,15 @@ const Header: React.FC<HeaderProps> = ({ company }) => {
                         {copied ? <Check size={12} strokeWidth={3} /> : <Link size={12} strokeWidth={2.5} />}
                         {copied ? 'Copiado' : 'Link'}
                     </button>
+
+                    {/* Profile Image */}
+                    {company.logo_url && (
+                        <img
+                            src={company.logo_url}
+                            alt={company.name}
+                            className="w-8 h-8 md:w-9 md:h-9 rounded-full object-cover border border-white shadow-sm bg-white"
+                        />
+                    )}
                 </div>
             </div>
 

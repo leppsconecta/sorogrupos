@@ -5,7 +5,7 @@ import ContactOptionsModal from './modals/ContactOptionsModal';
 import AddressModal from './modals/AddressModal';
 
 import { OfficialWhatsAppIcon } from '../OfficialWhatsAppIcon';
-import CompanyProfileCard from './CompanyProfileCard';
+import FloatingContactMenu from './FloatingContactMenu';
 
 interface PublicProfileLayoutProps {
     company: CompanyProfile | null;
@@ -40,16 +40,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
         <div className="min-h-screen bg-[#FAFAFA] font-sans">
             {/* Top Cover Removed */}
 
-            <div className="max-w-7xl mx-auto px-4 md:px-6 pt-0 pb-20 relative z-10">
-                {/* Company Header Card */}
-                <div className="mb-8">
-                    <CompanyProfileCard
-                        company={company}
-                        isOwner={isOwner}
-                        onLogoUpload={onLogoUpload}
-                        isUploadingLogo={isUploadingLogo}
-                    />
-                </div>
+            <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 md:pt-6 pb-20 relative z-10">
 
                 {/* Main Content (Jobs) */}
                 <div className="animate-slideUpFade delay-100">
@@ -57,7 +48,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                 </div>
             </div>
 
-
+            <FloatingContactMenu company={company} />
         </div>
     );
 };

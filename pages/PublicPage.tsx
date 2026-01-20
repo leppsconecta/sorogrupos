@@ -207,6 +207,7 @@ export const PublicPage = () => {
                         setSearchTerm={setSearchTerm}
                         selectedType={selectedType}
                         setSelectedType={setSelectedType}
+                        company={company}
                     />
 
 
