@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 // New Components
 import Header from '../components/public/Header';
 import Filters from '../components/public/Filters';
-import JobCard from '../components/public/JobCard';
+import CompactJobCard from '../components/public/CompactJobCard';
 
 
 import ReportModal from '../components/public/modals/ReportModal';
@@ -151,7 +151,7 @@ export const PublicPage = () => {
             job.location.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = selectedType === FilterType.ALL || job.type === selectedType;
         return matchesSearch && matchesType;
-    });
+    }).sort((a, b) => a.title.localeCompare(b.title));
 
     const paginatedJobs = filteredJobs.slice(0, page * JOBS_PER_PAGE);
     const hasMore = paginatedJobs.length < filteredJobs.length;
@@ -246,14 +246,12 @@ export const PublicPage = () => {
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {paginatedJobs.map(job => (
-                                    <JobCard
+                                    <CompactJobCard
                                         key={job.id}
                                         job={job}
                                         onViewDetails={() => { setSelectedJob(job); setIsDetailModalOpen(true); }}
-                                        onApply={() => { setSelectedJob(job); setIsApplicationModalOpen(true); }}
-                                        onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
                                     />
                                 ))}
                             </div>
