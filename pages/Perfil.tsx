@@ -34,10 +34,10 @@ import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 // Public Components for Preview
-import JobCard from '../components/public/JobCard';
 import Filters from '../components/public/Filters';
 import AlertModal from '../components/public/modals/AlertModal';
 import ReportModal from '../components/public/modals/ReportModal';
+import CompactJobCard from '../components/public/CompactJobCard';
 
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 import { Job, FilterType, CompanyProfile } from '../components/public/types';
@@ -875,19 +875,12 @@ export const Perfil: React.FC = () => {
                                     <h3 className="text-lg font-bold text-gray-800 mb-4 px-1 mt-8">Todas as Vagas</h3>
 
                                     {/* Jobs Grid Preview */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {previewJobs.map(job => (
-                                            <JobCard
+                                            <CompactJobCard
                                                 key={job.id}
-                                                job={job}
-                                                onApply={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
-                                                onReport={() => { setSelectedJob(job); setIsReportModalOpen(true); }}
+                                                job={{ ...job, isHidden: false }} // Force hidden false to remove red styling
                                                 onViewDetails={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
-                                                showAdminControls={true}
-                                                onToggleHidden={() => {
-                                                    const originalJob = jobs.find(j => j.id === job.id);
-                                                    if (originalJob) toggleJobVisibility(originalJob.id, originalJob.public_hidden);
-                                                }}
                                             />
                                         ))}
                                     </div>
