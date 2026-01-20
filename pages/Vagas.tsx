@@ -1753,15 +1753,7 @@ Cód. Vaga: *${code}*
                       ) : (
                         <div className="bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col h-[600px] relative">
                           {/* Mock Header/Filters */}
-                          <div className="p-2 md:p-4 sticky top-0 z-10 bg-[#FAFAFA]/95 backdrop-blur-md">
-                            <Filters
-                              searchTerm=""
-                              setSearchTerm={() => { }}
-                              selectedType={FilterType.ALL}
-                              setSelectedType={() => { }}
-                              company={company as any}
-                            />
-                          </div>
+
 
                           <div className="flex-1 overflow-y-auto px-2 md:px-4 pb-4">
                             <JobDetailContent
@@ -2068,16 +2060,7 @@ Cód. Vaga: *${code}*
               ) : (
                 <div className={previewMode === 'site' ? "bg-[#FAFAFA] h-full flex flex-col" : ""}>
 
-                  {/* Mock Header/Filters for View Modal */}
-                  <div className="p-2 md:p-4 sticky top-0 z-10 bg-[#FAFAFA]/95 backdrop-blur-md">
-                    <Filters
-                      searchTerm=""
-                      setSearchTerm={() => { }}
-                      selectedType={FilterType.ALL}
-                      setSelectedType={() => { }}
-                      company={company as any}
-                    />
-                  </div>
+
 
                   <div className="flex-1 overflow-y-auto px-4 pb-4">
                     <JobDetailContent
