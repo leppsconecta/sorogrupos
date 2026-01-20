@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Job } from './types';
-import { Briefcase, MapPin, Clock, Eye, Hash, Check, Copy } from 'lucide-react';
+import { Briefcase, MapPin, Clock, Eye, Hash } from 'lucide-react';
 
 interface CompactJobCardProps {
     job: Job;
@@ -8,14 +8,6 @@ interface CompactJobCardProps {
 }
 
 const CompactJobCard: React.FC<CompactJobCardProps> = ({ job, onViewDetails }) => {
-    const [isCopied, setIsCopied] = useState(false);
-
-    const handleCopyCode = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(job.code || job.id);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
 
     const getTypeStyles = (type: string) => {
         switch (type) {
@@ -62,16 +54,7 @@ const CompactJobCard: React.FC<CompactJobCardProps> = ({ job, onViewDetails }) =
                 <div className="space-y-3 flex-1 w-full">
                     {/* Badges Row */}
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Code Badge */}
-                        <button
-                            onClick={handleCopyCode}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-500 text-[10px] font-bold uppercase hover:bg-slate-100 hover:border-slate-300 transition-colors group/code"
-                            title="Copiar código"
-                        >
-                            <Hash size={10} className="text-slate-400" />
-                            {job.code}
-                            {isCopied ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-300 group-hover/code:text-indigo-500" />}
-                        </button>
+
 
                         {/* Type Badge */}
                         <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${getTypeStyles(job.type)}`}>
