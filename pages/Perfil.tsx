@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Building2,
     Save,
@@ -44,6 +44,7 @@ import { Job, FilterType, CompanyProfile } from '../components/public/types';
 import PublicProfileLayout from '../components/public/PublicProfileLayout';
 import FeaturedCarousel from '../components/public/FeaturedCarousel';
 import FeaturedJobSelectionModal from '../components/public/modals/FeaturedJobSelectionModal';
+import LogoUploadModal from '../components/public/modals/LogoUploadModal';
 import CompanyProfileCard from '../components/public/CompanyProfileCard';
 
 // Helper Components
@@ -115,6 +116,11 @@ export const Perfil: React.FC = () => {
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
     const [isJobDetailModalOpen, setIsJobDetailModalOpen] = useState(false);
+
+    // Logo Upload Modal State
+    const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     // Username Verification State
     const [checkingUsername, setCheckingUsername] = useState(false);
@@ -473,10 +479,58 @@ export const Perfil: React.FC = () => {
                 title: newValue ? 'Página Publicada' : 'Página Oculta',
                 message: newValue ? 'Sua página agora está visível para todos.' : 'Sua página está offline.'
             });
+
         } catch (err: any) {
             // Revert on error
             setFormData(prev => ({ ...prev, is_public_active: !newValue }));
             toast({ type: 'error', title: 'Erro', message: 'Falha ao atualizar status.' });
+        }
+    };
+
+    // New Logo Upload Handlers
+    const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setLogoFile(e.target.files[0]);
+            setIsLogoModalOpen(true);
+        }
+        // Reset input
+        e.target.value = '';
+    };
+
+    const handleLogoSaved = async (blob: Blob) => {
+        if (!company) return;
+        setIsLogoModalOpen(false);
+
+        // Upload Blob
+        const fileExt = logoFile?.name.split('.').pop() || 'jpg';
+        const fileName = `${company.id}-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('company-logos')
+                .upload(filePath, blob, {
+                    contentType: blob.type
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('company-logos')
+                .getPublicUrl(filePath);
+
+            const publicUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+
+            setFormData(prev => ({ ...prev, logo_url: publicUrlWithTimestamp }));
+            updateCompany({ logo_url: publicUrlWithTimestamp });
+
+            // Save immediately to DB
+            await supabase.from('companies').update({ logo_url: publicUrlWithTimestamp }).eq('id', company.id);
+            toast({ type: 'success', title: 'Logo Atualizado', message: 'Logo da empresa enviado com sucesso!' });
+
+        } catch (error: any) {
+            console.error('Upload Error:', error);
+            toast({ type: 'error', title: 'Erro no Upload', message: error.message });
         }
     };
 
@@ -876,6 +930,7 @@ export const Perfil: React.FC = () => {
                                                 state: formData.state
                                             } as any}
                                             compact={true}
+                                            onEditLogo={() => logoInputRef.current?.click()}
                                         />
                                     </div>
 
@@ -962,6 +1017,22 @@ export const Perfil: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {/* Hidden Input for Logo Upload */}
+            <input
+                type="file"
+                ref={logoInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleLogoSelect}
+            />
+
+            {/* Logo Crop Modal */}
+            <LogoUploadModal
+                isOpen={isLogoModalOpen}
+                onClose={() => setIsLogoModalOpen(false)}
+                imageFile={logoFile}
+                onSave={handleLogoSaved}
+            />
         </div>
     );
 };

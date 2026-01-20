@@ -9,9 +9,10 @@ interface FiltersProps {
     setSelectedType: (val: FilterType) => void;
     company: CompanyProfile | null;
     compact?: boolean;
+    onEditLogo?: () => void;
 }
 
-const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedType, setSelectedType, company, compact = false }) => {
+const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedType, setSelectedType, company, compact = false, onEditLogo }) => {
     const types = Object.values(FilterType);
 
     return (
@@ -70,15 +71,29 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
                             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mt-0.5">{company.city} - {company.state}</p>
                         )}
                     </div>
-                    {company.logo_url ? (
-                        <img
-                            src={company.logo_url}
-                            alt={company.name}
-                            className={`${compact ? 'w-8 h-8' : 'w-12 h-12'} rounded-full border-2 border-white shadow-sm object-cover bg-white`}
-                        />
-                    ) : (
-                        <div className={`${compact ? 'w-8 h-8' : 'w-12 h-12'} rounded-full bg-slate-200 border-2 border-white shadow-sm`} />
-                    )}
+                    <div className="relative group">
+                        {company.logo_url ? (
+                            <img
+                                src={company.logo_url}
+                                alt={company.name}
+                                className={`${compact ? 'w-8 h-8' : 'w-12 h-12'} rounded-full border-2 border-white shadow-sm object-cover bg-white`}
+                            />
+                        ) : (
+                            <div className={`${compact ? 'w-8 h-8' : 'w-12 h-12'} rounded-full bg-slate-200 border-2 border-white shadow-sm`} />
+                        )}
+
+                        {onEditLogo && (
+                            <button
+                                onClick={onEditLogo}
+                                className="absolute -top-2 -right-2 bg-indigo-600 text-white p-1.5 rounded-full shadow-lg border-2 border-white hover:bg-indigo-700 transition-all z-20"
+                                title="Alterar Logo"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                            </button>
+                        )}
+                    </div>
+                    {/* Explicit Button above logo request */}
+
                 </div>
             )}
         </div>
