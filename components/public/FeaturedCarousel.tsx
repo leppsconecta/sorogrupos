@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Job } from './types';
-import { MapPin, Briefcase, DollarSign, Clock, ArrowRight, X } from 'lucide-react';
+import { MapPin, Briefcase, DollarSign, Clock, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface FeaturedCarouselProps {
     jobs: Job[];
@@ -10,14 +10,86 @@ interface FeaturedCarouselProps {
 }
 
 const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ jobs, onApply, onRemove, headerColor }) => {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const checkScroll = () => {
+        if (scrollContainerRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+            setCanScrollLeft(scrollLeft > 10); // Small buffer
+            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        // Add listener to the ref if possible (through ref callback or polling inside useEffect if ref exists)
+        const currentRef = scrollContainerRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('scroll', checkScroll);
+        }
+        return () => {
+            window.removeEventListener('resize', checkScroll);
+            if (currentRef) {
+                currentRef.removeEventListener('scroll', checkScroll);
+            }
+        };
+    }, [jobs]);
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (scrollContainerRef.current) {
+            const scrollAmount = 350; // Approximates card width
+            scrollContainerRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     if (jobs.length === 0) return null;
 
     return (
-        <div className="mb-0">
+        <div className="mb-0 relative group/carousel">
             {/* Header removed from here as it is handled in parent */}
 
+            {/* Navigation Buttons (only visible when needed) */}
+            {canScrollLeft && (
+                <button
+                    onClick={() => scroll('left')}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 z-40 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 p-3 rounded-full shadow-lg hover:scale-110 hover:bg-white transition-all opacity-0 group-hover/carousel:opacity-100 disabled:opacity-0"
+                    aria-label="Anterior"
+                >
+                    <ChevronLeft size={24} />
+                </button>
+            )}
+
+            {canScrollRight && (
+                <button
+                    onClick={() => scroll('right')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 -mr-2 z-40 bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 p-3 rounded-full shadow-lg hover:scale-110 hover:bg-white transition-all opacity-0 group-hover/carousel:opacity-100"
+                    aria-label="Próximo"
+                >
+                    <ChevronRight size={24} />
+                </button>
+            )}
+
+
             {/* Carousel Container */}
-            <div className="flex overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide snap-x snap-mandatory gap-4">
+            <div
+                ref={scrollContainerRef}
+                className="flex overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide snap-x snap-mandatory gap-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Ensure scrollbar is hidden
+            >
+                {/* CSS to hide scrollbar for Webkit */}
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    .scrollbar-hide::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}} />
+
                 {jobs.map((job) => (
                     <div
                         key={job.id}

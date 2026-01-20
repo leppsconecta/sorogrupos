@@ -658,6 +658,26 @@ export const Perfil: React.FC = () => {
                             <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><LinkIcon size={18} /> Informações Básicas</h4>
                             <div className="space-y-3">
                                 <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Logotipo</label>
+                                    <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                        {formData.logo_url ? (
+                                            <img src={formData.logo_url} alt="Logo" className="w-12 h-12 rounded-full object-cover border border-slate-200" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                                <Camera size={20} />
+                                            </div>
+                                        )}
+                                        <div className="flex-1">
+                                            <label className="cursor-pointer bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors inline-block">
+                                                {uploadingLogo ? 'Enviando...' : 'Alterar Logo'}
+                                                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                                            </label>
+                                            <p className="text-[10px] text-slate-400 mt-1">Recomendado: 400x400px</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase">Username</label>
                                     <input
                                         className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg p-3 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -799,69 +819,27 @@ export const Perfil: React.FC = () => {
                             <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-white pb-8">
                                 <div className="p-4 lg:p-8">
 
-                                    <div className="mb-8">
-                                        <CompanyProfileCard
+                                    {/* Mock Header/Filters */}
+                                    <div className="p-2 md:p-4 sticky top-0 z-10 bg-[#FAFAFA]/95 backdrop-blur-md">
+                                        <Filters
+                                            searchTerm={searchTerm}
+                                            setSearchTerm={setSearchTerm}
+                                            selectedType={selectedType}
+                                            setSelectedType={setSelectedType}
                                             company={{
+                                                name: formData.name || company?.name || 'Sua Empresa',
+                                                logo_url: formData.logo_url || company?.logo_url,
                                                 id: company?.id || '',
-                                                name: formData.name,
                                                 username: formData.username,
-                                                description: formData.description,
-                                                website: formData.website,
-                                                profile_header_color: formData.profile_header_color,
-                                                profile_title_color: formData.profile_title_color,
-                                                zip_code: formData.cep,
-                                                address: formData.address,
-                                                number: formData.number,
-                                                neighborhood: formData.neighborhood,
                                                 city: formData.city,
-                                                state: formData.state,
-                                                complement: formData.complement,
-                                                logo_url: formData.logo_url,
-                                                cover_url: formData.cover_url,
-                                                phone: formData.phone,
-                                                whatsapp: formData.whatsapp,
-                                                instagram: formData.instagram,
-                                                facebook: formData.facebook,
-                                                linkedin: formData.linkedin
-                                            }}
-                                            isOwner={true}
-                                            onLogoUpload={handleLogoUpload}
-                                            isUploadingLogo={uploadingLogo}
-                                            onUpdateDescription={async (newDesc) => {
-                                                setFormData(prev => ({ ...prev, description: newDesc }));
-                                                const { error } = await supabase.from('companies').update({ description: newDesc }).eq('id', company?.id);
-                                                if (error) throw error;
-                                                await refreshProfile();
-                                                toast({ type: 'success', title: 'Descrição Atualizada', message: 'Nova descrição salva com sucesso!' });
-                                            }}
-                                            onColorChange={async (color) => {
-                                                setFormData(prev => ({ ...prev, profile_header_color: color }));
-                                                try {
-                                                    const { error } = await supabase
-                                                        .from('companies')
-                                                        .update({ profile_header_color: color })
-                                                        .eq('id', company?.id);
-
-                                                    if (error) throw error;
-                                                    toast({ type: 'success', title: 'Cor Atualizada', message: 'Nova cor da marca salva com sucesso!' });
-                                                    await refreshProfile();
-                                                } catch (error) {
-                                                    console.error('Error saving color:', error);
-                                                    toast({ type: 'error', title: 'Erro', message: 'Falha ao salvar a cor.' });
-                                                }
-                                            }}
+                                                state: formData.state
+                                            } as any}
                                         />
                                     </div>
 
 
 
-                                    {/* Filters Demo */}
-                                    <Filters
-                                        searchTerm={searchTerm}
-                                        setSearchTerm={setSearchTerm}
-                                        selectedType={selectedType}
-                                        setSelectedType={setSelectedType}
-                                    />
+
 
                                     {/* Featured Carousel Preview - Always show header for admin to allow adding */}
                                     <div className="mb-8">

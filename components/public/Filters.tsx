@@ -37,10 +37,10 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
                             <img
                                 src={company.logo_url}
                                 alt={company.name}
-                                className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                                className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover"
                             />
                         ) : (
-                            <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
+                            <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
                         )}
                     </div>
                 )}
@@ -73,10 +73,10 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
                         <img
                             src={company.logo_url}
                             alt={company.name}
-                            className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-white"
+                            className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover bg-white"
                         />
                     ) : (
-                        <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
+                        <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
                     )}
                 </div>
             )}

@@ -42,6 +42,8 @@ import { ActionsModal } from '../components/ActionsModal';
 import JobDetailModal, { JobDetailContent } from '../components/public/modals/JobDetailModal';
 import JobCard from '../components/public/JobCard';
 import { WhatsAppPreviewCard } from '../components/admin/WhatsAppPreviewCard';
+import Filters from '../components/public/Filters';
+import { FilterType } from '../components/public/types';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OfficialWhatsAppIcon = ({ size = 20 }: { size?: number }) => (
@@ -1749,29 +1751,42 @@ Cód. Vaga: *${code}*
                           onEmojiClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
                         />
                       ) : (
-                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-                          <JobDetailContent
-                            job={{
-                              id: jobDraft.id || 'preview',
-                              code: jobDraft.jobCode || 'PREVIEW',
-                              title: jobDraft.role || jobDraft.title || '',
-                              company: jobDraft.companyName || company?.name || '',
-                              location: `${jobDraft.city || ''} - ${jobDraft.region || ''}`,
-                              type: (jobDraft.bond?.includes('CLT') ? 'CLT' : jobDraft.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
-                              salary: salaryEnabled ? jobDraft.salary : undefined,
-                              postedAt: 'Agora mesmo',
-                              description: jobDraft.observation || (jobDraft.type === 'file' ? 'Vaga modo imagem.' : ''),
-                              requirements: jobDraft.requirements ? jobDraft.requirements.split('\n').filter(i => i.trim()) : [],
-                              benefits: jobDraft.benefits ? jobDraft.benefits.split('\n').filter(i => i.trim()) : [],
-                              activities: jobDraft.activities ? jobDraft.activities.split('\n').filter(i => i.trim()) : [],
-                              isFeatured: true,
-                              isHidden: false
-                            }}
-                            onApply={() => { }}
-                            onReport={() => { }}
-                            onQuestion={() => { }}
-                            showFooter={false}
-                          />
+                        <div className="bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col h-[600px] relative">
+                          {/* Mock Header/Filters */}
+                          <div className="p-2 md:p-4 sticky top-0 z-10 bg-[#FAFAFA]/95 backdrop-blur-md">
+                            <Filters
+                              searchTerm=""
+                              setSearchTerm={() => { }}
+                              selectedType={FilterType.ALL}
+                              setSelectedType={() => { }}
+                              company={company as any}
+                            />
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto px-2 md:px-4 pb-4">
+                            <JobDetailContent
+                              job={{
+                                id: jobDraft.id || 'preview',
+                                code: jobDraft.jobCode || 'PREVIEW',
+                                title: jobDraft.role || jobDraft.title || '',
+                                company: jobDraft.companyName || company?.name || '',
+                                location: `${jobDraft.city || ''} - ${jobDraft.region || ''}`,
+                                type: (jobDraft.bond?.includes('CLT') ? 'CLT' : jobDraft.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+                                salary: salaryEnabled ? jobDraft.salary : undefined,
+                                postedAt: 'Agora mesmo',
+                                description: jobDraft.observation || (jobDraft.type === 'file' ? 'Vaga modo imagem.' : ''),
+                                requirements: jobDraft.requirements ? jobDraft.requirements.split('\n').filter(i => i.trim()) : [],
+                                benefits: jobDraft.benefits ? jobDraft.benefits.split('\n').filter(i => i.trim()) : [],
+                                activities: jobDraft.activities ? jobDraft.activities.split('\n').filter(i => i.trim()) : [],
+                                isFeatured: true,
+                                isHidden: false
+                              }}
+                              onApply={() => { }}
+                              onReport={() => { }}
+                              onQuestion={() => { }}
+                              showFooter={false}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2051,28 +2066,42 @@ Cód. Vaga: *${code}*
                   />
                 </div>
               ) : (
-                <div className={previewMode === 'site' ? "p-4" : ""}>
-                  <JobDetailContent
-                    job={{
-                      id: viewingJob.id,
-                      code: viewingJob.jobCode || '---',
-                      title: viewingJob.role || viewingJob.title || '',
-                      company: viewingJob.companyName || company?.name || 'Sua Empresa',
-                      location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
-                      type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
-                      salary: viewingJob.salary,
-                      postedAt: viewingJob.date || 'Hoje',
-                      description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
-                      requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                      benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                      activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                      isFeatured: viewingJob.is_featured
-                    }}
-                    onApply={() => { }}
-                    onReport={() => { }}
-                    onQuestion={() => { }}
-                    showFooter={false}
-                  />
+                <div className={previewMode === 'site' ? "bg-[#FAFAFA] h-full flex flex-col" : ""}>
+
+                  {/* Mock Header/Filters for View Modal */}
+                  <div className="p-2 md:p-4 sticky top-0 z-10 bg-[#FAFAFA]/95 backdrop-blur-md">
+                    <Filters
+                      searchTerm=""
+                      setSearchTerm={() => { }}
+                      selectedType={FilterType.ALL}
+                      setSelectedType={() => { }}
+                      company={company as any}
+                    />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto px-4 pb-4">
+                    <JobDetailContent
+                      job={{
+                        id: viewingJob.id,
+                        code: viewingJob.jobCode || '---',
+                        title: viewingJob.role || viewingJob.title || '',
+                        company: viewingJob.companyName || company?.name || 'Sua Empresa',
+                        location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
+                        type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+                        salary: viewingJob.salary,
+                        postedAt: viewingJob.date || 'Hoje',
+                        description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
+                        requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                        benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                        activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                        isFeatured: viewingJob.is_featured
+                      }}
+                      onApply={() => { }}
+                      onReport={() => { }}
+                      onQuestion={() => { }}
+                      showFooter={false}
+                    />
+                  </div>
                 </div>
               )}
             </div>
