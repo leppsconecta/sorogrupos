@@ -51,15 +51,16 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
                     </div>
                 )}
             </div>
-            <div className={`flex flex-wrap items-center justify-center ${compact ? 'gap-1.5 w-auto' : 'gap-2 w-full md:w-auto md:justify-start'}`}>
+            {/* Filters Scroll Container */}
+            <div className={`flex items-center ${compact ? 'flex-nowrap gap-1.5 w-auto overflow-x-auto no-scrollbar pb-1' : 'w-full md:w-auto overflow-x-auto md:overflow-visible flex-nowrap md:flex-wrap gap-2 pb-2 md:pb-0 justify-start md:justify-start px-1'}`}>
                 {types.map(type => (
                     <button
                         key={type}
                         onClick={() => setSelectedType(type)}
-                        className={`whitespace-nowrap rounded-xl font-bold uppercase transition-all border ${selectedType === type
+                        className={`whitespace-nowrap rounded-xl font-bold uppercase transition-all border flex-shrink-0 ${selectedType === type
                             ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                             : 'bg-white text-gray-500 hover:bg-gray-100 border-gray-200'
-                            } ${compact ? 'px-3 py-1 text-[10px]' : 'px-5 py-2.5 text-[10px] tracking-widest'}`}
+                            } ${compact ? 'px-3 py-1 text-[10px]' : 'px-4 py-2 text-[10px] md:px-5 md:py-2.5 tracking-widest'}`}
                     >
                         {type}
                     </button>

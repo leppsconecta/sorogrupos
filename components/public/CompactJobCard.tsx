@@ -88,7 +88,8 @@ const CompactJobCard: React.FC<CompactJobCardProps> = ({ job, onViewDetails }) =
             </div>
 
             {/* Action Button */}
-            <div className="self-end sm:self-center">
+            {/* Action Button */}
+            <div className="hidden sm:flex self-center">
                 <button className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors flex items-center justify-center">
                     <Eye size={20} />
                 </button>

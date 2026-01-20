@@ -352,8 +352,10 @@ export const PublicPage = () => {
                     company={company}
                 />
 
-                {/* Contact Menu (Moved to end for stacking context safely) */}
-                <FloatingContactMenu company={company} onOpen={() => setIsContactModalOpen(true)} />
+                {/* Contact Menu (Only visible when no modal is open) */}
+                {(!isContactModalOpen && !isDetailModalOpen && !isApplicationModalOpen && !isReportModalOpen) && (
+                    <FloatingContactMenu company={company} onOpen={() => setIsContactModalOpen(true)} />
+                )}
 
 
             </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CompanyProfile } from '../types';
-import { Mail, MapPin, Globe, X, Phone, Share2 } from 'lucide-react';
+import { Mail, MapPin, Globe, X, Phone, Share2, BadgeCheck } from 'lucide-react';
 import { OfficialWhatsAppIcon } from '../../OfficialWhatsAppIcon';
 import ContactActionSheet from './ContactActionSheet';
 
@@ -38,21 +38,43 @@ const CompanyContactModal: React.FC<CompanyContactModalProps> = ({ isOpen, onClo
 
             <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-scaleIn">
 
-                {/* Header Clean */}
-                <div className="pt-6 pb-2 px-6 text-center">
+                {/* Header: Expanded Profile (Mobile Only) */}
+                <div className="pt-8 pb-4 px-6 text-center flex flex-col items-center md:hidden">
+                    {company.logo_url && (
+                        <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg mb-4 overflow-hidden relative bg-white">
+                            <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
+                        </div>
+                    )}
+
+                    <h3 className="font-bold text-slate-800 text-xl flex items-center gap-2 justify-center">
+                        {company.name}
+                        <BadgeCheck size={20} className="text-blue-500 fill-blue-50" />
+                    </h3>
+
+                    <p className="text-sm text-slate-500 font-medium mt-1">
+                        {company.city} - {company.state}
+                    </p>
+
+                    <div className="mt-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
+                        <BadgeCheck size={12} className="fill-emerald-100" />
+                        Empresa Verificada
+                    </div>
+                </div>
+
+                {/* Header: Simple Title (Desktop Only) */}
+                <div className="hidden md:block pt-6 pb-2 px-6 text-center">
                     <h3 className="font-bold text-slate-800 text-lg">
                         Canais de Atendimento
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1 uppercase tracking-wide font-medium">
-                        {company.name}
-                    </p>
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 p-2 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
-                    >
-                        <X size={18} />
-                    </button>
                 </div>
+
+                {/* Close Button (Global) */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+                >
+                    <X size={18} />
+                </button>
 
                 <div className="p-4 space-y-2">
                     {/* WhatsApp */}
@@ -125,6 +147,12 @@ const CompanyContactModal: React.FC<CompanyContactModalProps> = ({ isOpen, onClo
                             <span className="font-bold text-slate-700 group-hover:text-indigo-700 transition-colors">Website</span>
                         </a>
                     )}
+                </div>
+
+                <div className="pb-6 pt-2 text-center">
+                    <a href="https://sorocaba.com" target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-indigo-600 transition-colors font-medium">
+                        Mais informações em sorocaba.com
+                    </a>
                 </div>
             </div>
 
