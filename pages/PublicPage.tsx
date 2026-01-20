@@ -75,7 +75,6 @@ export const PublicPage = () => {
                 .select('*')
                 .eq('user_id', companyData.owner_id) // Map via user_id as jobs use folder_company_id/user_id
                 .eq('status', 'active')
-                .eq('public_hidden', false)
                 .order('created_at', { ascending: false });
 
             if (!jobsError && jobsData) {

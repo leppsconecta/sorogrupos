@@ -345,39 +345,7 @@ export const Perfil: React.FC = () => {
         }
     };
 
-    const toggleJobVisibility = async (jobId: string, currentHidden: boolean) => {
-        const newValue = !currentHidden;
-        // Optimistic Update
-        setJobs(prev => prev.map(j => {
-            if (j.id === jobId) {
-                return {
-                    ...j,
-                    public_hidden: newValue,
-                    is_featured: newValue ? false : j.is_featured // Remove highlight if hiding
-                };
-            }
-            return j;
-        }));
 
-        try {
-            const updates: any = { public_hidden: newValue };
-            if (newValue) {
-                updates.is_featured = false;
-            }
-
-            const { error } = await supabase
-                .from('jobs')
-                .update(updates)
-                .eq('id', jobId);
-
-            if (error) throw error;
-
-            toast({ type: 'success', title: 'Vaga Atualizada', message: newValue ? 'Vaga oculta e removida dos destaques.' : 'Vaga visível na página pública.' });
-        } catch (err: any) {
-            setJobs(prev => prev.map(j => j.id === jobId ? { ...j, public_hidden: currentHidden } : j)); // Revert basic state, ignoring featured revert complexity for now as it's edge case
-            toast({ type: 'error', title: 'Erro', message: err.message });
-        }
-    };
 
     const checkUsernameAvailability = async () => {
         if (!company) return;
@@ -465,8 +433,7 @@ export const Perfil: React.FC = () => {
             requirements: j.requirements ? j.requirements.split('\n').filter((i: string) => i.trim()) : [],
             benefits: j.benefits ? j.benefits.split('\n').filter((i: string) => i.trim()) : [],
             activities: j.activities ? j.activities.split('\n').filter((i: string) => i.trim()) : [],
-            isFeatured: j.is_featured,
-            isHidden: j.public_hidden
+            isFeatured: j.is_featured
         }));
     };
 
@@ -834,6 +801,7 @@ export const Perfil: React.FC = () => {
                                                 city: formData.city,
                                                 state: formData.state
                                             } as any}
+                                            compact={true}
                                         />
                                     </div>
 
@@ -879,7 +847,7 @@ export const Perfil: React.FC = () => {
                                         {previewJobs.map(job => (
                                             <CompactJobCard
                                                 key={job.id}
-                                                job={{ ...job, isHidden: false }} // Force hidden false to remove red styling
+                                                job={job}
                                                 onViewDetails={() => { setSelectedJob(job); setIsJobDetailModalOpen(true); }}
                                             />
                                         ))}
