@@ -30,7 +30,7 @@ const OfficialWhatsAppIcon = ({ size = 20, color = "currentColor" }: { size?: nu
 export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, isWhatsAppConnected, onOpenConnect, onOpenDisconnect, connectedPhone, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { accountStatus } = useAuth(); // Access accountStatus
+  const { accountStatus, company } = useAuth(); // Access accountStatus and company
 
   const getTabTitle = () => {
     const path = location.pathname;
@@ -98,10 +98,15 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
           {/* Minha Página Button */}
           <button
             onClick={() => navigate('/perfil')}
-            className="flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider ${company?.is_public_active === false
+              ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40' // Offline Style
+              : 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40' // Online Style
+              }`}
           >
             <User size={18} />
-            <span className="hidden lg:inline">Minha página</span>
+            <span className="hidden lg:inline">
+              {company?.is_public_active === false ? 'Página Offline' : 'Página Online'}
+            </span>
           </button>
 
           {/* Separator */}

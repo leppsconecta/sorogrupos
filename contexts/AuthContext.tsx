@@ -17,6 +17,7 @@ interface AuthContextType {
     refreshProfile: () => Promise<void>;
     signOut: () => Promise<void>;
     signInWithGoogle: () => Promise<{ error: any }>;
+    updateCompany: (updates: Partial<Company>) => void;
     loading: boolean;
 }
 
@@ -149,6 +150,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { data, error };
     };
 
+    const updateCompany = (updates: Partial<Company>) => {
+        if (company) {
+            setCompany({ ...company, ...updates });
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             session,
@@ -161,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subscription,
             onboardingCompleted,
             refreshProfile,
+            updateCompany,
             signOut,
             signInWithGoogle,
             loading

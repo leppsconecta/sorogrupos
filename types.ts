@@ -48,6 +48,7 @@ export interface Company {
   facebook?: string;
   linkedin?: string;
   owner_id?: string;
+  is_public_active?: boolean;
 }
 
 export interface JobContact {

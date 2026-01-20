@@ -100,6 +100,8 @@ export const Perfil: React.FC = () => {
         is_public_active: true
     });
 
+    const { updateCompany } = useAuth();
+
     const [loadingCep, setLoadingCep] = useState(false);
 
     // Preview State
@@ -462,6 +464,10 @@ export const Perfil: React.FC = () => {
                 .eq('id', company.id);
 
             if (error) throw error;
+
+            // Update Global State (Header) Immediately
+            updateCompany({ is_public_active: newValue });
+
             toast({
                 type: 'success',
                 title: newValue ? 'Página Publicada' : 'Página Oculta',
@@ -514,19 +520,22 @@ export const Perfil: React.FC = () => {
                                     </button>
                                 )}
                             </div>
+
+                            <div className="h-4 w-px bg-slate-200 mx-2"></div>
+
+                            <button
+                                onClick={() => {
+                                    const finalUsername = formData.username || company?.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                    navigator.clipboard.writeText(`https://soroempregos.com/${finalUsername}`);
+                                    toast({ type: 'success', title: 'Copiado!', message: 'Link copiado.' });
+                                }}
+                                className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+                                title="Copiar Link"
+                            >
+                                <Copy size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => {
-                                const finalUsername = formData.username || company?.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                                navigator.clipboard.writeText(`https://soroempregos.com/${finalUsername}`);
-                                toast({ type: 'success', title: 'Copiado!', message: 'Link copiado para a área de transferência.' });
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full hover:bg-slate-50 transition-all font-bold text-xs text-slate-600 uppercase tracking-wider shadow-sm"
-                            title="Copiar Link"
-                        >
-                            <Copy size={16} />
-                            Copiar Link
-                        </button>
+
 
                         {/* Toggle Public Page */}
                         <div
