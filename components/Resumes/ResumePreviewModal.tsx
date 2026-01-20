@@ -41,18 +41,18 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-            <div className="relative w-full max-w-4xl h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
+            <div className="relative w-full max-w-4xl h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
 
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between z-10">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between z-10">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
                             {candidate.name.charAt(0)}
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-800 text-lg">{candidate.name}</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-white text-lg">{candidate.name}</h3>
                             <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-1">
                                     {candidate.age && <span>{candidate.age} anos</span>}
                                     {candidate.sex && (
                                         <>
@@ -77,23 +77,23 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                             download={`curriculo_${candidate.name.replace(/\s+/g, '_')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium text-sm"
+                            className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium text-sm"
                         >
                             <Download size={16} />
                             <span className="hidden sm:inline">Baixar Arquivo</span>
                         </a>
 
-                        <div className="w-px h-8 bg-slate-200 mx-2 hidden sm:block"></div>
+                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-2 hidden sm:block"></div>
 
-                        <div className="bg-slate-100 p-1 rounded-lg flex items-center mr-4">
-                            <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-500"><ZoomOut size={16} /></button>
-                            <span className="text-xs font-mono w-12 text-center text-slate-500">{Math.round(scale * 100)}%</span>
-                            <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-500"><ZoomIn size={16} /></button>
+                        <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex items-center mr-4">
+                            <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-colors text-slate-500 dark:text-slate-400"><ZoomOut size={16} /></button>
+                            <span className="text-xs font-mono w-12 text-center text-slate-500 dark:text-slate-400">{Math.round(scale * 100)}%</span>
+                            <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-colors text-slate-500 dark:text-slate-400"><ZoomIn size={16} /></button>
                         </div>
 
                         <button
                             onClick={onClose}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors"
                         >
                             <X size={24} />
                         </button>
@@ -101,7 +101,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 bg-slate-100 overflow-hidden relative flex flex-col">
+                <div className="flex-1 bg-slate-100 dark:bg-slate-950/50 overflow-hidden relative flex flex-col">
                     <div className="flex-1 overflow-auto flex flex-col items-center p-8 custom-scrollbar">
                         {candidate.resume_url ? (
                             isImage ? (
@@ -136,9 +136,9 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
-                    <div className="text-sm text-slate-500 font-medium">
-                        Status atual: <span className="uppercase font-bold text-slate-700">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                    <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        Status atual: <span className="uppercase font-bold text-slate-700 dark:text-slate-200">
                             {candidate.status === 'pending' ? 'Pendente' :
                                 candidate.status === 'approved' ? 'Aprovado' :
                                     candidate.status === 'rejected' ? 'Reprovado' :
@@ -162,7 +162,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                         {candidate.email && (
                             <button
                                 onClick={() => setActiveModal('email')}
-                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm"
+                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
                                 title="Enviar Email"
                             >
                                 <Mail size={20} />
@@ -170,12 +170,12 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                         )}
                     </div>
 
-                    <div className="w-px h-8 bg-slate-200 mx-2"></div>
+                    <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-2"></div>
 
                     <div className="flex gap-3">
                         <button
                             onClick={() => { onStatusUpdate(candidate.id, 'rejected'); onClose(); }}
-                            className="px-6 py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition-colors flex items-center gap-2"
+                            className="px-6 py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center gap-2"
                         >
                             <XCircle size={18} /> Rejeitar
                         </button>
@@ -193,9 +193,9 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
             {/* Contact Action Modal */}
             {activeModal && (
                 <div className="absolute inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn" onClick={() => setActiveModal(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scaleIn border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                                 {activeModal === 'whatsapp' ? (
                                     <>
                                         <svg viewBox="0 0 24 24" fill="#25D366" className="w-6 h-6">
@@ -210,7 +210,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                                     </>
                                 )}
                             </h3>
-                            <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600">
+                            <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={20} />
                             </button>
                         </div>
@@ -220,10 +220,10 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({ isOpen, 
                                 onClick={() => handleCopy(
                                     activeModal === 'whatsapp' ? (candidate.phone || '') : (candidate.email || '')
                                 )}
-                                className="w-full flex flex-col p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all group text-left relative overflow-hidden"
+                                className="w-full flex flex-col p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all group text-left relative overflow-hidden"
                             >
                                 <div className="w-full flex items-center justify-between">
-                                    <span className="font-normal text-slate-600 text-sm group-hover:text-blue-700">
+                                    <span className="font-normal text-slate-600 dark:text-slate-300 text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400">
                                         {activeModal === 'whatsapp'
                                             ? `Copiar número (${candidate.phone})`
                                             : 'Copiar email'}

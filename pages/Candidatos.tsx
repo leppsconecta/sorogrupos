@@ -168,10 +168,8 @@ export const Candidatos: React.FC = () => {
                     // Wait, existing code might expect 'id' to be candidate id? 
                     // Let's check handleUpdateStatus. It calls supabase.from('job_candidates').update({ status }).eq('id', candidateId).
                     // So currently it expects a "row ID" of the relationship table.
-                    // PERFECT. We have 'job_applications' table which replaces 'job_candidates'.
+                    // Perfect. We have 'job_applications' table which replaces 'job_candidates'.
                     // So we will pass app.id as 'id'.
-
-                    id: app.id, // Application ID (relationship table PK)
                     job_id: app.job_id,
                     name: app.candidates.name,
                     email: app.candidates.email,
@@ -321,7 +319,7 @@ export const Candidatos: React.FC = () => {
             )}
 
             {/* Navigation & Toolbar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center transition-all">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-4 justify-between items-center transition-all">
                 {/* Breadcrumbs */}
                 <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 scrollbar-hide">
                     {navStack.length > 1 && (
@@ -330,7 +328,7 @@ export const Candidatos: React.FC = () => {
                         </button>
                     )}
 
-                    <div className="flex items-center text-sm font-medium text-slate-600 whitespace-nowrap">
+                    <div className="flex items-center text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
                         {navStack.map((item, index) => (
                             <React.Fragment key={index}>
                                 {index > 0 && <ChevronRight size={14} className="mx-1 text-slate-300" />}
@@ -339,7 +337,7 @@ export const Candidatos: React.FC = () => {
                                         const newStack = navStack.slice(0, index + 1);
                                         setNavStack(newStack);
                                     }}
-                                    className={`hover:text-blue-600 transition-colors ${index === navStack.length - 1 ? 'text-slate-800 font-bold' : ''}`}
+                                    className={`hover:text-blue-600 transition-colors ${index === navStack.length - 1 ? 'text-slate-800 dark:text-white font-bold' : ''}`}
                                 >
                                     {item.name}
                                 </button>
@@ -354,7 +352,7 @@ export const Candidatos: React.FC = () => {
                     <input
                         type="text"
                         placeholder="Buscar nesta pasta..."
-                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                        className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm dark:text-gray-200"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
@@ -387,7 +385,7 @@ export const Candidatos: React.FC = () => {
                                         return (
                                             <div
                                                 key={folder.id}
-                                                className="group relative bg-white border border-slate-200 p-5 rounded-2xl transition-all cursor-pointer hover:border-blue-500/50 hover:shadow-xl"
+                                                className="group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-2xl transition-all cursor-pointer hover:border-blue-500/50 hover:shadow-xl"
                                                 onClick={() => navigateTo(currentView.level === 'root' ? 'company' : 'sector', folder.id, folder.name)}
                                             >
                                                 <div className="flex items-start justify-between mb-4">
@@ -395,7 +393,7 @@ export const Candidatos: React.FC = () => {
                                                         <Folder size={24} />
                                                     </div>
                                                 </div>
-                                                <h4 className="font-semibold text-slate-800 truncate">{folder.name}</h4>
+                                                <h4 className="font-semibold text-slate-800 dark:text-gray-100 truncate">{folder.name}</h4>
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                                     {count} Vagas
                                                 </span>
@@ -412,7 +410,7 @@ export const Candidatos: React.FC = () => {
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2 mt-6">
                                     Vagas
                                 </h3>
-                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-700">
                                     {filteredJobs.map(job => {
                                         const rejectedCount = job.candidates.filter(c => c.status === 'rejected').length;
                                         const availableCount = job.candidates_count - rejectedCount;
@@ -420,7 +418,7 @@ export const Candidatos: React.FC = () => {
                                         return (
                                             <div
                                                 key={job.id}
-                                                className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group flex items-center justify-between gap-4"
+                                                className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group flex items-center justify-between gap-4"
                                                 onClick={() => setSelectedJob(job)}
                                             >
                                                 <div className="flex items-center gap-4 min-w-0">
@@ -429,8 +427,8 @@ export const Candidatos: React.FC = () => {
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <h4 className="font-medium text-slate-800 text-sm truncate">{job.title}</h4>
-                                                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-mono">#{job.code}</span>
+                                                            <h4 className="font-medium text-slate-800 dark:text-gray-100 text-sm truncate">{job.title}</h4>
+                                                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-mono">#{job.code}</span>
                                                         </div>
                                                         <p className="text-xs text-slate-400 mt-0.5 truncate flex items-center gap-1.5">
                                                             <span>{job.city || 'N/A'}{job.region ? ` - ${job.region}` : ''}</span>
@@ -444,7 +442,7 @@ export const Candidatos: React.FC = () => {
                                                     {/* Compact Stats */}
                                                     <div className="flex items-center gap-4 text-center">
                                                         <div>
-                                                            <span className="block text-sm font-bold text-slate-700">{job.candidates_count}</span>
+                                                            <span className="block text-sm font-bold text-slate-700 dark:text-gray-300">{job.candidates_count}</span>
                                                             <span className="block text-[9px] text-slate-400 uppercase">Total</span>
                                                         </div>
                                                         <div className="w-px h-6 bg-slate-100"></div>
@@ -468,9 +466,9 @@ export const Candidatos: React.FC = () => {
                         )}
 
                         {filteredFolders.length === 0 && filteredJobs.length === 0 && (
-                            <div className="p-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed">
+                            <div className="p-16 text-center text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 border-dashed">
                                 <Briefcase size={48} className="mx-auto mb-4 opacity-20" />
-                                <h3 className="font-bold text-lg text-slate-600">Está meio vazio por aqui...</h3>
+                                <h3 className="font-bold text-lg text-slate-600 dark:text-slate-300">Está meio vazio por aqui...</h3>
                                 <p className="text-sm">Nenhuma vaga ou pasta encontrada.</p>
                                 {navStack.length > 1 && (
                                     <button onClick={navigateBack} className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors">
@@ -488,11 +486,11 @@ export const Candidatos: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex justify-end">
                     <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setSelectedJob(null)} />
 
-                    <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-slideInRight">
+                    <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-slideInRight">
                         {/* Header with Navigation Carousel */}
-                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10 sticky top-0">
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 z-10 sticky top-0">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <button onClick={() => setSelectedJob(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                <button onClick={() => setSelectedJob(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                                     <ArrowLeft size={18} />
                                 </button>
 
@@ -500,7 +498,7 @@ export const Candidatos: React.FC = () => {
                                     <button
                                         onClick={selectPreviousJob}
                                         disabled={filteredJobs.findIndex(j => j.id === selectedJob.id) <= 0}
-                                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:border-slate-200 transition-all bg-white"
+                                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:border-blue-200 dark:hover:border-blue-900 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:border-slate-200 transition-all bg-white dark:bg-slate-800"
                                         title="Vaga Anterior"
                                     >
                                         <ChevronLeft size={18} />
@@ -509,16 +507,16 @@ export const Candidatos: React.FC = () => {
                                     <button
                                         onClick={selectNextJob}
                                         disabled={filteredJobs.findIndex(j => j.id === selectedJob.id) >= filteredJobs.length - 1}
-                                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:border-slate-200 transition-all bg-white"
+                                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:border-blue-200 dark:hover:border-blue-900 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:border-slate-200 transition-all bg-white dark:bg-slate-800"
                                         title="Próxima Vaga"
                                     >
                                         <ChevronRight size={18} />
                                     </button>
 
                                     <div className="min-w-0 pl-2">
-                                        <h2 className="text-sm font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">{selectedJob.title}</h2>
+                                        <h2 className="text-sm font-bold text-slate-800 dark:text-gray-100 truncate max-w-[200px] sm:max-w-xs">{selectedJob.title}</h2>
                                         <div className="flex items-center gap-2 text-xs text-slate-500">
-                                            <span className="font-mono bg-slate-100 px-1 rounded">#{selectedJob.code}</span>
+                                            <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">#{selectedJob.code}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -538,14 +536,14 @@ export const Candidatos: React.FC = () => {
                         </div>
 
                         {/* Search & Tabs */}
-                        <div className="bg-white border-b border-slate-100">
+                        <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
                             <div className="px-6 pt-4 pb-2">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
                                         type="text"
                                         placeholder="Buscar por nome, cidade, idade..."
-                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm dark:text-gray-200"
                                         value={candidateSearchTerm}
                                         onChange={e => setCandidateSearchTerm(e.target.value)}
                                     />
@@ -573,7 +571,7 @@ export const Candidatos: React.FC = () => {
                         </div>
 
                         {/* List */}
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-slate-50">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-slate-50 dark:bg-slate-950/50">
                             {selectedJob.candidates
                                 .filter(c => {
                                     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
@@ -589,11 +587,11 @@ export const Candidatos: React.FC = () => {
                                 .map(candidate => (
                                     <div
                                         key={candidate.id}
-                                        className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 justify-between transition-all hover:shadow-md cursor-pointer group/card"
-                                        onClick={() => setPreviewCandidate(candidate)}
+                                        className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-3 justify-between transition-all hover:shadow-md cursor-pointer group/card"
+                                        onClick={() => { setSelectedCandidate(candidate); setIsPreviewOpen(true); }}
                                     >
                                         <div className="flex items-center gap-3 w-full">
-                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-lg shrink-0 overflow-hidden">
+                                            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 font-bold text-lg shrink-0 overflow-hidden">
                                                 {/* Use mock avatar logic if needed, or just initials */}
                                                 {candidate.sex === 'Feminino' ?
                                                     <img src={`https://api.dicebear.com/7.x/micah/svg?seed=${candidate.name}&backgroundColor=transparent`} alt="avatar" className="w-full h-full object-cover" />
@@ -602,7 +600,7 @@ export const Candidatos: React.FC = () => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between">
-                                                    <h4 className="font-bold text-sm text-slate-800 truncate">{candidate.name}</h4>
+                                                    <h4 className="font-bold text-sm text-slate-800 dark:text-gray-100 truncate">{candidate.name}</h4>
                                                     <span className="text-[10px] text-slate-400">{new Date(candidate.created_at).toLocaleDateString()}</span>
                                                 </div>
 
@@ -685,7 +683,7 @@ export const Candidatos: React.FC = () => {
                                 setIsJobDetailOpen(false);
                                 navigate('/anunciar');
                             }}
-                            className="flex-1 py-3 px-4 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 py-3 px-4 bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                         >
                             <Megaphone size={16} />
                             Anunciar
@@ -696,7 +694,7 @@ export const Candidatos: React.FC = () => {
                                 setIsJobDetailOpen(false);
                                 navigate('/perfil');
                             }}
-                            className="flex-1 py-3 px-4 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 py-3 px-4 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                         >
                             <Star size={16} />
                             Destacar
@@ -709,7 +707,7 @@ export const Candidatos: React.FC = () => {
                                     navigate('/vagas', { state: { editingJobId: selectedJob.id, isJobModalOpen: true } });
                                 }
                             }}
-                            className="flex-1 py-3 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 py-3 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                         >
                             <Edit size={16} />
                             Editar
@@ -723,21 +721,21 @@ export const Candidatos: React.FC = () => {
 
 const StatCard = ({ label, value, icon, color }: { label: string, value: string | number, icon: React.ReactNode, color: string }) => {
     const colors: any = {
-        blue: 'bg-blue-50 text-blue-600 border-blue-100',
-        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-        green: 'bg-green-50 text-green-600 border-green-100',
-        red: 'bg-red-50 text-red-600 border-red-100',
+        blue: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800',
+        green: 'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
+        red: 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
     };
 
     return (
-        <div className={`p-4 rounded-2xl border ${colors[color].replace('text-', 'border-').split(' ')[2]} bg-white shadow-sm flex flex-col justify-between h-24`}>
+        <div className={`p-4 rounded-2xl border ${colors[color].split(' ').find((c: string) => c.startsWith('border-'))} ${colors[color].split(' ').find((c: string) => c.startsWith('dark:border-'))} bg-white dark:bg-slate-800 shadow-sm flex flex-col justify-between h-24`}>
             <div className="flex items-center gap-2 text-slate-500">
                 <div className={`p-1.5 rounded-lg ${colors[color]}`}>
                     {icon}
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
             </div>
-            <span className="text-2xl font-black text-slate-800 ml-1">{value}</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-white ml-1">{value}</span>
         </div>
     );
 };

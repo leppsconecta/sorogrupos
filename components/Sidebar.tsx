@@ -120,21 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
 
 
       {/* Footer / User Profile */}
-      <div className="border-t border-white/5 bg-blue-900/20">
-        {/* Theme Toggle (Sidebar) */}
-        {toggleTheme && (
-          <div className="px-5 pt-4 pb-2">
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-950/50 hover:bg-blue-900/50 text-blue-200 hover:text-white transition-all border border-blue-800/30"
-            >
-              <span className="text-xs font-semibold uppercase tracking-wider">Modo Escuro</span>
-              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-          </div>
-        )}
-
-        <Link to="/configuracao" className="p-5 block px-5 hover:bg-blue-900/40 transition-colors cursor-pointer group">
+      <div className="border-t border-white/5 bg-blue-900/20 flex items-center pr-4">
+        <Link to="/configuracao" className="flex-1 py-5 pl-5 pr-2 hover:bg-blue-900/40 transition-colors cursor-pointer group rounded-r-none">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
               <Settings size={24} />
@@ -145,6 +132,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
             </div>
           </div>
         </Link>
+
+        {/* Compact Theme Toggle */}
+        {toggleTheme && (
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full hover:bg-blue-800/50 text-blue-300 hover:text-yellow-400 transition-colors"
+            title={theme === 'light' ? 'Mudar para Escuro' : 'Mudar para Claro'}
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+        )}
       </div>
     </aside>
   );

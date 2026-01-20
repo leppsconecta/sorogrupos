@@ -68,12 +68,12 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
     };
 
     return (
-        <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn ring-1 ring-slate-100">
+        <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn ring-1 ring-slate-100 dark:ring-slate-800">
 
             {/* Header */}
-            <div className="p-6 pb-4 border-b border-slate-100 relative bg-white">
+            <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 relative bg-white dark:bg-slate-900">
                 <div className="absolute top-4 left-6">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-bold">
                         <Hash size={12} className="text-slate-400" />
                         {job.code}
                     </div>
@@ -82,27 +82,27 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                 {onClose && (
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                        className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors"
                     >
                         <X size={20} />
                     </button>
                 )}
 
                 <div className="mt-8">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 pr-8 mb-3 leading-tight">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white pr-8 mb-3 leading-tight">
                         {job.title}
                     </h2>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-medium">
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-100 text-slate-600">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                             <MapPin size={14} className="text-red-500" />
                             {job.location}
                         </span>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-100 text-slate-600">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                             <DollarSign size={14} className="text-green-500" />
                             {job.salary || 'A combinar'}
                         </span>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-100 text-slate-600">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                             <Clock size={14} className="text-orange-500" />
                             {job.postedAt}
                         </span>
@@ -111,11 +111,11 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
             </div>
 
             {/* Content */}
-            <div className="overflow-y-auto p-6 space-y-6 custom-scrollbar text-slate-600">
+            <div className="overflow-y-auto p-6 space-y-6 custom-scrollbar text-slate-600 dark:text-slate-300">
 
                 {/* Description */}
                 <div>
-                    <h3 className="text-sm font-bold text-slate-900 mb-2">Sobre a vaga</h3>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Sobre a vaga</h3>
                     <div className="text-sm leading-relaxed whitespace-pre-line">
                         {job.description}
                     </div>
@@ -125,7 +125,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                 <div className="grid sm:grid-cols-2 gap-6">
                     {(job.requirements?.length ?? 0) > 0 && (
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <CheckCircle2 size={16} className="text-indigo-500" /> Requisitos
                             </h3>
                             <ul className="space-y-2">
@@ -141,7 +141,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
 
                     {(job.benefits?.length ?? 0) > 0 && (
                         <div>
-                            <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <Star size={16} className="text-yellow-500 fill-yellow-500" /> Benefícios
                             </h3>
                             <ul className="space-y-2">
@@ -157,7 +157,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
 
                     {(job.activities?.length ?? 0) > 0 && (
                         <div className="sm:col-span-2">
-                            <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <Briefcase size={16} className="text-violet-500" /> Atividades
                             </h3>
                             <ul className="space-y-2">
@@ -176,11 +176,11 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
 
             {/* Compact Footer */}
             {customFooter ? (
-                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
                     {customFooter}
                 </div>
             ) : showFooter && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
                     <button
                         onClick={onApply}
                         className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -192,8 +192,8 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                     <button
                         onClick={handleShare}
                         className={`h-11 px-4 flex items-center justify-center rounded-xl border transition-all font-medium text-sm gap-2 ${isShared
-                            ? 'bg-green-50 border-green-200 text-green-600'
-                            : 'bg-white border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'
+                            ? 'bg-green-50 border-green-200 text-green-600 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400'
+                            : 'bg-white border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:text-blue-400'
                             }`}
                         title="Compartilhar Vaga"
                     >
@@ -214,7 +214,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
 
                     <button
                         onClick={onReport}
-                        className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors bg-white"
+                        className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 dark:hover:text-red-400 transition-colors bg-white dark:bg-slate-800"
                         title="Reportar"
                     >
                         <AlertTriangle size={18} />
