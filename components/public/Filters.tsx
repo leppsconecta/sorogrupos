@@ -10,9 +10,10 @@ interface FiltersProps {
     company: CompanyProfile | null;
     compact?: boolean;
     onEditLogo?: () => void;
+    onClickProfile?: () => void;
 }
 
-const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedType, setSelectedType, company, compact = false, onEditLogo }) => {
+const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedType, setSelectedType, company, compact = false, onEditLogo, onClickProfile }) => {
     const types = Object.values(FilterType);
 
     return (
@@ -31,7 +32,10 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
 
                 {/* Mobile Company Profile */}
                 {company && (
-                    <div className={`flex items-center gap-2 ${compact ? 'hidden' : 'md:hidden'}`}>
+                    <div
+                        className={`flex items-center gap-2 ${compact ? 'hidden' : 'md:hidden'} ${onClickProfile ? 'cursor-pointer hover:opacity-80 active:scale-95 transition-all' : ''}`}
+                        onClick={onClickProfile}
+                    >
                         <div className="text-right hidden sm:block">
                             <p className="text-xs font-bold text-gray-700 leading-none">{company.name}</p>
                         </div>
@@ -64,7 +68,10 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
 
             {/* Desktop Company Profile (or Compact Profile) */}
             {company && (
-                <div className={`${compact ? 'flex' : 'hidden md:flex'} items-center gap-2 border-l border-gray-200 ml-auto ${compact ? 'pl-2' : 'pl-4 gap-3'}`}>
+                <div
+                    className={`${compact ? 'flex' : 'hidden md:flex'} items-center gap-2 border-l border-gray-200 ml-auto ${compact ? 'pl-2' : 'pl-4 gap-3'} ${onClickProfile ? 'cursor-pointer hover:opacity-80 active:scale-95 transition-all' : ''} relative`}
+                    onClick={onClickProfile}
+                >
                     <div className="text-right">
                         <p className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-gray-800 leading-none`}>{company.name}</p>
                         {(!compact && company.city && company.state) && (
@@ -84,7 +91,10 @@ const Filters: React.FC<FiltersProps> = ({ searchTerm, setSearchTerm, selectedTy
 
                         {onEditLogo && (
                             <button
-                                onClick={onEditLogo}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditLogo();
+                                }}
                                 className="absolute -top-2 -right-2 bg-indigo-600 text-white p-1.5 rounded-full shadow-lg border-2 border-white hover:bg-indigo-700 transition-all z-20"
                                 title="Alterar Logo"
                             >

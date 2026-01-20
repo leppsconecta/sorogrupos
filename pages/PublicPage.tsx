@@ -8,9 +8,10 @@ import Header from '../components/public/Header';
 import Filters from '../components/public/Filters';
 import CompactJobCard from '../components/public/CompactJobCard';
 
-
+import FloatingContactMenu from '../components/public/FloatingContactMenu';
 import ReportModal from '../components/public/modals/ReportModal';
 import ApplicationModal from '../components/public/modals/ApplicationModal';
+import CompanyContactModal from '../components/public/modals/CompanyContactModal'; // Import new modal
 
 
 import JobDetailModal from '../components/public/modals/JobDetailModal';
@@ -44,6 +45,7 @@ export const PublicPage = () => {
 
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false); // Contact Modal State
 
     useEffect(() => {
         if (username) fetchData();
@@ -229,16 +231,20 @@ export const PublicPage = () => {
                 <meta name="description" content={`Confira as ${jobs.length} vagas de emprego abertas na ${company.name}. Envie seu currículo agora!`} />
             </div>
 
+            {/* Contact Menu */}
+
+
             <div className="space-y-6">
 
                 {/* Fixed Header: Filters & Alert Button */}
-                <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
+                <div className="sticky top-0 z-50 bg-slate-50/95 backdrop-blur-md py-4 -mx-4 px-4 flex flex-col md:flex-row gap-4 justify-between items-center transition-all">
                     <Filters
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
                         selectedType={selectedType}
                         setSelectedType={setSelectedType}
                         company={company}
+                        onClickProfile={() => setIsContactModalOpen(true)} // Open contact modal on profile click
                     />
 
 
@@ -339,9 +345,16 @@ export const PublicPage = () => {
                     </>
                 )}
 
-                {company && (
-                    <></>
-                )}
+                {/* Contact List Modal */}
+                <CompanyContactModal
+                    isOpen={isContactModalOpen}
+                    onClose={() => setIsContactModalOpen(false)}
+                    company={company}
+                />
+
+                {/* Contact Menu (Moved to end for stacking context safely) */}
+                <FloatingContactMenu company={company} onOpen={() => setIsContactModalOpen(true)} />
+
 
             </div>
         </PublicProfileLayout>

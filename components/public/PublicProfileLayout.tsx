@@ -5,7 +5,7 @@ import ContactOptionsModal from './modals/ContactOptionsModal';
 import AddressModal from './modals/AddressModal';
 
 import { OfficialWhatsAppIcon } from '../OfficialWhatsAppIcon';
-import FloatingContactMenu from './FloatingContactMenu';
+
 
 interface PublicProfileLayoutProps {
     company: CompanyProfile | null;
@@ -48,7 +48,7 @@ const PublicProfileLayout: React.FC<PublicProfileLayoutProps> = ({ company, load
                 </div>
             </div>
 
-            <FloatingContactMenu company={company} />
+
         </div>
     );
 };
