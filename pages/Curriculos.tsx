@@ -235,6 +235,7 @@ export const Curriculos: React.FC = () => {
                 job_id: jobId,
                 candidate_id: candidateId,
                 status: 'pending',
+                origin: 'operator', // Track that operator linked this
                 applied_at: new Date().toISOString()
             });
 
