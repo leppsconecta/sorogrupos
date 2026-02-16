@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, CheckCircle, AlertCircle, Phone, Lock, UploadCloud, RefreshCw, Edit2, FileText, Paperclip, ArrowRight, User, MapPin, Calendar, ArrowLeft } from 'lucide-react';
+import { X, Send, CheckCircle, AlertCircle, Phone, Lock, UploadCloud, RefreshCw, Edit2, FileText, Paperclip, ArrowRight, User, MapPin, Calendar, ArrowLeft, Briefcase, Plus, Trash2 } from 'lucide-react';
 import { InputMask } from '@react-input/mask';
 import { supabase } from '../../../lib/supabase';
 
@@ -12,7 +12,7 @@ interface ApplicationModalProps {
     companyId: string; // Added companyId prop
 }
 
-type Step = 'contact_info' | 'personal_info' | 'verification' | 'success';
+type Step = 'contact_info' | 'personal_info' | 'professional_info' | 'verification' | 'success';
 
 const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId, companyId }) => {
     const [step, setStep] = useState<Step>('contact_info');
@@ -23,7 +23,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         city: '',
         state: '',
         sex: '',
-        birthDate: ''
+        birthDate: '',
+        mainRole: '',
+        extraRoles: [] as string[]
     });
     const [verificationCode, setVerificationCode] = useState('');
     const [generatedToken, setGeneratedToken] = useState('');
@@ -51,7 +53,10 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
     useEffect(() => {
         if (isOpen) {
             setStep('contact_info');
-            setFormData({ name: '', phone: '', email: '', city: '', state: '', sex: '', birthDate: '' });
+            setFormData({
+                name: '', phone: '', email: '', city: '', state: '', sex: '', birthDate: '',
+                mainRole: '', extraRoles: []
+            });
             setResumeFile(null);
             setVerificationCode('');
             setGeneratedToken('');
@@ -173,6 +178,29 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         }
 
         return { valid: true };
+        return { valid: true };
+    };
+
+    const handleAddExtraRole = () => {
+        if (formData.extraRoles.length < 5) {
+            setFormData(prev => ({
+                ...prev,
+                extraRoles: [...prev.extraRoles, '']
+            }));
+        }
+    };
+
+    const handleRemoveExtraRole = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            extraRoles: prev.extraRoles.filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleExtraRoleChange = (index: number, value: string) => {
+        const newRoles = [...formData.extraRoles];
+        newRoles[index] = value;
+        setFormData(prev => ({ ...prev, extraRoles: newRoles }));
     };
 
     const handleNextStep = (e: React.FormEvent) => {
@@ -226,6 +254,12 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 return;
             }
 
+            setStep('professional_info');
+        } else if (step === 'professional_info') {
+            if (!formData.mainRole) {
+                setError('Por favor, informe sua função principal/atual.');
+                return;
+            }
             handleRequestCode();
         }
     };
@@ -267,10 +301,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                     .update({
                         name: formData.name,
                         phone: formattedPhone,
-                        city: formData.city,
                         state: formData.state,
                         sex: formData.sex,
                         birth_date: dbBirthDate,
+                        cargo_principal: formData.mainRole,
+                        cargos_extras: formData.extraRoles.filter(r => r.trim() !== ''),
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', currCandidateId);
@@ -286,7 +321,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                         city: formData.city,
                         state: formData.state,
                         sex: formData.sex,
-                        birth_date: dbBirthDate
+                        birth_date: dbBirthDate,
+                        cargo_principal: formData.mainRole,
+                        cargos_extras: formData.extraRoles.filter(r => r.trim() !== '')
                     })
                     .select('id')
                     .single();
@@ -413,6 +450,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             data.append('birth_date', formData.birthDate);
             data.append('user_id', jobOwnerId);
             data.append('job_title', jobTitle);
+            data.append('user_id', jobOwnerId);
+            data.append('job_title', jobTitle);
+            data.append('cargo_principal', formData.mainRole);
+            if (formData.extraRoles.length > 0) data.append('cargos_extras', JSON.stringify(formData.extraRoles));
+
             if (resumeFile) data.append('file', resumeFile);
 
             // Don't await response, just log error if happens
@@ -459,6 +501,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         switch (step) {
             case 'contact_info': return 'Informações de Contato';
             case 'personal_info': return 'Dados Pessoais';
+            case 'professional_info': return 'Informações Profissionais';
             case 'verification': return 'Verificação de Segurança';
             default: return 'Candidatar-se';
         }
@@ -466,8 +509,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
 
     const getStepProgress = () => {
         switch (step) {
-            case 'contact_info': return 33;
-            case 'personal_info': return 66;
+            case 'contact_info': return 25;
+            case 'personal_info': return 50;
+            case 'professional_info': return 75;
             case 'verification': return 90;
             case 'success': return 100;
         }
@@ -486,9 +530,12 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-white relative">
                     <div className="pr-8 w-full">
                         <div className="flex items-center gap-2 mb-2">
-                            {step === 'personal_info' && (
+                            {(step === 'personal_info' || step === 'professional_info') && (
                                 <button
-                                    onClick={() => setStep('contact_info')}
+                                    onClick={() => {
+                                        if (step === 'personal_info') setStep('contact_info');
+                                        if (step === 'professional_info') setStep('personal_info');
+                                    }}
                                     className="p-1 -ml-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                                 >
                                     <ArrowLeft size={18} />
@@ -768,6 +815,87 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                             </form>
                         )}
 
+
+
+                        {step === 'professional_info' && (
+                            <form onSubmit={handleNextStep} className="space-y-6">
+                                {/* Cargos - Main Role */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cargo Principal / Atual *</label>
+                                    <div className="relative">
+                                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Função principal. Ex: Aux. Administrativo"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                            value={formData.mainRole}
+                                            onChange={e => setFormData({ ...formData, mainRole: e.target.value })}
+                                            required
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Extra Roles */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Funções extras</label>
+                                        {formData.extraRoles.length < 5 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleAddExtraRole}
+                                                className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1"
+                                            >
+                                                <Plus size={14} /> Adicionar Função
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {formData.extraRoles.map((role, index) => (
+                                        <div key={index} className="relative animate-fadeIn">
+                                            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input
+                                                type="text"
+                                                placeholder={`Experiência em: Ex: Encanador`}
+                                                className="w-full pl-10 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all placeholder:text-slate-400 text-slate-800 text-sm"
+                                                value={role}
+                                                onChange={e => handleExtraRoleChange(index, e.target.value)}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveExtraRole(index)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {formData.extraRoles.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic">Nenhuma função extra adicionada.</p>
+                                    )}
+                                </div>
+
+                                <div className="pt-2">
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold tracking-wide shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:transform hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:hover:translate-y-0 flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Enviando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Confirmar envio <ArrowRight size={16} />
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
 
                         {step === 'verification' && (
                             // Verification Step - Code Only
