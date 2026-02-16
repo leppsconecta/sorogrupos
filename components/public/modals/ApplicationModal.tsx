@@ -434,34 +434,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 }
             }
 
+
             // Success immediately after DB save
             setStep('success');
-
-            // 4. Send Final Webhook (Background / Fire-and-Forget)
-            const data = new FormData();
-            data.append('candidate_id', candidateId);
-            data.append('type', 'nova_candidatura');
-            data.append('name', formData.name);
-            data.append('email', formData.email);
-            data.append('phone', formattedPhone);
-            data.append('state', formData.state);
-            data.append('city', formData.city);
-            data.append('sex', formData.sex);
-            data.append('birth_date', formData.birthDate);
-            data.append('user_id', jobOwnerId);
-            data.append('job_title', jobTitle);
-            data.append('user_id', jobOwnerId);
-            data.append('job_title', jobTitle);
-            data.append('cargo_principal', formData.mainRole);
-            if (formData.extraRoles.length > 0) data.append('cargos_extras', JSON.stringify(formData.extraRoles));
-
-            if (resumeFile) data.append('file', resumeFile);
-
-            // Don't await response, just log error if happens
-            fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
-                method: 'POST',
-                body: data
-            }).catch(err => console.error('Final webhook failed in background:', err));
 
         } catch (error: any) {
             console.error(error);
