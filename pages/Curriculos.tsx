@@ -31,6 +31,13 @@ interface Candidate {
     age?: number;
 }
 
+interface Job {
+    id: string;
+    title: string;
+    code?: string;
+    status: string;
+}
+
 // --- Helper Functions ---
 
 const calculateAge = (birthDate: string) => {
@@ -60,6 +67,7 @@ export const Curriculos: React.FC = () => {
 
     // Data State
     const [candidates, setCandidates] = useState<Candidate[]>([]);
+    const [jobs, setJobs] = useState<Job[]>([]); // Active jobs
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
 
@@ -113,9 +121,15 @@ export const Curriculos: React.FC = () => {
         }
     };
 
+    const fetchJobs = async () => {
+        const { data } = await supabase.from('jobs').select('id, title, code, status').eq('status', 'active');
+        if (data) setJobs(data);
+    };
+
     useEffect(() => {
         if (user) {
             fetchCandidates();
+            fetchJobs();
         }
     }, [user, page, searchTerm]); // Search triggers re-fetch
 
@@ -180,6 +194,59 @@ export const Curriculos: React.FC = () => {
         }
     };
 
+    const handleStatusChange = async (candidate: Candidate, newStatus: string) => {
+        if (newStatus === 'Bloqueado') {
+            // Open modal to require note
+            openStatusModal(candidate);
+            setStatusForm({ status: 'Bloqueado', note: candidate.note || '' });
+        } else {
+            // Update immediately to Válido
+            try {
+                const { error } = await supabase
+                    .from('candidates')
+                    .update({ status: 'Válido', updated_at: new Date().toISOString() })
+                    .eq('id', candidate.id);
+                if (error) throw error;
+                showToast('Status atualizado para Válido', 'success');
+                fetchCandidates();
+            } catch (error) {
+                console.error('Error updating status:', error);
+                showToast('Erro ao atualizar status', 'error');
+            }
+        }
+    };
+
+    const handleLinkJob = async (candidateId: string, jobId: string) => {
+        try {
+            // Check if already applied
+            const { data: existing } = await supabase
+                .from('job_applications')
+                .select('id')
+                .eq('job_id', jobId)
+                .eq('candidate_id', candidateId)
+                .single();
+
+            if (existing) {
+                showToast('Candidato já vinculado a esta vaga.', 'warning');
+                return;
+            }
+
+            const { error } = await supabase.from('job_applications').insert({
+                job_id: jobId,
+                candidate_id: candidateId,
+                status: 'pending',
+                applied_at: new Date().toISOString()
+            });
+
+            if (error) throw error;
+            showToast('Candidato vinculado com sucesso!', 'success');
+        } catch (error) {
+            console.error('Error linking job:', error);
+            showToast('Erro ao vincular candidato', 'error');
+            throw error;
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header & Stats */}
@@ -219,23 +286,25 @@ export const Curriculos: React.FC = () => {
                             <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                 <th className="p-4 text-center w-16">#</th>
                                 <th className="p-4">Data</th>
-                                <th className="p-4">Candidato</th>
-                                <th className="p-4">Localização / Contato</th>
-                                <th className="p-4">Função / Cargos</th>
-                                <th className="p-4">Status / Nota</th>
+                                <th className="p-4">Nome</th>
+                                <th className="p-4">Idade</th>
+                                <th className="p-4">Local</th>
+                                <th className="p-4">Função</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 text-center">Nota</th>
                                 <th className="p-4 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center">
+                                    <td colSpan={9} className="p-8 text-center">
                                         <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
                                     </td>
                                 </tr>
                             ) : candidates.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                                    <td colSpan={9} className="p-8 text-center text-slate-400">
                                         Nenhum currículo encontrado.
                                     </td>
                                 </tr>
@@ -252,46 +321,23 @@ export const Curriculos: React.FC = () => {
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-800 dark:text-gray-100">{row.name}</span>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                                    <span>{row.sex || 'N/I'}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                    <span>{row.age ? `${row.age} anos` : 'Idade N/A'}</span>
+                                                    {/* Phone/Email below name for compactness if desired, or keep separate. 
+                                                         User asked for 'Nome' column. I will keep contact info with name or separated?
+                                                         "Candidato mude para nome". "Local: (endereço) adicione apenas a cidade / estado".
+                                                         Let's keep name simple here.
+                                                     */}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                                                    <MapPin size={12} className="text-slate-400" />
-                                                    {row.city || 'N/A'}{row.state ? `-${row.state}` : ''}
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    {row.phone && (
-                                                        <a
-                                                            href={`https://wa.me/${row.phone.replace(/\D/g, '')}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-1 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
-                                                            title="WhatsApp"
-                                                        >
-                                                            <Phone size={14} />
-                                                        </a>
-                                                    )}
-                                                    {row.email && (
-                                                        <button
-                                                            onClick={() => handleCopyEmail(row.email)}
-                                                            className="p-1 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                                                            title="Copiar Email"
-                                                        >
-                                                            <Mail size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
+                                            {row.age || 'N/A'}
+                                        </td>
+                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
+                                            {row.city || 'N/A'}{row.state ? ` / ${row.state}` : ''}
                                         </td>
                                         <td className="p-4">
                                             <div className="flex flex-col gap-1">
-                                                <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                                                    <Briefcase size={12} className="text-blue-500" />
+                                                <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">
                                                     {row.cargo_principal || 'Não informado'}
                                                 </span>
                                                 {row.cargos_extras && row.cargos_extras.length > 0 && (
@@ -300,7 +346,7 @@ export const Curriculos: React.FC = () => {
                                                             onClick={() => setExpandedExtras(expandedExtras === row.id ? null : row.id)}
                                                             className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
                                                         >
-                                                            +{row.cargos_extras.length} extras
+                                                            +{row.cargos_extras.length}
                                                         </button>
                                                         {expandedExtras === row.id && (
                                                             <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-3 z-20 w-max max-w-[200px] animate-fadeIn">
@@ -319,25 +365,27 @@ export const Curriculos: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <div
-                                                className="cursor-pointer group/status"
-                                                onClick={() => openStatusModal(row)}
+                                            <select
+                                                value={row.status || 'Válido'}
+                                                onChange={(e) => handleStatusChange(row, e.target.value)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors ${(row.status || 'Válido') === 'Bloqueado'
+                                                    ? 'text-red-600 border-red-200 bg-red-50 focus:ring-red-500'
+                                                    : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500'
+                                                    }`}
                                             >
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${row.status === 'Bloqueado'
-                                                            ? 'bg-red-50 text-red-600 border-red-100'
-                                                            : 'bg-green-50 text-green-600 border-green-100'
-                                                        }`}>
-                                                        {row.status || 'Válido'}
-                                                    </span>
-                                                    <Edit size={12} className="text-slate-300 group-hover/status:text-blue-500 opacity-0 group-hover/status:opacity-100 transition-all" />
-                                                </div>
-                                                {row.note && (
-                                                    <p className="text-xs text-slate-500 line-clamp-1 italic max-w-[150px]" title={row.note}>
-                                                        "{row.note}"
-                                                    </p>
-                                                )}
-                                            </div>
+                                                <option value="Válido">Válido</option>
+                                                <option value="Bloqueado">Bloqueado</option>
+                                            </select>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <button
+                                                onClick={() => openStatusModal(row)}
+                                                className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-green-500' : 'text-slate-300'
+                                                    }`}
+                                                title={row.note || 'Adicionar nota'}
+                                            >
+                                                <FileText size={20} />
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -392,7 +440,9 @@ export const Curriculos: React.FC = () => {
                 isOpen={isPreviewOpen}
                 onClose={() => setIsPreviewOpen(false)}
                 candidate={selectedCandidate}
-                onStatusUpdate={() => { }} // Not using status update from this modal for now
+                onStatusUpdate={(c, s) => c && handleStatusChange(c, s)}
+                availableJobs={jobs}
+                onLinkJob={handleLinkJob}
             />
 
             {/* Status & Note Modal */}
@@ -409,8 +459,8 @@ export const Curriculos: React.FC = () => {
                                     <button
                                         onClick={() => setStatusForm({ ...statusForm, status: 'Válido' })}
                                         className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Válido'
-                                                ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2'
-                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                            ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2'
+                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                             }`}
                                     >
                                         Válido
@@ -418,8 +468,8 @@ export const Curriculos: React.FC = () => {
                                     <button
                                         onClick={() => setStatusForm({ ...statusForm, status: 'Bloqueado' })}
                                         className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Bloqueado'
-                                                ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2'
-                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2'
+                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                             }`}
                                     >
                                         Bloqueado
