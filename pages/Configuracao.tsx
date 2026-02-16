@@ -158,7 +158,6 @@ export const Configuracao: React.FC = () => {
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
-  const [activeSocials, setActiveSocials] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -237,9 +236,6 @@ export const Configuracao: React.FC = () => {
         state: company.state || ''
       }));
 
-      const active = [];
-      if (company.linkedin) active.push('linkedin');
-      setActiveSocials(active);
     }
 
     if (profile || company) {
@@ -247,12 +243,6 @@ export const Configuracao: React.FC = () => {
     }
 
   }, [profile, company]);
-
-  const toggleSocial = (social: string) => {
-    setActiveSocials(prev =>
-      prev.includes(social) ? prev.filter(s => s !== social) : [...prev, social]
-    );
-  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -557,7 +547,6 @@ export const Configuracao: React.FC = () => {
                 <InputField
                   label="Nome da Empresa"
                   icon={Building2}
-                  required
                   placeholder="Nome Fantasia"
                   value={formDataCompany.name}
                   onChange={(e: any) => setFormDataCompany({ ...formDataCompany, name: e.target.value })}
@@ -581,7 +570,6 @@ export const Configuracao: React.FC = () => {
                     label="WhatsApp Comercial"
                     icon={Smartphone}
                     placeholder="11 9 4661-7052"
-                    required
                     value={formDataCompany.whatsapp}
                     onChange={(e: any) => setFormDataCompany({ ...formDataCompany, whatsapp: e.target.value })}
                     helper="Este número aparecerá no botão de contato das vagas."
@@ -591,7 +579,6 @@ export const Configuracao: React.FC = () => {
                     label="Email Corporativo"
                     icon={Mail}
                     placeholder="contato@empresa.com"
-                    required
                     value={(formDataCompany as any).email}
                     onChange={(e: any) => setFormDataCompany({ ...formDataCompany, email: e.target.value })}
                   />
@@ -605,7 +592,7 @@ export const Configuracao: React.FC = () => {
                     {/* Row 1: CEP, Rua, Numero */}
                     <div className="md:col-span-1 relative">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2 block">
-                        CEP <span className="text-red-500">*</span>
+                        CEP
                       </label>
                       <div className="relative">
                         <input
