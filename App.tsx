@@ -121,6 +121,19 @@ const AppContent: React.FC = () => {
     return <Navigate to="/painel" replace />;
   }
 
+  if (isLoggedIn && onboardingCompleted === null) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="animate-spin text-blue-500" size={40} />
+          <span className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
+            Verificando conta...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {showDashboardUI && (
@@ -186,7 +199,7 @@ const AppContent: React.FC = () => {
       {showDashboardUI && <BottomNav />}
 
       {/* Onboarding Modal */}
-      {isLoggedIn && !onboardingCompleted && <OnboardingModal />}
+      {isLoggedIn && onboardingCompleted === false && <OnboardingModal />}
 
       {/* Shared WhatsApp Connection Modal used via Context logic */}
       {isConnectModalOpen && (

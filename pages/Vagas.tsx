@@ -507,6 +507,16 @@ Cód. Vaga: *${code}*
  ${interessadosText}`;
     }
 
+    const companyInfo = [
+      company?.name,
+      company?.whatsapp ? `WhatsApp: ${company.whatsapp}` : null,
+      company?.website
+    ].filter(Boolean);
+
+    const companyInfoBlock = companyInfo.length > 0
+      ? `\n\n*Mais informações:*\n${companyInfo.map(info => `➞ ${info}`).join('\n')}`
+      : '';
+
     return `*${company?.name || 'Sua Empresa'}* ${previewEmojis}
 -----------------------------
 Função: *${j.role || j.title || ''}*
@@ -522,12 +532,7 @@ Cód. Vaga: *${code}*
 
 *Interessados*
  ${interessadosText}
------------------------------ 
-
-*Mais informações:*
-➞ ${company?.name || 'Lepps | Conecta'}
-➞ ${company?.whatsapp || '11946610753'}
-➞ ${company?.website || 'leppsconecta.com.br'}`;
+----------------------------- ${companyInfoBlock}`;
   };
 
   const handleSaveJob = async () => {
@@ -1001,7 +1006,7 @@ Cód. Vaga: *${code}*
                     value={c.value}
                     onChange={e => updateContactValue(i, e.target.value)}
                     placeholder={`Informe o ${c.type}...`}
-                    className="flex-1 bg-transparent border-none px-2 py-1 text-base font-medium outline-none"
+                    className="flex-1 bg-transparent border-none px-2 py-1 text-base font-medium outline-none text-slate-700 dark:text-slate-200"
                     onFocus={scrollToCenter}
                   />
                 </div>
@@ -1751,7 +1756,7 @@ Cód. Vaga: *${code}*
                           onEmojiClick={() => { setEmojiInput(previewEmojis); setIsEmojiModalOpen(true); }}
                         />
                       ) : (
-                        <div className="bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col h-[600px] relative">
+                        <div className="bg-[#FAFAFA] dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col h-[600px] relative">
                           {/* Mock Header/Filters */}
 
 
@@ -2003,62 +2008,13 @@ Cód. Vaga: *${code}*
                   <WhatsAppPreviewCard
                     type={viewingJob.type === 'image' ? 'file' : viewingJob.type as any}
                     imageUrl={viewingJob.image_url || viewingJob.imageUrl}
-                    previewText={(() => {
-                      const job = viewingJob;
-                      const emojiTitle = '🟡';
-                      const code = job.jobCode || job.code || '---';
-                      const channels = [
-                        job.contact_whatsapp ? `WhatsApp ${job.contact_whatsapp}` : '',
-                        job.contact_email ? `e-mail ${job.contact_email}` : '',
-                        job.contact_link ? `Link ${job.contact_link}` : '',
-                        job.contact_address ? `${job.contact_address}` : ''
-                      ].filter(Boolean);
-
-                      const channelsText = channels.length > 0 ? channels.join(', ') : 'Entre em contato pelos canais oficiais.';
-
-                      const interessadosText = job.type === 'file'
-                        ? channelsText
-                        : `Enviar curriculo com o nome da vaga/codigo para: ${channelsText}`;
-
-                      const observationText = job.show_observation && job.observation ? `\nObs: ${job.observation}\n` : '';
-
-                      if (job.job_type === 'image' || job.type === 'file') {
-                        return `*${job.companyName || job.company_name || 'Sua Empresa'}* ${emojiTitle}
-----------------------------------
-Função: *${job.role || job.title}*
-Cód. Vaga: *${code}*
-----------------------------------${observationText}
-*Interessados*
- ${interessadosText}`;
-                      }
-
-                      return `*${job.companyName || job.company_name || 'Sua Empresa'}* ${emojiTitle}
-----------------------------------
-Função: *${job.role || job.title}*
-Cód. Vaga: *${code}*
-----------------------------------
-*Vínculo:* ${job.bond || job.employment_type || 'CLT'}
-*Empresa:* ${job.companyName || job.company_name || 'Confidencial'}
-*Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}${job.salary ? `\n*Salário:* ${job.salary}` : ''}
-*Requisitos:* ${job.requirements || ''}
-*Benefícios:* ${job.benefits || ''}
-*Atividades:* ${job.activities || ''}
-
-*Interessados*
- ${interessadosText}
-----------------------------------
-
-*Mais informações:*
-➞ ${job.companyName || job.company_name || 'SoroEmpregos'}
-➞ ${company?.phone || ''}
-➞ ${company?.website || ''}`;
-                    })()}
+                    previewText={generatePreviewText(viewingJob)}
                     onEmojiClick={() => { }}
                     showEmojiButton={false}
                   />
                 </div>
               ) : (
-                <div className={previewMode === 'site' ? "bg-[#FAFAFA] h-full flex flex-col" : ""}>
+                <div className={previewMode === 'site' ? "bg-[#FAFAFA] dark:bg-slate-900 h-full flex flex-col" : ""}>
 
 
 

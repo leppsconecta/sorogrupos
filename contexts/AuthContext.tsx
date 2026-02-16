@@ -13,7 +13,7 @@ interface AuthContextType {
     accountStatus: AccountStatus;
     planType: string | null;
     subscription: UserSubscription | null;
-    onboardingCompleted: boolean;
+    onboardingCompleted: boolean | null;
     refreshProfile: () => Promise<void>;
     signOut: () => Promise<void>;
     signInWithGoogle: () => Promise<{ error: any }>;
@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [accountStatus, setAccountStatus] = useState<AccountStatus>('trial');
     const [planType, setPlanType] = useState<string | null>(null);
     const [subscription, setSubscription] = useState<UserSubscription | null>(null);
-    const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+    const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchProfileData = async (userId: string) => {
@@ -122,7 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setAccount(null);
                 setAccountStatus('trial');
                 setPlanType(null);
+                setPlanType(null);
                 setSubscription(null);
+                setOnboardingCompleted(null);
                 setLoading(false);
             }
         });
