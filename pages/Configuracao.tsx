@@ -29,6 +29,65 @@ import { PlansSection } from '../components/PlansSection';
 
 // Styled Components / Reusable Parts
 
+// --- Helper Functions for Social Media ---
+const parseInstagram = (url: string) => {
+  if (!url) return '';
+  // Try to extract username from URL
+  const match = url.match(/instagram\.com\/([^/?#]+)/);
+  if (match) return '@' + match[1];
+  // If already starts with @, return as is
+  if (url.startsWith('@')) return url;
+  // If it's a simple string (no slash), assume username and add @
+  if (!url.includes('/')) return '@' + url;
+  return url;
+};
+
+const parseFacebook = (url: string) => {
+  if (!url) return '';
+  const match = url.match(/facebook\.com\/([^/?#]+)/);
+  if (match) return match[1];
+  // Remove trailing slashes and common prefixes if any
+  return url.replace(/^https?:\/\/(www\.)?facebook\.com\//, '').replace(/\/$/, '');
+};
+
+const parseLinkedin = (url: string) => {
+  if (!url) return '';
+  const match = url.match(/linkedin\.com\/(?:in|company)\/([^/?#]+)/);
+  if (match) return match[1];
+  return url.replace(/^https?:\/\/(www\.)?linkedin\.com\/(in|company)\//, '').replace(/\/$/, '');
+};
+
+const parseWebsite = (url: string) => {
+  if (!url) return '';
+  // Remove protocol
+  return url.replace(/^https?:\/\//, '');
+};
+
+const formatInstagramSave = (value: string) => {
+  if (!value) return '';
+  const username = value.replace(/^@/, '');
+  return `https://instagram.com/${username}`;
+};
+
+const formatFacebookSave = (value: string) => {
+  if (!value) return '';
+  return `https://facebook.com/${value}`;
+};
+
+const formatLinkedinSave = (value: string) => {
+  if (!value) return '';
+  return `https://www.linkedin.com/in/${value}`;
+};
+
+const formatWebsiteSave = (value: string) => {
+  if (!value) return '';
+  let url = value;
+  if (!url.match(/^https?:\/\//)) {
+    url = 'https://' + url;
+  }
+  return url;
+};
+
 // Helper Component for Phone Input (Brazil Fixed)
 const FixedBrazilPhoneInput = ({ label, value, onChange, placeholder, required = false, disabled = false, helper, icon: Icon }: any) => {
   // Value coming in is likely 5515999999999 or just 15999999999
@@ -223,10 +282,10 @@ export const Configuracao: React.FC = () => {
         whatsapp: company.whatsapp || '',
         zip_code: company.zip_code || '',
         email: company.email || '',
-        website: company.website || '',
-        instagram: company.instagram || '',
-        facebook: company.facebook || '',
-        linkedin: company.linkedin || '',
+        website: parseWebsite(company.website || ''),
+        instagram: parseInstagram(company.instagram || ''),
+        facebook: parseFacebook(company.facebook || ''),
+        linkedin: parseLinkedin(company.linkedin || ''),
         cep: company.cep || '',
         address: company.address || '',
         number: company.number || '',
@@ -337,9 +396,9 @@ export const Configuracao: React.FC = () => {
         whatsapp: compPhoneToSave,
         zip_code: formDataCompany.zip_code,
         email: (formDataCompany as any).email,
-        website: formDataCompany.website,
-        instagram: formDataCompany.instagram,
-        facebook: (formDataCompany as any).facebook,
+        website: formatWebsiteSave(formDataCompany.website),
+        instagram: formatInstagramSave(formDataCompany.instagram),
+        facebook: formatFacebookSave((formDataCompany as any).facebook),
         cep: formDataCompany.cep,
         address: formDataCompany.address,
         number: formDataCompany.number,
@@ -348,7 +407,7 @@ export const Configuracao: React.FC = () => {
         city: formDataCompany.city,
         state: formDataCompany.state,
 
-        linkedin: formDataCompany.linkedin,
+        linkedin: formatLinkedinSave(formDataCompany.linkedin),
         updated_at: new Date().toISOString()
       };
 
@@ -686,46 +745,87 @@ export const Configuracao: React.FC = () => {
                   <InputField
                     label="Website"
                     icon={Globe}
-                    placeholder="https://www.site.com.br"
+                    placeholder="www.suaempresa.com.br"
                     value={formDataCompany.website}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, website: e.target.value })}
+                    onChange={(e: any) => {
+                      let val = e.target.value.replace(/^https?:\/\//, '');
+                      setFormDataCompany({ ...formDataCompany, website: val });
+                    }}
+                    onBlur={() => {
+                      if (formDataCompany.website && !formDataCompany.website.startsWith('www.')) {
+                        setFormDataCompany(prev => ({ ...prev, website: 'www.' + prev.website }));
+                      }
+                    }}
+                    helper="Digite apenas o endereço (ex: www.site.com.br)"
                   />
                   <InputField
                     label="Instagram"
                     icon={Instagram}
                     placeholder="@usuario"
                     value={formDataCompany.instagram}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, instagram: e.target.value })}
+                    onChange={(e: any) => {
+                      let val = e.target.value;
+                      if (val.includes('instagram.com/')) {
+                        const match = val.match(/instagram\.com\/([^/?#]+)/);
+                        if (match) val = match[1];
+                      }
+                      // Remove invalid chars for username (allow alphanumeric, dot, underscore)
+                      // Also remove @ to re-add it cleanly
+                      val = val.replace(/[^a-zA-Z0-9._]/g, '');
+                      if (val) val = '@' + val;
+
+                      setFormDataCompany({ ...formDataCompany, instagram: val });
+                    }}
+                    helper="Digite apenas o usuário (ex: @usuario)"
                   />
                   <InputField
                     label="Facebook"
                     icon={Facebook}
-                    placeholder="facebook.com/pagina"
+                    placeholder="usuario"
                     value={(formDataCompany as any).facebook}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, facebook: e.target.value })}
+                    onChange={(e: any) => {
+                      let val = e.target.value;
+                      if (val.includes('facebook.com/')) {
+                        const match = val.match(/facebook\.com\/([^/?#]+)/);
+                        if (match) val = match[1];
+                      }
+                      val = val.replace(/@/g, '');
+                      setFormDataCompany({ ...formDataCompany, facebook: val });
+                    }}
+                    helper="Digite apenas o nome de usuário (sem https://facebook.com/)"
                   />
                   <InputField
                     label="LinkedIn"
                     icon={Linkedin}
-                    placeholder="linkedin.com/in/perfil"
+                    placeholder="usuario"
                     value={formDataCompany.linkedin}
-                    onChange={(e: any) => setFormDataCompany({ ...formDataCompany, linkedin: e.target.value })}
+                    onChange={(e: any) => {
+                      let val = e.target.value;
+                      if (val.includes('linkedin.com/')) {
+                        const match = val.match(/linkedin\.com\/(?:in|company)\/([^/?#]+)/);
+                        if (match) val = match[1];
+                      }
+                      val = val.replace(/@/g, '');
+                      setFormDataCompany({ ...formDataCompany, linkedin: val });
+                    }}
+                    helper="Digite apenas o perfil (sem https://linkedin.com/in/)"
                   />
                 </div>
-              </div>
 
-              <div className="pt-6 flex justify-end">
-                <button
-                  onClick={handleSaveCompany}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
-                  Salvar Alterações
-                </button>
+                <div className="pt-6 flex justify-end">
+                  <button
+                    onClick={handleSaveCompany}
+                    disabled={loading}
+                    className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={18} />}
+                    Salvar Alterações
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+
         )}
 
         {/* === TAB: PUBLIC PAGE === */}
