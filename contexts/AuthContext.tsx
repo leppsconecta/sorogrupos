@@ -18,6 +18,7 @@ interface AuthContextType {
     signOut: () => Promise<void>;
     signInWithGoogle: () => Promise<{ error: any }>;
     updateCompany: (updates: Partial<Company>) => void;
+    logOperatorAction: (action: string, details?: any) => Promise<void>;
     loading: boolean;
 }
 
@@ -34,6 +35,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [subscription, setSubscription] = useState<UserSubscription | null>(null);
     const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
+    const [ipAddress, setIpAddress] = useState<string | null>(null);
+
+    // Fetch IP on mount
+    useEffect(() => {
+        fetch('https://api.ipify.org?format=json')
+            .then(res => res.json())
+            .then(data => setIpAddress(data.ip))
+            .catch(err => console.error('Error fetching IP:', err));
+    }, []);
+
+    const getDeviceInfo = () => {
+        const ua = navigator.userAgent;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+        return {
+            type: isMobile ? 'mobile' : 'desktop',
+            userAgent: ua,
+            platform: navigator.platform
+        };
+    };
+
+    const logOperatorAction = async (action: string, details: any = {}) => {
+        if (!user) return;
+
+        try {
+            await supabase.from('operator_logs').insert({
+                user_id: user.id,
+                action,
+                ip_address: ipAddress,
+                device_info: getDeviceInfo(),
+                details,
+                created_at: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error('Error logging operator action:', error);
+        }
+    };
 
     const fetchProfileData = async (userId: string) => {
         try {
@@ -113,9 +150,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                // Do not set loading(true) here to avoid unmounting the app and losing local state
                 // Just fetch/update data in the background
                 fetchProfileData(session.user.id).catch(console.error);
+
+                // Log Login only if it's a fresh session start (optional refinement, or just log every auth state change that has user)
+                // To avoid spamming on refresh, we might need a flag or check.
+                // Ideally, we log on explicit SIGN_IN event, but onAuthStateChange gives generic session updates.
+                // For now, let's rely on the fact that this runs on mount/login.
+
+                // However, calling logOperatorAction inside here might be tricky if 'user' state isn't set yet or if logOperatorAction depends on 'user' state.
+                // Better to call it directly.
+                // Actually, let's execute the log usage here directly to ensure we have the session user ID.
+
+                /* 
+                   NOTE: This runs on every auth change (token refresh, etc). 
+                   To log only "LOGIN", we should check the event type if available, but the listener provides (event, session).
+                */
+                if (_event === 'SIGNED_IN') {
+                    // We need to wait for IP, but it might not be ready.
+                    // Let's force a quick fetch or use what we have.
+                    // Since we can't await IP here easily without blocking, we'll just fire and forget.
+                    // But we should use the `session.user.id` directly as `user` state might be stale.
+
+                    const logLogin = async () => {
+                        let ip = ipAddress;
+                        if (!ip) {
+                            try {
+                                const res = await fetch('https://api.ipify.org?format=json');
+                                const data = await res.json();
+                                ip = data.ip;
+                                setIpAddress(ip);
+                            } catch { }
+                        }
+
+                        const ua = navigator.userAgent;
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+                        const deviceInfo = {
+                            type: isMobile ? 'mobile' : 'desktop',
+                            userAgent: ua,
+                            platform: navigator.platform
+                        };
+
+                        await supabase.from('operator_logs').insert({
+                            user_id: session.user.id,
+                            action: 'LOGIN',
+                            ip_address: ip,
+                            device_info: deviceInfo,
+                            details: {},
+                            created_at: new Date().toISOString()
+                        });
+                    };
+                    logLogin();
+                }
+
             } else {
                 setProfile(null);
                 setCompany(null);
@@ -139,6 +226,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signOut = async () => {
+        if (user) {
+            await logOperatorAction('LOGOUT');
+        }
         await supabase.auth.signOut();
     };
 
@@ -171,6 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             onboardingCompleted,
             refreshProfile,
             updateCompany,
+            logOperatorAction,
             signOut,
             signInWithGoogle,
             loading

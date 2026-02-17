@@ -41,13 +41,13 @@ const menuItems = [
   { path: '/calendario', label: 'Calendário', icon: <CalendarDays size={22} /> },
   { path: '/anunciar', label: 'Anunciar Vaga', icon: <Megaphone size={22} /> },
   { path: '/candidatos', label: 'Candidatos', icon: <Users size={22} /> },
+  { path: '/curriculos', label: 'Currículos', icon: <FileText size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
 ];
 
 const comingSoonItems = [
-  { path: '/curriculos', label: 'Currículos', icon: <FileText size={22} /> },
   { path: '/agenda', label: 'Minha Agenda', icon: <Calendar size={22} /> },
 ];
 
@@ -121,21 +121,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
         }`}
     >
       {/* Sidebar Header: Spacer + Collapse Button */}
-      <div className={`flex flex-col flex-shrink-0 px-4 pt-4 transition-all duration-300 ${isExpanded ? 'items-start' : 'items-center'}`}>
+      <div className={`flex items-start flex-shrink-0 px-4 pt-5 pb-2 transition-all duration-300 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
 
-        {/* Controls Row */}
-        <div className={`flex items-center w-full mb-2 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
-          {/* Pin Button */}
-          {isExpanded && (
-            <button
-              onClick={togglePin}
-              className={`p-2 rounded-lg transition-colors mr-2 ${isPinned ? 'text-yellow-400 bg-white/10' : 'text-blue-300/30 hover:text-white hover:bg-white/5'}`}
-              title={isPinned ? "Desfixar" : "Fixar aberto"}
-            >
-              {isPinned ? <Pin size={18} /> : <PinOff size={18} />}
-            </button>
-          )}
+        {/* Welcome Message (Left) - Expanded Size */}
+        {isExpanded && (
+          <div className="flex flex-col overflow-hidden mr-3 animate-fadeIn flex-1">
+            <p className="text-xs text-blue-300/80 font-bold uppercase tracking-wider mb-0.5">Seja Bem vindo</p>
+            <p className="text-lg font-black text-white truncate leading-tight" title={company?.name}>{company?.name || 'Sua Empresa'}</p>
+          </div>
+        )}
 
+        {/* Controls Row (Right) - Only Collapse Button */}
+        <div className={`flex items-center ${isExpanded ? '' : 'w-full justify-center'}`}>
           <button
             onClick={toggleSidebar}
             className="p-2 rounded-lg hover:bg-white/5 text-blue-300/50 hover:text-white transition-colors"
@@ -144,14 +141,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
             {isExpanded ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
         </div>
-
-        {/* Welcome Message */}
-        {isExpanded && (
-          <div className="mb-2 w-full animate-fadeIn">
-            <p className="text-xs text-blue-300/70 font-medium uppercase tracking-wide">Seja Bem vindo</p>
-            <p className="text-sm font-bold text-white truncate" title={company?.name}>{company?.name || 'Sua Empresa'}</p>
-          </div>
-        )}
 
       </div>
 

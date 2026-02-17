@@ -4,11 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useFeedback } from '../contexts/FeedbackContext';
 import {
-    Search, Filter, Trash2, Eye, MoreHorizontal, Download, Phone, Mail,
+    Search, Filter, Eye, MoreHorizontal, Download, Phone, Mail,
     MapPin, Calendar, Clock, Briefcase, FileText, CheckCircle, XCircle,
     ChevronLeft, ChevronRight, AlertCircle, Edit, Save, History, Printer
 } from 'lucide-react';
 import { ResumePreviewModal } from '../components/Resumes/ResumePreviewModal';
+import { BlockCandidateModal } from '../components/modals/BlockCandidateModal';
+import { NoteViewModal } from '../components/modals/NoteViewModal';
 
 // --- Interfaces ---
 
@@ -68,7 +70,7 @@ const formatPhone = (phone: string) => {
 };
 
 export const Curriculos: React.FC = () => {
-    const { user } = useAuth();
+    const { user, logOperatorAction } = useAuth();
     const { toast } = useFeedback();
 
     // Helper to match existing showToast usages (message, type)
@@ -174,56 +176,65 @@ export const Curriculos: React.FC = () => {
         showToast('Email copiado!', 'success');
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir este currículo? Esta ação não pode ser desfeita.')) return;
 
-        try {
-            const { error } = await supabase.from('candidates').delete().eq('id', id);
-            if (error) throw error;
-            showToast('Currículo excluído com sucesso', 'success');
-            fetchCandidates();
-        } catch (error) {
-            console.error('Error deleting:', error);
-            showToast('Erro ao excluir', 'error');
-        }
-    };
 
-    const openStatusModal = (candidate: Candidate) => {
-        setSelectedCandidate(candidate);
-        setStatusForm({
-            status: (candidate.status === 'Válido' ? 'Ativo' : candidate.status) || 'Ativo',
-            note: candidate.note || ''
-        });
-        setIsStatusModalOpen(true);
-    };
+    // ... imports
 
-    const handleSaveStatus = async () => {
-        if (!selectedCandidate) return;
+    // ... (existing code top)
 
-        if (statusForm.status === 'Bloqueado' && !statusForm.note.trim()) {
-            showToast('É obrigatório adicionar uma nota ao bloquear um candidato', 'warning');
-            return;
-        }
+    // Modals State
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+    const [selectedNote, setSelectedNote] = useState('');
+    const [candidateToBlock, setCandidateToBlock] = useState<Candidate | null>(null);
+
+    // ... (fetchCandidates, handleDeletes, etc keep same)
+
+    const handleConfirmBlock = async (reason: string) => {
+        if (!candidateToBlock) return;
 
         setIsSubmitting(true);
         try {
-            const { error } = await supabase
+            // 1. Update Candidate Status
+            const { error: updateError } = await supabase
                 .from('candidates')
                 .update({
-                    status: statusForm.status,
-                    note: statusForm.note,
+                    status: 'Bloqueado',
+                    note: reason,
                     updated_at: new Date().toISOString()
                 })
-                .eq('id', selectedCandidate.id);
+                .eq('id', candidateToBlock.id);
 
-            if (error) throw error;
+            if (updateError) throw updateError;
 
-            showToast('Status atualizado com sucesso', 'success');
-            setIsStatusModalOpen(false);
-            fetchCandidates();
+            // 2. Add History Entry
+            const { error: historyError } = await supabase
+                .from('candidate_history')
+                .insert({
+                    candidate_id: candidateToBlock.id,
+                    action: 'Bloqueado',
+                    description: reason,
+                    created_at: new Date().toISOString()
+                });
+
+            if (historyError) {
+                console.error('Error logging history:', historyError);
+            }
+
+            // 3. Log Operator Action
+            await logOperatorAction('UPDATE', {
+                candidate_id: candidateToBlock.id,
+                action: 'BLOCK_CANDIDATE',
+                reason
+            });
+
+            showToast('Candidato bloqueado com sucesso', 'success');
+            setIsBlockModalOpen(false);
+            setCandidateToBlock(null);
+            fetchCandidates(false); // Refresh list
         } catch (error) {
-            console.error('Error updating status:', error);
-            showToast('Erro ao atualizar status', 'error');
+            console.error('Error blocking candidate:', error);
+            showToast('Erro ao bloquear candidato', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -231,23 +242,76 @@ export const Curriculos: React.FC = () => {
 
     const handleStatusChange = async (candidate: Candidate, newStatus: string) => {
         if (newStatus === 'Bloqueado') {
-            // Open modal to require note
-            openStatusModal(candidate);
-            setStatusForm({ status: 'Bloqueado', note: candidate.note || 'Este candidato está sendo bloqueado porque: ' });
+            setCandidateToBlock(candidate);
+            setIsBlockModalOpen(true);
         } else {
-            // Update immediately to Ativo
+            // Update immediately to Ativo/Válido if not Blocked
             try {
                 const { error } = await supabase
                     .from('candidates')
                     .update({ status: 'Ativo', updated_at: new Date().toISOString() })
                     .eq('id', candidate.id);
                 if (error) throw error;
+
+                // Log Unblock History
+                if (candidate.status === 'Bloqueado') {
+                    await supabase.from('candidate_history').insert({
+                        candidate_id: candidate.id,
+                        action: 'Desbloqueado',
+                        description: 'Status alterado manualmente para Ativo',
+                        created_at: new Date().toISOString()
+                    });
+                }
+
+                // Log Operator Action
+                await logOperatorAction('UPDATE', {
+                    candidate_id: candidate.id,
+                    action: 'UNBLOCK_CANDIDATE',
+                    previous_status: candidate.status
+                });
+
                 showToast('Status atualizado para Ativo', 'success');
-                fetchCandidates();
+                fetchCandidates(false);
             } catch (error) {
                 console.error('Error updating status:', error);
                 showToast('Erro ao atualizar status', 'error');
             }
+        }
+    };
+
+    const handleViewNote = (candidate: Candidate) => {
+        setSelectedNote(candidate.note || '');
+        setSelectedCandidate(candidate); // For name display
+        setIsNoteModalOpen(true);
+    };
+
+    const handleSaveNote = async (note: string) => {
+        if (!selectedCandidate) return;
+
+        try {
+            const { error } = await supabase
+                .from('candidates')
+                .update({ note, updated_at: new Date().toISOString() })
+                .eq('id', selectedCandidate.id);
+
+            if (error) throw error;
+
+            // Log Operator Action
+            await logOperatorAction('UPDATE', {
+                candidate_id: selectedCandidate.id,
+                action: 'UPDATE_NOTE',
+                note_snippet: note.substring(0, 50) + (note.length > 50 ? '...' : '')
+            });
+
+            // Update local state
+            setCandidates(prev => prev.map(c => c.id === selectedCandidate.id ? { ...c, note } : c));
+            setSelectedCandidate(prev => prev ? { ...prev, note } : null);
+            setSelectedNote(note);
+
+            showToast('Nota salva automaticamente', 'success');
+        } catch (error) {
+            console.error('Error saving note:', error);
+            showToast('Erro ao salvar nota', 'error');
         }
     };
 
@@ -356,7 +420,7 @@ export const Curriculos: React.FC = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                                 <th className="p-4 text-center w-16">#</th>
                                 <th className="p-3 text-left w-24">Data</th>
                                 <th className="p-3 text-left">Nome</th>
@@ -384,8 +448,8 @@ export const Curriculos: React.FC = () => {
                                 </tr>
                             ) : (
                                 candidates.map((row, index) => (
-                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                                        <td className="p-3 text-center text-slate-400 font-mono text-xs">
+                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group align-top">
+                                        <td className="p-3 text-center text-slate-400 font-mono text-xs whitespace-nowrap">
                                             {(page - 1) * ITEMS_PER_PAGE + index + 1}
                                         </td>
                                         <td className="p-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
@@ -394,12 +458,12 @@ export const Curriculos: React.FC = () => {
                                                 <span className="text-[10px] text-slate-400">{formatDate(row.created_at).time}</span>
                                             </div>
                                         </td>
-                                        <td className="p-3 max-w-[180px]">
+                                        <td className="p-3 max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis">
                                             <div className="truncate" title={row.name}>
                                                 <span className="font-bold text-sm text-slate-800 dark:text-gray-100">{row.name}</span>
                                             </div>
                                         </td>
-                                        <td className="p-3 text-center">
+                                        <td className="p-3 text-center whitespace-nowrap">
                                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.sex?.toLowerCase() === 'masculino' || row.sex === 'M'
                                                 ? 'bg-blue-50 text-blue-600'
                                                 : row.sex?.toLowerCase() === 'feminino' || row.sex === 'F'
@@ -409,59 +473,52 @@ export const Curriculos: React.FC = () => {
                                                 {row.sex?.toLowerCase() === 'masculino' ? 'M' : row.sex?.toLowerCase() === 'feminino' ? 'F' : '-'}
                                             </span>
                                         </td>
-                                        <td className="p-3 text-center text-sm text-slate-600 dark:text-slate-300">
+                                        <td className="p-3 text-center text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                             {row.age || '-'}
                                         </td>
-                                        <td className="p-3 max-w-[150px]">
+                                        <td className="p-3 max-w-[150px] whitespace-nowrap overflow-hidden text-ellipsis">
                                             <div className="truncate text-sm text-slate-600 dark:text-slate-300" title={`${row.city || ''}${row.state ? ` / ${row.state}` : ''}`}>
                                                 {row.city || '-'}{row.state ? ` / ${row.state}` : ''}
                                             </div>
                                         </td>
-                                        <td className="p-3 max-w-[200px]">
+                                        <td className="p-3 max-w-[200px] whitespace-nowrap overflow-hidden text-ellipsis">
                                             <div className="flex flex-col gap-1">
                                                 <div className="truncate font-semibold text-sm text-slate-700 dark:text-slate-200" title={row.cargo_principal || 'Não informado'}>
                                                     {row.cargo_principal || 'Não informado'}
                                                 </div>
                                                 {row.cargos_extras && row.cargos_extras.length > 0 && (
                                                     <div className="relative">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedCandidate(row);
-                                                                setIsSummaryModalOpen(true);
-                                                            }}
-                                                            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors"
-                                                            title="Ver detalhes"
-                                                        >
+                                                        <span className="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
                                                             +{row.cargos_extras.length}
-                                                        </button>
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="p-3">
+                                        <td className="p-3 whitespace-nowrap">
                                             <select
                                                 value={(row.status === 'Válido' ? 'Ativo' : row.status) || 'Ativo'}
                                                 onChange={(e) => handleStatusChange(row, e.target.value)}
                                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors ${(row.status === 'Bloqueado')
                                                     ? 'text-red-600 border-red-200 bg-red-50 focus:ring-red-500'
-                                                    : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500' // Apply Active style for 'Ativo'/'Válido'
+                                                    : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500'
                                                     }`}
                                             >
                                                 <option value="Ativo">Ativo</option>
                                                 <option value="Bloqueado">Bloqueado</option>
                                             </select>
                                         </td>
-                                        <td className="p-4 text-center">
+                                        <td className="p-4 text-center whitespace-nowrap">
                                             <button
-                                                onClick={() => openStatusModal(row)}
-                                                className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-green-500' : 'text-slate-300'
+                                                onClick={() => handleViewNote(row)}
+                                                className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-300 hover:text-slate-500'
                                                     }`}
-                                                title={row.note || 'Adicionar nota'}
+                                                title={row.note || 'Sem nota'}
                                             >
-                                                <FileText size={20} />
+                                                <FileText size={18} />
                                             </button>
                                         </td>
-                                        <td className="p-4 text-right">
+                                        <td className="p-4 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => {
@@ -494,13 +551,6 @@ export const Curriculos: React.FC = () => {
                                                     <Printer size={18} />
                                                 </button>
 
-                                                <button
-                                                    onClick={() => handleDelete(row.id)}
-                                                    className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Excluir"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -539,78 +589,29 @@ export const Curriculos: React.FC = () => {
                 isOpen={isPreviewOpen}
                 onClose={() => setIsPreviewOpen(false)}
                 candidate={selectedCandidate}
-                onStatusUpdate={(c, s) => c && handleStatusChange(c, s)}
+                onStatusUpdate={(c, s) => {
+                    if (c) handleStatusChange({ ...selectedCandidate!, id: c } as any, s);
+                }}
                 availableJobs={jobs}
                 onLinkJob={handleLinkJob}
                 initialTab={previewInitialTab}
             />
 
-            {/* Status & Note Modal */}
-            {isStatusModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsStatusModalOpen(false)} />
-                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 animate-scaleUp">
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Atualizar Status</h3>
+            <BlockCandidateModal
+                isOpen={isBlockModalOpen}
+                onClose={() => setIsBlockModalOpen(false)}
+                onConfirm={handleConfirmBlock}
+                isLoading={isSubmitting}
+                candidateName={candidateToBlock?.name || ''}
+            />
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setStatusForm({ ...statusForm, status: 'Ativo' })}
-                                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Ativo'
-                                            ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2'
-                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                            }`}
-                                    >
-                                        Ativo
-                                    </button>
-                                    <button
-                                        onClick={() => setStatusForm({ ...statusForm, status: 'Bloqueado' })}
-                                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Bloqueado'
-                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2'
-                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                            }`}
-                                    >
-                                        Bloqueado
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                                    Nota / Observação {statusForm.status === 'Bloqueado' && <span className="text-red-500">*</span>}
-                                </label>
-                                <textarea
-                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-h-[100px]"
-                                    placeholder="Escreva uma observação sobre este candidato..."
-                                    value={statusForm.note}
-                                    onChange={e => setStatusForm({ ...statusForm, note: e.target.value })}
-                                />
-                            </div>
-
-                            <button
-                                onClick={handleSaveStatus}
-                                disabled={isSubmitting}
-                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-70 flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? (
-                                    <>Salvand...</>
-                                ) : (
-                                    <><Save size={18} /> Salvar Alterações</>
-                                )}
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={() => setIsStatusModalOpen(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
-                        >
-                            <XCircle size={20} />
-                        </button>
-                    </div>
-                </div>
-            )}
+            <NoteViewModal
+                isOpen={isNoteModalOpen}
+                onClose={() => setIsNoteModalOpen(false)}
+                note={selectedNote}
+                candidateName={selectedCandidate?.name || ''}
+                onSave={handleSaveNote}
+            />
 
             {/* Candidate Summary Modal */}
             {isSummaryModalOpen && selectedCandidate && (

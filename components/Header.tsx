@@ -62,8 +62,10 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
       <header className={`h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-900 px-6 md:px-8 flex items-center justify-between sticky z-40 ${accountStatus === 'inactive' ? 'top-10' : 'top-0'}`}>
 
         <div className="flex items-center gap-4">
-          {/* Mobile Menu Button - Optional if layout handles it */}
-          <img src="/logo-sidebar.png" alt="Soro Empregos" className="hidden md:block h-12 w-auto object-contain" />
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <img src="/logo-header.png" alt="Soro Empregos" className="h-8 w-auto object-contain" />
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
