@@ -4,6 +4,7 @@ import {
     CheckCircle, Search, Plus, Info, Clock, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useFeedback } from '../../contexts/FeedbackContext';
 import JobDetailModal from '../public/modals/JobDetailModal';
 import { SuccessModal } from '../SuccessModal'; // Import SuccessModal
 
@@ -73,6 +74,11 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     const [linkingJobId, setLinkingJobId] = useState<string | null>(null); // Track specific job being linked
     const [isLinking, setIsLinking] = useState(false); // Global locking to prevent double clicks
 
+    const { toast } = useFeedback();
+    const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+        toast({ message, type, duration: 3000 });
+    };
+
     // History State
     const [history, setHistory] = useState<JobApplication[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -119,15 +125,32 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
         try {
             await onLinkJob(candidate.id, jobId);
 
+            // Optimistic update: Add to history immediately so UI updates
+            const jobDetails = availableJobs.find(j => j.id === jobId);
+            const optimisticApp: any = {
+                id: `temp_${Date.now()}`,
+                job_id: jobId,
+                candidate_id: candidate.id,
+                status: 'pending',
+                origin: 'operator',
+                applied_at: new Date().toISOString(),
+                jobs: {
+                    title: jobDetails?.title || 'Carregando...',
+                    code: jobDetails?.code || ''
+                }
+            };
+
+            setHistory(prev => [optimisticApp, ...prev]);
+
             // Show Success Modal
             setShowSuccessModal(true);
 
-            // Refresh history in background so it's ready if they switch tabs and to update the list buttons
+            // Refresh history in background to confirm data
             await fetchHistory();
 
-        } catch (error) {
-            // Error handling usually in parent, but we might want to show error here?
+        } catch (error: any) {
             console.error("Link error inside modal", error);
+            showToast(error.message || 'Erro ao vincular candidato', 'error');
         } finally {
             setIsLinking(false);
             setLinkingJobId(null);

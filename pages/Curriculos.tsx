@@ -36,6 +36,7 @@ interface Job {
     title: string;
     code?: string;
     status: string;
+    folder_company_id: string; // Mapped from DB column
 }
 
 // --- Helper Functions ---
@@ -63,7 +64,12 @@ const formatPhone = (phone: string) => {
 
 export const Curriculos: React.FC = () => {
     const { user } = useAuth();
-    const { showToast } = useFeedback();
+    const { toast } = useFeedback();
+
+    // Helper to match existing showToast usages (message, type)
+    const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+        toast({ message, type, duration: 3000 });
+    };
 
     // Data State
     const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -122,8 +128,8 @@ export const Curriculos: React.FC = () => {
     };
 
     const fetchJobs = async () => {
-        const { data } = await supabase.from('jobs').select('id, title, code, status').eq('status', 'active');
-        if (data) setJobs(data);
+        const { data } = await supabase.from('jobs').select('id, title, code, status, folder_company_id').eq('status', 'active');
+        if (data) setJobs(data as Job[]);
     };
 
     useEffect(() => {
@@ -231,9 +237,17 @@ export const Curriculos: React.FC = () => {
                 return;
             }
 
+            // Find job to get company_id
+            const job = jobs.find(j => j.id === jobId);
+            if (!job) {
+                showToast('Vaga não encontrada.', 'error');
+                return;
+            }
+
             const { error } = await supabase.from('job_applications').insert({
                 job_id: jobId,
                 candidate_id: candidateId,
+                // company_id is now optional via SQL migration (removed here to avoid FK error)
                 status: 'pending',
                 origin: 'operator', // Track that operator linked this
                 applied_at: new Date().toISOString()
