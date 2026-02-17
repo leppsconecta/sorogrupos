@@ -59,6 +59,7 @@ interface ResumePreviewModalProps {
     onStatusUpdate: (candidateId: string, status: string) => void;
     availableJobs?: Job[];
     onLinkJob?: (candidateId: string, jobId: string) => void;
+    initialTab?: 'dados' | 'vagas' | 'historico';
 }
 
 export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
@@ -67,9 +68,16 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     candidate,
     onStatusUpdate,
     availableJobs = [],
-    onLinkJob
+    onLinkJob,
+    initialTab = 'dados'
 }) => {
-    const [activeTab, setActiveTab] = useState<'dados' | 'vagas' | 'historico'>('dados');
+    const [activeTab, setActiveTab] = useState<'dados' | 'vagas' | 'historico'>(initialTab);
+
+    useEffect(() => {
+        if (isOpen) {
+            setActiveTab(initialTab);
+        }
+    }, [isOpen, initialTab]);
     const [jobSearch, setJobSearch] = useState('');
     const [linkingJobId, setLinkingJobId] = useState<string | null>(null); // Track specific job being linked
     const [isLinking, setIsLinking] = useState(false); // Global locking to prevent double clicks
