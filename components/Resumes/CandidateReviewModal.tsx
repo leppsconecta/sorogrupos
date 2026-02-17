@@ -303,8 +303,8 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                         }`}>
                                                         <Briefcase size={14} />
                                                     </div>
-                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'
-                                                        }`}>Participando</span>
+                                                    <span className={`text-sm font-bold ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'
+                                                        }`}>Pendente</span>
                                                 </div>
                                                 <div className={`text-2xl font-bold ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200'
                                                     }`}>
@@ -327,7 +327,7 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                             <path d="M20 6L9 17l-5-5" />
                                                         </svg>
                                                     </div>
-                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-bold ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Aprovado</span>
                                                 </div>
                                                 <div className={`text-2xl font-bold ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-700 dark:text-slate-200'
@@ -353,7 +353,7 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                             <line x1="16" y1="8" x2="8" y2="16" />
                                                         </svg>
                                                     </div>
-                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-bold ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Rejeitado</span>
                                                 </div>
                                                 <div className={`text-2xl font-bold ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-200'
@@ -375,7 +375,7 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                         }`}>
                                                         <Briefcase size={14} />
                                                     </div>
-                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-bold ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Todos</span>
                                                 </div>
                                                 <div className={`text-2xl font-bold ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-700 dark:text-slate-200'
@@ -388,7 +388,7 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                         {/* Filters active indicator */}
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                                {filterStatus === 'participando' && <span className="text-blue-600">Vagas em Participação</span>}
+                                                {filterStatus === 'participando' && <span className="text-blue-600">Vagas Pendentes</span>}
                                                 {filterStatus === 'aprovado' && <span className="text-green-600">Vagas Aprovadas</span>}
                                                 {filterStatus === 'rejeitado' && <span className="text-red-600">Vagas Rejeitadas</span>}
                                                 {filterStatus === 'all' && <span className="text-slate-600 dark:text-slate-300">Todas as Vagas</span>}
@@ -437,14 +437,14 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                                             <div className="flex items-center gap-2">
                                                                                 <button
                                                                                     onClick={() => handleUpdateLocalStatus(item.id, 'rejected')}
-                                                                                    className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                                                                                    className="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 shadow-sm transition-all"
                                                                                     title="Reprovar Candidato"
                                                                                 >
                                                                                     <X size={16} />
                                                                                 </button>
                                                                                 <button
                                                                                     onClick={() => handleUpdateLocalStatus(item.id, 'approved')}
-                                                                                    className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
+                                                                                    className="p-2 rounded-lg bg-green-500 text-white hover:bg-green-600 shadow-sm transition-all"
                                                                                     title="Aprovar Candidato"
                                                                                 >
                                                                                     <Check size={16} />
@@ -455,13 +455,12 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                                                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                                                 : item.status === 'rejected' || item.status === 'declined'
                                                                                     ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                                                                                 }`}>
                                                                                 {item.status === 'approved' ? 'Aprovado' :
                                                                                     item.status === 'rejected' ? 'Rejeitado' :
                                                                                         item.status === 'pending' ? 'Pendente' : item.status}
-                                                                            </span>
-                                                                        )}
+                                                                            </span>)}
                                                                     </div>
                                                                 </div>
                                                             </div>
