@@ -6,7 +6,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import JobDetailModal from '../public/modals/JobDetailModal';
-import { SuccessModal } from '../SuccessModal'; // Import SuccessModal
+
 
 interface Candidate {
     id: string;
@@ -87,8 +87,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     const [viewingJob, setViewingJob] = useState<Job | null>(null);
     const [loadingJobDetail, setLoadingJobDetail] = useState(false);
 
-    // Success Modal State
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
+
 
     useEffect(() => {
         if (isOpen && candidate) {
@@ -142,8 +141,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 
             setHistory(prev => [optimisticApp, ...prev]);
 
-            // Show Success Modal
-            setShowSuccessModal(true);
+
 
             // Refresh history in background to confirm data
             await fetchHistory();
@@ -536,14 +534,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                 }
             />
 
-            {/* Success Modal */}
-            <SuccessModal
-                isOpen={showSuccessModal}
-                onClose={() => setShowSuccessModal(false)}
-                message="Candidato vinculado à vaga com sucesso!"
-                subMessage="O histórico foi atualizado."
-                autoCloseDuration={3000}
-            />
+
         </>
     );
 };
