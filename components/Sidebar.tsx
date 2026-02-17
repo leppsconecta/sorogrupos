@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Megaphone,
@@ -14,11 +13,16 @@ import {
   Plus,
   Settings,
   Moon,
-  Sun
+  Sun,
+  ChevronLeft,
+  ChevronRight,
+  Pin,
+  PinOff,
+  Menu,
+  LogOut
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Logo } from './Logo';
 
 interface SidebarProps {
   onCreateGroup?: () => void;
@@ -39,7 +43,6 @@ const menuItems = [
   { path: '/candidatos', label: 'Candidatos', icon: <Users size={22} /> },
   { path: '/vagas', label: 'Minhas vagas', icon: <Briefcase size={22} /> },
   { path: '/grupos', label: 'Meus grupos', icon: <WhatsAppIcon size={22} /> },
-
   { path: '/suporte', label: 'Suporte', icon: <LifeBuoy size={22} /> },
 ];
 
@@ -49,100 +52,207 @@ const comingSoonItems = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTheme }) => {
-  const { user } = useAuth();
+  const { user, company, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
+  // State
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isPinned, setIsPinned] = useState(true); // Default pinned to true as per request? "O usuario pode fixar...". Let's start pinned or unpinned? Request says "Ao abrir... manter expandido por 2 min, depois recolher". This implies NOT pinned initially.
+  // Wait, request says: "Ao abrir o sistem o sidebar deve se manter expandido por 2 minutos., apó isso ele deve recolher".
+  // So initial state: expanded=true, pinned=false.
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const isActive = (path: string) => location.pathname === path;
+
+  // Auto-collapse logic
+  const resetTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!isPinned && isExpanded) {
+      timerRef.current = setTimeout(() => {
+        setIsExpanded(false);
+      }, 120000); // 2 minutes
+    }
+  };
+
+  useEffect(() => {
+    resetTimer();
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('click', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+    };
+  }, [isExpanded, isPinned]);
+
+  const toggleSidebar = () => setIsExpanded(!isExpanded);
+  const togglePin = () => {
+    const newPinned = !isPinned;
+    setIsPinned(newPinned);
+    if (newPinned) {
+      setIsExpanded(true); // Always expand if pinning
+      if (timerRef.current) clearTimeout(timerRef.current);
+    } else {
+      resetTimer();
+    }
+  };
+
+  // Styles for active/inactive links
+  const getLinkClasses = (path: string) => {
+    const active = isActive(path);
+    const base = `flex items-center h-14 rounded-xl transition-all duration-200 relative group/link select-none cursor-pointer
+                ${isExpanded ? 'px-4 mx-2' : 'justify-center px-0 mx-2'}`;
+
+    // Active: Slightly lighter blue or transparent with border
+    if (active) {
+      return `${base} bg-blue-900/50 shadow-sm border border-white/5`;
+    }
+    return `${base} hover:bg-white/5 text-blue-100/70 hover:text-white`;
+  };
 
   return (
     <aside
-      className="hidden lg:flex h-screen bg-blue-950 text-white z-50 border-r border-white/5 shadow-2xl flex-col flex-shrink-0 w-72"
+      className={`hidden lg:flex flex-col h-screen bg-blue-950 text-white border-r border-white/5 shadow-2xl z-50 transition-all duration-300 ease-in-out ${isExpanded ? 'w-72' : 'w-24'
+        }`}
     >
-      {/* Logo Area */}
-      <div className="h-28 flex items-center px-6 overflow-hidden flex-shrink-0">
-        <img src="/logo-sidebar.png" alt="Soro Empregos" className="h-[100px] w-auto object-contain mt-1" />
+      {/* Sidebar Header: Spacer + Collapse Button */}
+      <div className={`flex flex-col flex-shrink-0 px-4 pt-4 transition-all duration-300 ${isExpanded ? 'items-start' : 'items-center'}`}>
+
+        {/* Controls Row */}
+        <div className={`flex items-center w-full mb-2 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
+          {/* Pin Button */}
+          {isExpanded && (
+            <button
+              onClick={togglePin}
+              className={`p-2 rounded-lg transition-colors mr-2 ${isPinned ? 'text-yellow-400 bg-white/10' : 'text-blue-300/30 hover:text-white hover:bg-white/5'}`}
+              title={isPinned ? "Desfixar" : "Fixar aberto"}
+            >
+              {isPinned ? <Pin size={18} /> : <PinOff size={18} />}
+            </button>
+          )}
+
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-lg hover:bg-white/5 text-blue-300/50 hover:text-white transition-colors"
+            title={isExpanded ? "Recolher" : "Expandir"}
+          >
+            {isExpanded ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
+          </button>
+        </div>
+
+        {/* Welcome Message */}
+        {isExpanded && (
+          <div className="mb-2 w-full animate-fadeIn">
+            <p className="text-xs text-blue-300/70 font-medium uppercase tracking-wide">Seja Bem vindo</p>
+            <p className="text-sm font-bold text-white truncate" title={company?.name}>{company?.name || 'Sua Empresa'}</p>
+          </div>
+        )}
+
       </div>
 
-      <div className="h-4" /> {/* Spacer */}
-
       {/* Navigation */}
-      <nav className="flex-1 py-2 px-3 space-y-2 overflow-y-auto no-scrollbar">
-        {menuItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative
-              ${isActive(item.path)
-                ? 'bg-blue-900/50 shadow-sm border border-white/5'
-                : 'hover:bg-white/5'
-              }`}
-          >
-            <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
-              {item.icon}
-            </div>
-            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
-              {item.label}
-            </span>
+      <nav className="flex-1 py-2 space-y-1 overflow-y-auto no-scrollbar flex flex-col">
 
-            {isActive(item.path) && (
-              <div className="absolute left-0 w-1 h-6 bg-yellow-400 rounded-r-full" />
+        {menuItems.map((item) => (
+          <div key={item.path} className="relative group">
+            <Link
+              to={item.path}
+              className={getLinkClasses(item.path)}
+            >
+              <div className={`flex-shrink-0 transition-colors duration-200 flex items-center justify-center min-w-[24px] text-yellow-400 ${isExpanded ? 'mr-4' : ''}`}>
+                {item.icon}
+              </div>
+
+              <span className={`text-base font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'
+                } ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
+                {item.label}
+              </span>
+
+              {/* Active Indicator */}
+              {!isExpanded && isActive(item.path) && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-yellow-400 rounded-r-full" />
+              )}
+              {isExpanded && isActive(item.path) && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-yellow-400 rounded-r-full" />
+              )}
+            </Link>
+
+            {/* Tooltip for collapsed state */}
+            {!isExpanded && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-slate-800 text-white text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg border border-white/10">
+                {item.label}
+              </div>
             )}
-          </Link>
+          </div>
         ))}
 
-        <div className="pt-6 pb-3 px-2">
-          <p className="text-xs font-bold text-blue-400/50 uppercase tracking-widest pl-3 mb-3">Em breve</p>
-          <div className="border-t border-white/5 mb-2 mx-1"></div>
+        <div className="pt-8 pb-3 px-4">
+          {isExpanded ? (
+            <>
+              <p className="text-xs font-bold text-blue-400/50 uppercase tracking-widest pl-1 mb-3">Em breve</p>
+              <div className="border-t border-white/5 mb-2"></div>
+            </>
+          ) : (
+            <div className="border-t border-white/5 my-2 mx-2"></div>
+          )}
         </div>
 
         {comingSoonItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`w-full group flex items-center h-12 px-4 rounded-xl transition-all duration-200 relative opacity-70 hover:opacity-100
-              ${isActive(item.path)
-                ? 'bg-blue-900/50 shadow-sm border border-white/5 opacity-100'
-                : 'hover:bg-white/5'
-              }`}
-          >
-            <div className="flex items-center justify-center mr-3 min-w-[24px] text-yellow-400">
-              {item.icon}
-            </div>
-            <span className={`text-sm font-medium whitespace-nowrap transition-colors ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
-              {item.label}
-            </span>
-          </Link>
+          <div key={item.path} className="relative group">
+            <Link
+              to={item.path}
+              className={`flex items-center h-14 rounded-xl transition-all duration-200 relative group/link select-none opacity-60 hover:opacity-100 cursor-not-allowed hover:bg-white/5
+              ${isExpanded ? 'px-4 mx-2' : 'justify-center px-0 mx-2'}`}
+              onClick={(e) => {
+                if (item.path !== '/curriculos') e.preventDefault();
+              }}
+            >
+              <div className={`flex-shrink-0 flex items-center justify-center min-w-[24px] text-white/50 ${isExpanded ? 'mr-4' : ''}`}>
+                {item.icon}
+              </div>
+              <span className={`text-base font-medium text-blue-100/50 group-hover:text-white whitespace-nowrap transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'
+                }`}>
+                {item.label}
+              </span>
+              {/* Badge */}
+              {isExpanded && <span className="ml-auto text-[10px] font-bold bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded-md border border-blue-800/50">Breve</span>}
+            </Link>
+            {/* Tooltip for collapsed state */}
+            {!isExpanded && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-slate-800 text-white text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg border border-white/10">
+                {item.label}
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 
-
-
-
-      {/* Footer / User Profile */}
-      <div className="border-t border-white/5 bg-blue-900/20 flex items-center pr-4">
-        <Link to="/configuracao" className="flex-1 py-5 pl-5 pr-2 hover:bg-blue-900/40 transition-colors cursor-pointer group rounded-r-none">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-600 border border-blue-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-              <Settings size={24} />
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-bold text-white truncate group-hover:text-blue-200 transition-colors">Configurações</p>
-              <p className="text-[10px] text-blue-400 font-medium truncate group-hover:text-blue-300 transition-colors">{user?.email}</p>
-            </div>
+      {/* Footer / Settings */}
+      <div className="p-4 border-t border-white/5 bg-blue-950">
+        <Link
+          to="/configuracao"
+          className={`flex items-center group transition-colors rounded-xl p-2 hover:bg-white/5 ${isExpanded ? 'gap-3' : 'justify-center'}`}
+          title="Configurações"
+        >
+          {/* Settings Icon - Subtle (Yellow as requested? "icone sutill de configurações") */}
+          {/* The user provided image shows a BIG filled yellow circle. Text says "sutil". I'll do a nice yellow icon. */}
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-blue-950 shadow-md transition-transform group-hover:scale-105`}>
+            <Settings size={22} className="stroke-[2.5px]" />
           </div>
-        </Link>
 
-        {/* Compact Theme Toggle */}
-        {toggleTheme && (
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-blue-800/50 text-blue-300 hover:text-yellow-400 transition-colors"
-            title={theme === 'light' ? 'Mudar para Escuro' : 'Mudar para Claro'}
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
-        )}
+          {/* Text Info */}
+          {isExpanded && (
+            <div className="overflow-hidden flex-1">
+              <p className="text-base font-bold text-white group-hover:text-blue-200 transition-colors">Configurações</p>
+              <p className="text-xs text-blue-300/70 truncate font-mono">{user?.email}</p>
+            </div>
+          )}
+        </Link>
       </div>
     </aside>
   );

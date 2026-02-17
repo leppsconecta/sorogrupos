@@ -6,7 +6,9 @@ import {
   LogOut,
   CheckCircle2,
   Menu,
-  User
+  User,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -61,9 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
 
         <div className="flex items-center gap-4">
           {/* Mobile Menu Button - Optional if layout handles it */}
-          <h1 className="hidden md:block text-xl font-black text-slate-800 dark:text-white tracking-tight">
-            {getTabTitle()}
-          </h1>
+          <img src="/logo-sidebar.png" alt="Soro Empregos" className="hidden md:block h-12 w-auto object-contain" />
         </div>
 
         <div className="flex items-center gap-3">
@@ -107,6 +107,15 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
             <span className="hidden lg:inline">
               {company?.is_public_active === false ? 'Página Offline' : 'Página Online'}
             </span>
+          </button>
+
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors mr-1"
+            title={theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
           </button>
 
           {/* Separator */}

@@ -24,7 +24,7 @@ interface Candidate {
     cargo_principal: string;
     cargos_extras: string[];
     resume_url: string;
-    resume_url: string;
+
     status: 'Ativo' | 'Bloqueado' | 'Válido'; // Supporting legacy 'Válido'
     note: string; // New Note
     created_at: string;
@@ -101,8 +101,25 @@ export const Curriculos: React.FC = () => {
     const [expandedExtras, setExpandedExtras] = useState<string | null>(null);
 
     // Fetch Data
-    const fetchCandidates = async () => {
-        setLoading(true);
+    const fetchCandidates = async (useCache = true) => {
+        // Only use cache for initial view (Page 1, no search) to prevent flashing on nav back
+        const canUseCache = useCache && page === 1 && !searchTerm;
+
+        // Try load from cache first
+        if (canUseCache) {
+            const cachedData = sessionStorage.getItem('candidates_cache');
+            const cachedCount = sessionStorage.getItem('candidates_count');
+            if (cachedData && cachedCount) {
+                setCandidates(JSON.parse(cachedData));
+                setTotalCount(parseInt(cachedCount));
+                setLoading(false); // Show cached data immediately
+            } else {
+                setLoading(true);
+            }
+        } else {
+            setLoading(true);
+        }
+
         try {
             let query = supabase
                 .from('candidates')
@@ -126,6 +143,10 @@ export const Curriculos: React.FC = () => {
 
             setCandidates(formattedData);
             setTotalCount(count || 0);
+
+            // Update cache
+            sessionStorage.setItem('candidates_cache', JSON.stringify(formattedData));
+            sessionStorage.setItem('candidates_count', (count || 0).toString());
 
         } catch (error) {
             console.error('Error fetching candidates:', error);
@@ -170,117 +191,116 @@ export const Curriculos: React.FC = () => {
     const openStatusModal = (candidate: Candidate) => {
         setSelectedCandidate(candidate);
         setStatusForm({
-            setStatusForm({
-                status: (candidate.status === 'Válido' ? 'Ativo' : candidate.status) || 'Ativo',
+            status: (candidate.status === 'Válido' ? 'Ativo' : candidate.status) || 'Ativo',
             note: candidate.note || ''
-            });
-    setIsStatusModalOpen(true);
-};
+        });
+        setIsStatusModalOpen(true);
+    };
 
-const handleSaveStatus = async () => {
-    if (!selectedCandidate) return;
+    const handleSaveStatus = async () => {
+        if (!selectedCandidate) return;
 
-    if (statusForm.status === 'Bloqueado' && !statusForm.note.trim()) {
-        showToast('É obrigatório adicionar uma nota ao bloquear um candidato', 'warning');
-        return;
-    }
+        if (statusForm.status === 'Bloqueado' && !statusForm.note.trim()) {
+            showToast('É obrigatório adicionar uma nota ao bloquear um candidato', 'warning');
+            return;
+        }
 
-    setIsSubmitting(true);
-    try {
-        const { error } = await supabase
-            .from('candidates')
-            .update({
-                status: statusForm.status,
-                note: statusForm.note,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', selectedCandidate.id);
-
-        if (error) throw error;
-
-        showToast('Status atualizado com sucesso', 'success');
-        setIsStatusModalOpen(false);
-        fetchCandidates();
-    } catch (error) {
-        console.error('Error updating status:', error);
-        showToast('Erro ao atualizar status', 'error');
-    } finally {
-        setIsSubmitting(false);
-    }
-};
-
-const handleStatusChange = async (candidate: Candidate, newStatus: string) => {
-    if (newStatus === 'Bloqueado') {
-        // Open modal to require note
-        openStatusModal(candidate);
-        setStatusForm({ status: 'Bloqueado', note: candidate.note || 'Este candidato está sendo bloqueado porque: ' });
-    } else {
-        // Update immediately to Ativo
+        setIsSubmitting(true);
         try {
             const { error } = await supabase
                 .from('candidates')
-                .update({ status: 'Ativo', updated_at: new Date().toISOString() })
-                .eq('id', candidate.id);
+                .update({
+                    status: statusForm.status,
+                    note: statusForm.note,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', selectedCandidate.id);
+
             if (error) throw error;
-            showToast('Status atualizado para Ativo', 'success');
+
+            showToast('Status atualizado com sucesso', 'success');
+            setIsStatusModalOpen(false);
             fetchCandidates();
         } catch (error) {
             console.error('Error updating status:', error);
             showToast('Erro ao atualizar status', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
-    }
-};
+    };
 
-const handleLinkJob = async (candidateId: string, jobId: string) => {
-    try {
-        // Check if already applied
-        const { data: existing } = await supabase
-            .from('job_applications')
-            .select('id')
-            .eq('job_id', jobId)
-            .eq('candidate_id', candidateId)
-            .single();
-
-        if (existing) {
-            showToast('Candidato já vinculado a esta vaga.', 'warning');
-            return;
+    const handleStatusChange = async (candidate: Candidate, newStatus: string) => {
+        if (newStatus === 'Bloqueado') {
+            // Open modal to require note
+            openStatusModal(candidate);
+            setStatusForm({ status: 'Bloqueado', note: candidate.note || 'Este candidato está sendo bloqueado porque: ' });
+        } else {
+            // Update immediately to Ativo
+            try {
+                const { error } = await supabase
+                    .from('candidates')
+                    .update({ status: 'Ativo', updated_at: new Date().toISOString() })
+                    .eq('id', candidate.id);
+                if (error) throw error;
+                showToast('Status atualizado para Ativo', 'success');
+                fetchCandidates();
+            } catch (error) {
+                console.error('Error updating status:', error);
+                showToast('Erro ao atualizar status', 'error');
+            }
         }
+    };
 
-        // Find job to get company_id
-        const job = jobs.find(j => j.id === jobId);
-        if (!job) {
-            showToast('Vaga não encontrada.', 'error');
-            return;
+    const handleLinkJob = async (candidateId: string, jobId: string) => {
+        try {
+            // Check if already applied
+            const { data: existing } = await supabase
+                .from('job_applications')
+                .select('id')
+                .eq('job_id', jobId)
+                .eq('candidate_id', candidateId)
+                .single();
+
+            if (existing) {
+                showToast('Candidato já vinculado a esta vaga.', 'warning');
+                return;
+            }
+
+            // Find job to get company_id
+            const job = jobs.find(j => j.id === jobId);
+            if (!job) {
+                showToast('Vaga não encontrada.', 'error');
+                return;
+            }
+
+            const { error } = await supabase.from('job_applications').insert({
+                job_id: jobId,
+                candidate_id: candidateId,
+                // company_id is now optional via SQL migration (removed here to avoid FK error)
+                status: 'pending',
+                origin: 'operator', // Track that operator linked this
+                applied_at: new Date().toISOString()
+            });
+
+            if (error) throw error;
+            showToast('Candidato vinculado com sucesso!', 'success');
+        } catch (error) {
+            console.error('Error linking job:', error);
+            showToast('Erro ao vincular candidato', 'error');
+            throw error;
         }
+    };
 
-        const { error } = await supabase.from('job_applications').insert({
-            job_id: jobId,
-            candidate_id: candidateId,
-            // company_id is now optional via SQL migration (removed here to avoid FK error)
-            status: 'pending',
-            origin: 'operator', // Track that operator linked this
-            applied_at: new Date().toISOString()
-        });
+    const handlePrintResume = (url: string) => {
+        if (!url) return;
+        const isPdf = url.toLowerCase().includes('.pdf');
 
-        if (error) throw error;
-        showToast('Candidato vinculado com sucesso!', 'success');
-    } catch (error) {
-        console.error('Error linking job:', error);
-        showToast('Erro ao vincular candidato', 'error');
-        throw error;
-    }
-};
-
-const handlePrintResume = (url: string) => {
-    if (!url) return;
-    const isPdf = url.toLowerCase().includes('.pdf');
-
-    if (isPdf) {
-        window.open(url, '_blank');
-    } else {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(`
+        if (isPdf) {
+            window.open(url, '_blank');
+        } else {
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(`
                     <html>
                         <head>
                             <title>Imprimir Currículo</title>
@@ -295,374 +315,374 @@ const handlePrintResume = (url: string) => {
                         </body>
                     </html>
                 `);
-            printWindow.document.close();
+                printWindow.document.close();
+            }
         }
-    }
-};
+    };
 
-return (
-    <div className="space-y-6">
-        {/* Header & Stats */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Banco de Currículos</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie todos os candidatos cadastrados no sistema.</p>
+    return (
+        <div className="space-y-6">
+            {/* Header & Stats */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Banco de Currículos</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie todos os candidatos cadastrados no sistema.</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold">
+                        Total: {totalCount}
+                    </span>
+                </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold">
-                    Total: {totalCount}
-                </span>
+            {/* Filters */}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nome, função ou email..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm dark:text-gray-200"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                {/* Could add more filters here later */}
             </div>
-        </div>
 
-        {/* Filters */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                    type="text"
-                    placeholder="Buscar por nome, função ou email..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm dark:text-gray-200"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
-            </div>
-            {/* Could add more filters here later */}
-        </div>
-
-        {/* Table */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <th className="p-4 text-center w-16">#</th>
-                            <th className="p-3 text-left w-24">Data</th>
-                            <th className="p-3 text-left">Nome</th>
-                            <th className="p-3 text-center w-16">Sexo</th>
-                            <th className="p-3 text-center w-16">Idade</th>
-                            <th className="p-3 text-left">Local</th>
-                            <th className="p-3 text-left">Função</th>
-                            <th className="p-3 text-left w-32">Status</th>
-                            <th className="p-4 text-center">Nota</th>
-                            <th className="p-4 text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={9} className="p-8 text-center">
-                                    <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
-                                </td>
+            {/* Table */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th className="p-4 text-center w-16">#</th>
+                                <th className="p-3 text-left w-24">Data</th>
+                                <th className="p-3 text-left">Nome</th>
+                                <th className="p-3 text-center w-16">Sexo</th>
+                                <th className="p-3 text-center w-16">Idade</th>
+                                <th className="p-3 text-left">Local</th>
+                                <th className="p-3 text-left">Função</th>
+                                <th className="p-3 text-left w-32">Status</th>
+                                <th className="p-4 text-center">Nota</th>
+                                <th className="p-4 text-right">Ações</th>
                             </tr>
-                        ) : candidates.length === 0 ? (
-                            <tr>
-                                <td colSpan={10} className="p-8 text-center text-slate-400">
-                                    Nenhum currículo encontrado.
-                                </td>
-                            </tr>
-                        ) : (
-                            candidates.map((row, index) => (
-                                <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                                    <td className="p-3 text-center text-slate-400 font-mono text-xs">
-                                        {(page - 1) * ITEMS_PER_PAGE + index + 1}
-                                    </td>
-                                    <td className="p-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold">{formatDate(row.created_at).date}</span>
-                                            <span className="text-[10px] text-slate-400">{formatDate(row.created_at).time}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-3 max-w-[180px]">
-                                        <div className="truncate" title={row.name}>
-                                            <span className="font-bold text-sm text-slate-800 dark:text-gray-100">{row.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-3 text-center">
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.sex?.toLowerCase() === 'masculino' || row.sex === 'M'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : row.sex?.toLowerCase() === 'feminino' || row.sex === 'F'
-                                                ? 'bg-pink-50 text-pink-600'
-                                                : 'bg-slate-50 text-slate-500'
-                                            }`}>
-                                            {row.sex?.toLowerCase() === 'masculino' ? 'M' : row.sex?.toLowerCase() === 'feminino' ? 'F' : '-'}
-                                        </span>
-                                    </td>
-                                    <td className="p-3 text-center text-sm text-slate-600 dark:text-slate-300">
-                                        {row.age || '-'}
-                                    </td>
-                                    <td className="p-3 max-w-[150px]">
-                                        <div className="truncate text-sm text-slate-600 dark:text-slate-300" title={`${row.city || ''}${row.state ? ` / ${row.state}` : ''}`}>
-                                            {row.city || '-'}{row.state ? ` / ${row.state}` : ''}
-                                        </div>
-                                    </td>
-                                    <td className="p-3 max-w-[200px]">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="truncate font-semibold text-sm text-slate-700 dark:text-slate-200" title={row.cargo_principal || 'Não informado'}>
-                                                {row.cargo_principal || 'Não informado'}
-                                            </div>
-                                            {row.cargos_extras && row.cargos_extras.length > 0 && (
-                                                <div className="relative">
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedCandidate(row);
-                                                            setIsSummaryModalOpen(true);
-                                                        }}
-                                                        className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors"
-                                                        title="Ver detalhes"
-                                                    >
-                                                        +{row.cargos_extras.length}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <select
-                                            value={(row.status === 'Válido' ? 'Ativo' : row.status) || 'Ativo'}
-                                            onChange={(e) => handleStatusChange(row, e.target.value)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors ${(row.status === 'Bloqueado')
-                                                ? 'text-red-600 border-red-200 bg-red-50 focus:ring-red-500'
-                                                : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500' // Apply Active style for 'Ativo'/'Válido'
-                                                }`}
-                                        >
-                                            <option value="Ativo">Ativo</option>
-                                            <option value="Bloqueado">Bloqueado</option>
-                                        </select>
-                                    </td>
-                                    <td className="p-4 text-center">
-                                        <button
-                                            onClick={() => openStatusModal(row)}
-                                            className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-green-500' : 'text-slate-300'
-                                                }`}
-                                            title={row.note || 'Adicionar nota'}
-                                        >
-                                            <FileText size={20} />
-                                        </button>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedCandidate(row);
-                                                    setPreviewInitialTab('historico');
-                                                    setIsPreviewOpen(true);
-                                                }}
-                                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
-                                                title="Histórico"
-                                            >
-                                                <History size={14} /> Histórico
-                                            </button>
-
-                                            <a
-                                                href={row.resume_url}
-                                                download={`curriculo_${row.name.replace(/\s+/g, '_')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Ver / Baixar Currículo"
-                                            >
-                                                <Eye size={18} />
-                                            </a>
-
-                                            <button
-                                                onClick={() => handlePrintResume(row.resume_url)}
-                                                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                                                title="Imprimir Currículo"
-                                            >
-                                                <Printer size={18} />
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleDelete(row.id)}
-                                                className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Excluir"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={9} className="p-8 text-center">
+                                        <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : candidates.length === 0 ? (
+                                <tr>
+                                    <td colSpan={10} className="p-8 text-center text-slate-400">
+                                        Nenhum currículo encontrado.
+                                    </td>
+                                </tr>
+                            ) : (
+                                candidates.map((row, index) => (
+                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                        <td className="p-3 text-center text-slate-400 font-mono text-xs">
+                                            {(page - 1) * ITEMS_PER_PAGE + index + 1}
+                                        </td>
+                                        <td className="p-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold">{formatDate(row.created_at).date}</span>
+                                                <span className="text-[10px] text-slate-400">{formatDate(row.created_at).time}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3 max-w-[180px]">
+                                            <div className="truncate" title={row.name}>
+                                                <span className="font-bold text-sm text-slate-800 dark:text-gray-100">{row.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.sex?.toLowerCase() === 'masculino' || row.sex === 'M'
+                                                ? 'bg-blue-50 text-blue-600'
+                                                : row.sex?.toLowerCase() === 'feminino' || row.sex === 'F'
+                                                    ? 'bg-pink-50 text-pink-600'
+                                                    : 'bg-slate-50 text-slate-500'
+                                                }`}>
+                                                {row.sex?.toLowerCase() === 'masculino' ? 'M' : row.sex?.toLowerCase() === 'feminino' ? 'F' : '-'}
+                                            </span>
+                                        </td>
+                                        <td className="p-3 text-center text-sm text-slate-600 dark:text-slate-300">
+                                            {row.age || '-'}
+                                        </td>
+                                        <td className="p-3 max-w-[150px]">
+                                            <div className="truncate text-sm text-slate-600 dark:text-slate-300" title={`${row.city || ''}${row.state ? ` / ${row.state}` : ''}`}>
+                                                {row.city || '-'}{row.state ? ` / ${row.state}` : ''}
+                                            </div>
+                                        </td>
+                                        <td className="p-3 max-w-[200px]">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="truncate font-semibold text-sm text-slate-700 dark:text-slate-200" title={row.cargo_principal || 'Não informado'}>
+                                                    {row.cargo_principal || 'Não informado'}
+                                                </div>
+                                                {row.cargos_extras && row.cargos_extras.length > 0 && (
+                                                    <div className="relative">
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedCandidate(row);
+                                                                setIsSummaryModalOpen(true);
+                                                            }}
+                                                            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors"
+                                                            title="Ver detalhes"
+                                                        >
+                                                            +{row.cargos_extras.length}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <select
+                                                value={(row.status === 'Válido' ? 'Ativo' : row.status) || 'Ativo'}
+                                                onChange={(e) => handleStatusChange(row, e.target.value)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors ${(row.status === 'Bloqueado')
+                                                    ? 'text-red-600 border-red-200 bg-red-50 focus:ring-red-500'
+                                                    : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500' // Apply Active style for 'Ativo'/'Válido'
+                                                    }`}
+                                            >
+                                                <option value="Ativo">Ativo</option>
+                                                <option value="Bloqueado">Bloqueado</option>
+                                            </select>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <button
+                                                onClick={() => openStatusModal(row)}
+                                                className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-green-500' : 'text-slate-300'
+                                                    }`}
+                                                title={row.note || 'Adicionar nota'}
+                                            >
+                                                <FileText size={20} />
+                                            </button>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedCandidate(row);
+                                                        setPreviewInitialTab('historico');
+                                                        setIsPreviewOpen(true);
+                                                    }}
+                                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
+                                                    title="Histórico"
+                                                >
+                                                    <History size={14} /> Histórico
+                                                </button>
+
+                                                <a
+                                                    href={row.resume_url}
+                                                    download={`curriculo_${row.name.replace(/\s+/g, '_')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Ver / Baixar Currículo"
+                                                >
+                                                    <Eye size={18} />
+                                                </a>
+
+                                                <button
+                                                    onClick={() => handlePrintResume(row.resume_url)}
+                                                    className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                                    title="Imprimir Currículo"
+                                                >
+                                                    <Printer size={18} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDelete(row.id)}
+                                                    className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Pagination */}
+                {totalCount > ITEMS_PER_PAGE && (
+                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 transition-colors"
+                        >
+                            <ChevronLeft size={20} className="text-slate-500" />
+                        </button>
+                        <span className="text-sm text-slate-500 font-medium">
+                            Página {page} de {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                        </span>
+                        <button
+                            onClick={() => setPage(p => (p * ITEMS_PER_PAGE < totalCount ? p + 1 : p))}
+                            disabled={page * ITEMS_PER_PAGE >= totalCount}
+                            className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 transition-colors"
+                        >
+                            <ChevronRight size={20} className="text-slate-500" />
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Pagination */}
-            {totalCount > ITEMS_PER_PAGE && (
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <button
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 transition-colors"
-                    >
-                        <ChevronLeft size={20} className="text-slate-500" />
-                    </button>
-                    <span className="text-sm text-slate-500 font-medium">
-                        Página {page} de {Math.ceil(totalCount / ITEMS_PER_PAGE)}
-                    </span>
-                    <button
-                        onClick={() => setPage(p => (p * ITEMS_PER_PAGE < totalCount ? p + 1 : p))}
-                        disabled={page * ITEMS_PER_PAGE >= totalCount}
-                        className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 transition-colors"
-                    >
-                        <ChevronRight size={20} className="text-slate-500" />
-                    </button>
-                </div>
-            )}
-        </div>
+            {/* Resume Preview Modal */}
+            <ResumePreviewModal
+                isOpen={isPreviewOpen}
+                onClose={() => setIsPreviewOpen(false)}
+                candidate={selectedCandidate}
+                onStatusUpdate={(c, s) => c && handleStatusChange(c, s)}
+                availableJobs={jobs}
+                onLinkJob={handleLinkJob}
+                initialTab={previewInitialTab}
+            />
 
-        {/* Resume Preview Modal */}
-        <ResumePreviewModal
-            isOpen={isPreviewOpen}
-            onClose={() => setIsPreviewOpen(false)}
-            candidate={selectedCandidate}
-            onStatusUpdate={(c, s) => c && handleStatusChange(c, s)}
-            availableJobs={jobs}
-            onLinkJob={handleLinkJob}
-            initialTab={previewInitialTab}
-        />
+            {/* Status & Note Modal */}
+            {isStatusModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsStatusModalOpen(false)} />
+                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 animate-scaleUp">
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Atualizar Status</h3>
 
-        {/* Status & Note Modal */}
-        {isStatusModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsStatusModalOpen(false)} />
-                <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 animate-scaleUp">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Atualizar Status</h3>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setStatusForm({ ...statusForm, status: 'Ativo' })}
-                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Ativo'
-                                        ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    Ativo
-                                </button>
-                                <button
-                                    onClick={() => setStatusForm({ ...statusForm, status: 'Bloqueado' })}
-                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Bloqueado'
-                                        ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    Bloqueado
-                                </button>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setStatusForm({ ...statusForm, status: 'Ativo' })}
+                                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Ativo'
+                                            ? 'bg-green-100 text-green-700 ring-2 ring-green-500 ring-offset-2'
+                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                            }`}
+                                    >
+                                        Ativo
+                                    </button>
+                                    <button
+                                        onClick={() => setStatusForm({ ...statusForm, status: 'Bloqueado' })}
+                                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${statusForm.status === 'Bloqueado'
+                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-500 ring-offset-2'
+                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                            }`}
+                                    >
+                                        Bloqueado
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                                Nota / Observação {statusForm.status === 'Bloqueado' && <span className="text-red-500">*</span>}
-                            </label>
-                            <textarea
-                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-h-[100px]"
-                                placeholder="Escreva uma observação sobre este candidato..."
-                                value={statusForm.note}
-                                onChange={e => setStatusForm({ ...statusForm, note: e.target.value })}
-                            />
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Nota / Observação {statusForm.status === 'Bloqueado' && <span className="text-red-500">*</span>}
+                                </label>
+                                <textarea
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-h-[100px]"
+                                    placeholder="Escreva uma observação sobre este candidato..."
+                                    value={statusForm.note}
+                                    onChange={e => setStatusForm({ ...statusForm, note: e.target.value })}
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSaveStatus}
+                                disabled={isSubmitting}
+                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-70 flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? (
+                                    <>Salvand...</>
+                                ) : (
+                                    <><Save size={18} /> Salvar Alterações</>
+                                )}
+                            </button>
                         </div>
 
                         <button
-                            onClick={handleSaveStatus}
-                            disabled={isSubmitting}
-                            className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-70 flex items-center justify-center gap-2"
+                            onClick={() => setIsStatusModalOpen(false)}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
                         >
-                            {isSubmitting ? (
-                                <>Salvand...</>
-                            ) : (
-                                <><Save size={18} /> Salvar Alterações</>
-                            )}
+                            <XCircle size={20} />
                         </button>
                     </div>
-
-                    <button
-                        onClick={() => setIsStatusModalOpen(false)}
-                        className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
-                    >
-                        <XCircle size={20} />
-                    </button>
                 </div>
-            </div>
-        )}
+            )}
 
-        {/* Candidate Summary Modal */}
-        {isSummaryModalOpen && selectedCandidate && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSummaryModalOpen(false)} />
-                <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 animate-scaleUp">
-                    <div className="flex justify-between items-start mb-6">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">Resumo do Candidato</h3>
-                        <button onClick={() => setIsSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
-                            <XCircle size={24} />
-                        </button>
-                    </div>
+            {/* Candidate Summary Modal */}
+            {isSummaryModalOpen && selectedCandidate && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSummaryModalOpen(false)} />
+                    <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 animate-scaleUp">
+                        <div className="flex justify-between items-start mb-6">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white">Resumo do Candidato</h3>
+                            <button onClick={() => setIsSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
 
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Nome</label>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.name}</p>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Nome</label>
+                                    <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.name}</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Idade</label>
+                                    <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.age} anos</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Sexo</label>
+                                    <p className="font-medium text-slate-800 dark:text-slate-200 capitalize">{selectedCandidate.sex}</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Local</label>
+                                    <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.city} / {selectedCandidate.state}</p>
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Idade</label>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.age} anos</p>
+
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Função Principal</label>
+                                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold inline-block">
+                                    {selectedCandidate.cargo_principal}
+                                </span>
                             </div>
+
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Sexo</label>
-                                <p className="font-medium text-slate-800 dark:text-slate-200 capitalize">{selectedCandidate.sex}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Local</label>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">{selectedCandidate.city} / {selectedCandidate.state}</p>
+                                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Funções Extras</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {(selectedCandidate.cargos_extras || []).map((role, i) => (
+                                        <span key={i} className="px-3 py-1 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                            {role}
+                                        </span>
+                                    ))}
+                                    {(selectedCandidate.cargos_extras || []).length === 0 && (
+                                        <span className="text-slate-400 text-sm italic">Nenhuma função extra.</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Função Principal</label>
-                            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold inline-block">
-                                {selectedCandidate.cargo_principal}
-                            </span>
+                        <div className="mt-6 flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <a
+                                href={selectedCandidate.resume_url}
+                                download={`curriculo_${selectedCandidate.name.replace(/\s+/g, '_')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                            >
+                                <Download size={18} />
+                                Baixar Currículo
+                            </a>
                         </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Funções Extras</label>
-                            <div className="flex flex-wrap gap-2">
-                                {(selectedCandidate.cargos_extras || []).map((role, i) => (
-                                    <span key={i} className="px-3 py-1 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-                                        {role}
-                                    </span>
-                                ))}
-                                {(selectedCandidate.cargos_extras || []).length === 0 && (
-                                    <span className="text-slate-400 text-sm italic">Nenhuma função extra.</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <a
-                            href={selectedCandidate.resume_url}
-                            download={`curriculo_${selectedCandidate.name.replace(/\s+/g, '_')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
-                        >
-                            <Download size={18} />
-                            Baixar Currículo
-                        </a>
                     </div>
                 </div>
-            </div>
-        )}
-    </div>
-);
+            )}
+        </div>
+    );
 };
 
 export default Curriculos;

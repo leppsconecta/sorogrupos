@@ -30,6 +30,7 @@ import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { OnboardingModal } from './components/OnboardingModal';
 
 const AppContent: React.FC = () => {
+  // Force HMR Update
   const { session, signOut, onboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
 
