@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    X, Mail, Phone, User, MapPin, Briefcase, Info
+    X, Mail, Phone, User, MapPin, Briefcase, Info, Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -35,10 +35,12 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
     const [activeTab, setActiveTab] = useState<'resumo' | 'dados'>('dados');
     const [history, setHistory] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [filterStatus, setFilterStatus] = useState<'all' | 'participando' | 'aprovado' | 'rejeitado'>('participando');
 
     useEffect(() => {
         if (isOpen) {
             setActiveTab('dados');
+            setFilterStatus('participando');
             fetchHistory();
         }
     }, [isOpen, candidate]);
@@ -68,6 +70,19 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
         } finally {
             setLoadingHistory(false);
         }
+    };
+
+    const handleUpdateLocalStatus = async (applicationId: string, newStatus: string) => {
+        // Call parent handler (which expects candidate ID generally, but we confirmed it passes application ID for job apps?) 
+        // Wait, looking at Candidatos.tsx: handleUpdateStatus(applicationId, newStatus)
+        // So we should pass applicationId (which is Item ID here)
+
+        onStatusUpdate(applicationId, newStatus);
+
+        // Update local state to reflect change immediately
+        setHistory(prev => prev.map(item =>
+            item.id === applicationId ? { ...item, status: newStatus } : item
+        ));
     };
 
     if (!isOpen || !candidate) return null;
@@ -229,7 +244,14 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
 
                             {/* TAB: RESUMO */}
                             {activeTab === 'resumo' && (() => {
-                                // Calculate statistics from history
+                                // Filters state (local to this render, but we need state to persist between clicks)
+                                // We need to move this state up to the component level, but for now let's use a nested component or just use the state we added?
+                                // Wait, I can't add state inside this conditional render block properly if it wasn't there before.
+                                // I need to move the state definition to the top of the component first.
+                                // But I can't do that in this replace_file_content call easily without replacing the whole file or multiple chunks.
+                                // Actually, I can use a local variable for the derived data, but the *selected* filter needs to be state.
+
+                                // CALCULATE COUNTS
                                 const totalApplications = history.length;
                                 const approvedCount = history.filter(h =>
                                     h.status?.toLowerCase().includes('aprovado') ||
@@ -242,109 +264,222 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                 ).length;
 
                                 // Get active/participating jobs (not approved or rejected)
-                                const activeJobs = history.filter(h => {
+                                const activeJobsCount = history.filter(h => {
                                     const status = h.status?.toLowerCase() || '';
                                     return !status.includes('aprovado') &&
                                         !status.includes('contratado') &&
                                         !status.includes('rejeitado') &&
                                         !status.includes('recusado') &&
                                         !status.includes('reprovado');
-                                });
+                                }).length;
 
-                                // Get unique job titles
-                                const uniqueJobs = Array.from(new Set(
-                                    history.map(h => h.jobs?.title).filter(Boolean)
-                                )) as string[];
+                                // Filter History based on selection
+                                const filteredHistory = history.filter(h => {
+                                    const status = h.status?.toLowerCase() || '';
+                                    const isApproved = status.includes('aprovado') || status.includes('contratado');
+                                    const isRejected = status.includes('rejeitado') || status.includes('recusado') || status.includes('reprovado');
+                                    const isPending = !isApproved && !isRejected;
+
+                                    if (filterStatus === 'participando') return isPending;
+                                    if (filterStatus === 'aprovado') return isApproved;
+                                    if (filterStatus === 'rejeitado') return isRejected;
+                                    return true; // 'all'
+                                });
 
                                 return (
                                     <div className="space-y-4 animate-fadeIn">
-                                        {/* Statistics Cards */}
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800 p-4 shadow-sm">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-blue-500 dark:bg-blue-600 flex items-center justify-center">
-                                                        <Briefcase size={16} className="text-white" />
+                                        {/* Statistics Cards / Filters */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            {/* PARTICIPANDO */}
+                                            <button
+                                                onClick={() => setFilterStatus('participando')}
+                                                className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'participando'
+                                                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-500 ring-1 ring-blue-500'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'participando' ? 'bg-blue-500 text-white' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                                                        }`}>
+                                                        <Briefcase size={14} />
                                                     </div>
+                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'
+                                                        }`}>Participando</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{activeJobs.length}</div>
-                                                <div className="text-xs font-semibold text-blue-600 dark:text-blue-500 uppercase tracking-wide">Participando</div>
-                                            </div>
+                                                <div className={`text-2xl font-bold ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200'
+                                                    }`}>
+                                                    {activeJobsCount}
+                                                </div>
+                                            </button>
 
-                                            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800 p-4 shadow-sm">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-green-500 dark:bg-green-600 flex items-center justify-center">
-                                                        <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            {/* APROVADO */}
+                                            <button
+                                                onClick={() => setFilterStatus('aprovado')}
+                                                className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'aprovado'
+                                                    ? 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-500 ring-1 ring-green-500'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'aprovado' ? 'bg-green-500 text-white' : 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400'
+                                                        }`}>
+                                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                                             <path d="M20 6L9 17l-5-5" />
                                                         </svg>
                                                     </div>
+                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-500 dark:text-slate-400'
+                                                        }`}>Aprovado</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-green-700 dark:text-green-400">{approvedCount}</div>
-                                                <div className="text-xs font-semibold text-green-600 dark:text-green-500 uppercase tracking-wide">Aprovado</div>
-                                            </div>
+                                                <div className={`text-2xl font-bold ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-700 dark:text-slate-200'
+                                                    }`}>
+                                                    {approvedCount}
+                                                </div>
+                                            </button>
 
-                                            <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl border border-red-200 dark:border-red-800 p-4 shadow-sm">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-red-500 dark:bg-red-600 flex items-center justify-center">
-                                                        <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            {/* REJEITADO */}
+                                            <button
+                                                onClick={() => setFilterStatus('rejeitado')}
+                                                className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'rejeitado'
+                                                    ? 'bg-red-50 dark:bg-red-900/30 border-red-500 dark:border-red-500 ring-1 ring-red-500'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-300 dark:hover:border-red-700'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'rejeitado' ? 'bg-red-500 text-white' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
+                                                        }`}>
+                                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                                             <circle cx="12" cy="12" r="10" />
-                                                            <line x1="12" y1="8" x2="12" y2="12" />
-                                                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                                                            <line x1="8" y1="8" x2="16" y2="16" />
+                                                            <line x1="16" y1="8" x2="8" y2="16" />
                                                         </svg>
                                                     </div>
+                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'
+                                                        }`}>Rejeitado</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-red-700 dark:text-red-400">{rejectedCount}</div>
-                                                <div className="text-xs font-semibold text-red-600 dark:text-red-500 uppercase tracking-wide">Rejeitado</div>
-                                            </div>
+                                                <div className={`text-2xl font-bold ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-200'
+                                                    }`}>
+                                                    {rejectedCount}
+                                                </div>
+                                            </button>
+
+                                            {/* TODOS */}
+                                            <button
+                                                onClick={() => setFilterStatus('all')}
+                                                className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'all'
+                                                    ? 'bg-slate-100 dark:bg-slate-700 border-slate-400 dark:border-slate-500 ring-1 ring-slate-400'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'all' ? 'bg-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                                                        }`}>
+                                                        <Briefcase size={14} />
+                                                    </div>
+                                                    <span className={`text-xs font-bold uppercase tracking-wide ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'
+                                                        }`}>Todos</span>
+                                                </div>
+                                                <div className={`text-2xl font-bold ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-700 dark:text-slate-200'
+                                                    }`}>
+                                                    {totalApplications}
+                                                </div>
+                                            </button>
                                         </div>
 
-                                        {/* Jobs Participated */}
-                                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
-                                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Briefcase size={14} />
-                                                Todas as Vagas Participadas
+                                        {/* Filters active indicator */}
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                                                {filterStatus === 'participando' && <span className="text-blue-600">Vagas em Participação</span>}
+                                                {filterStatus === 'aprovado' && <span className="text-green-600">Vagas Aprovadas</span>}
+                                                {filterStatus === 'rejeitado' && <span className="text-red-600">Vagas Rejeitadas</span>}
+                                                {filterStatus === 'all' && <span className="text-slate-600 dark:text-slate-300">Todas as Vagas</span>}
+                                                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                                                    {filteredHistory.length}
+                                                </span>
                                             </h3>
-                                            {uniqueJobs.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {uniqueJobs.map((job, idx) => (
-                                                        <span
-                                                            key={idx}
-                                                            className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700"
-                                                        >
-                                                            {job}
-                                                        </span>
-                                                    ))}
+                                        </div>
+
+                                        {/* Jobs List */}
+                                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                                            {filteredHistory.length > 0 ? (
+                                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {filteredHistory.map((item, idx) => {
+                                                        const isPending = !item.status?.toLowerCase().includes('aprovado') &&
+                                                            !item.status?.toLowerCase().includes('contratado') &&
+                                                            !item.status?.toLowerCase().includes('rejeitado') &&
+                                                            !item.status?.toLowerCase().includes('recusado') &&
+                                                            !item.status?.toLowerCase().includes('reprovado');
+
+                                                        return (
+                                                            <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                                <div className="flex items-start justify-between gap-4">
+                                                                    <div className="flex-1">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                                                                                {item.jobs?.title || 'Vaga sem título'}
+                                                                            </h4>
+                                                                            {item.jobs?.code && (
+                                                                                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-mono">
+                                                                                    #{item.jobs.code}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                                                                            <span className="flex items-center gap-1">
+                                                                                <Briefcase size={12} />
+                                                                                Aplicado em {new Date(item.created_at).toLocaleDateString()}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Actions or Status Badge */}
+                                                                    <div className="flex items-center gap-2">
+                                                                        {isPending && filterStatus === 'participando' ? (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <button
+                                                                                    onClick={() => handleUpdateLocalStatus(item.id, 'rejected')}
+                                                                                    className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors"
+                                                                                    title="Reprovar Candidato"
+                                                                                >
+                                                                                    <X size={16} />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleUpdateLocalStatus(item.id, 'approved')}
+                                                                                    className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition-colors"
+                                                                                    title="Aprovar Candidato"
+                                                                                >
+                                                                                    <Check size={16} />
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${item.status === 'approved' || item.status === 'hired'
+                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                                                : item.status === 'rejected' || item.status === 'declined'
+                                                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                                                }`}>
+                                                                                {item.status === 'approved' ? 'Aprovado' :
+                                                                                    item.status === 'rejected' ? 'Rejeitado' :
+                                                                                        item.status === 'pending' ? 'Pendente' : item.status}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             ) : (
-                                                <div className="text-center py-8 text-slate-400 dark:text-slate-500">
-                                                    <p className="text-sm">Nenhuma vaga participada ainda</p>
+                                                <div className="text-center py-12 px-6">
+                                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                                                        <Briefcase size={20} />
+                                                    </div>
+                                                    <h3 className="text-slate-900 dark:text-white font-medium mb-1">Nenhuma vaga encontrada</h3>
+                                                    <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                                        Este candidato não possui vagas {filterStatus === 'all' ? 'no histórico' : `com status "${filterStatus}"`}.
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Quick Stats Summary */}
-                                        {totalApplications > 0 && (
-                                            <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-                                                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                    <Info size={14} />
-                                                    Resumo
-                                                </h3>
-                                                <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                                                    <p>
-                                                        <span className="font-semibold">O candidato participou de {totalApplications} {totalApplications === 1 ? 'vaga' : 'vagas'}</span>
-                                                    </p>
-                                                    {approvedCount > 0 && (
-                                                        <p className="text-green-600 dark:text-green-400">
-                                                            ✓ Foi aprovado em {approvedCount} {approvedCount === 1 ? 'vaga' : 'vagas'}
-                                                        </p>
-                                                    )}
-                                                    {rejectedCount > 0 && (
-                                                        <p className="text-red-600 dark:text-red-400">
-                                                            ✗ Foi rejeitado em {rejectedCount} {rejectedCount === 1 ? 'vaga' : 'vagas'}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 );
                             })()}
