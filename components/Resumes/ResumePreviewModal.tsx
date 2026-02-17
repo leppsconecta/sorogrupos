@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     X, Download, ExternalLink, Calendar, MapPin, Briefcase, Mail, Phone, User,
-    CheckCircle, Search, Plus, Info, Clock, AlertCircle, Copy
+    CheckCircle, Search, Plus, Info, Clock, AlertCircle, Copy, Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useFeedback } from '../../contexts/FeedbackContext';
@@ -71,7 +71,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     onLinkJob,
     initialTab = 'dados'
 }) => {
-    const [activeTab, setActiveTab] = useState<'dados' | 'vagas' | 'historico'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'dados' | 'vagas' | 'historico' | 'resumo'>(initialTab);
 
     useEffect(() => {
         if (isOpen) {
@@ -90,6 +90,9 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     // History State
     const [history, setHistory] = useState<JobApplication[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Resumo Tab State
+    const [showActiveJobs, setShowActiveJobs] = useState(false);
 
     // Job Detail Modal State
     const [viewingJob, setViewingJob] = useState<Job | null>(null);
@@ -156,10 +159,44 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 
         } catch (error: any) {
             console.error("Link error inside modal", error);
-            showToast(error.message || 'Erro ao vincular candidato', 'error');
-        } finally {
-            setIsLinking(false);
-            setLinkingJobId(null);
+            showToast('Erro ao aplicar candidato à vaga', 'error');
+        }
+    };
+
+    // Handle Approve/Reject Actions
+    const handleApproveApplication = async (applicationId: string) => {
+        try {
+            const { error } = await supabase
+                .from('job_applications')
+                .update({ status: 'Aprovado' })
+                .eq('id', applicationId);
+
+            if (error) throw error;
+
+            showToast('Candidato aprovado com sucesso!', 'success');
+            await fetchHistory();
+            setShowActiveJobs(false); // Close the expansion
+        } catch (error: any) {
+            console.error('Error approving application:', error);
+            showToast('Erro ao aprovar candidato', 'error');
+        }
+    };
+
+    const handleRejectApplication = async (applicationId: string) => {
+        try {
+            const { error } = await supabase
+                .from('job_applications')
+                .update({ status: 'Rejeitado' })
+                .eq('id', applicationId);
+
+            if (error) throw error;
+
+            showToast('Candidato rejeitado', 'info');
+            await fetchHistory();
+            setShowActiveJobs(false); // Close the expansion
+        } catch (error: any) {
+            console.error('Error rejecting application:', error);
+            showToast('Erro ao rejeitar candidato', 'error');
         }
     };
 
@@ -273,6 +310,15 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                         {/* TABS HEADER - UPDATED TO BUTTON STYLE */}
                         <div className="flex border-b border-slate-100 dark:border-slate-800 px-4 py-3 gap-2 shrink-0 bg-white dark:bg-slate-900">
                             <button
+                                onClick={() => setActiveTab('resumo')}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-2 ${activeTab === 'resumo'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                            >
+                                <Info size={14} /> Resumo
+                            </button>
+                            <button
                                 onClick={() => setActiveTab('dados')}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-2 ${activeTab === 'dados'
                                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
@@ -303,6 +349,174 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 
                         {/* TAB CONTENT Scrollable */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 bg-slate-50/30 dark:bg-slate-900/30">
+
+                            {/* TAB: RESUMO */}
+                            {activeTab === 'resumo' && (() => {
+                                // Calculate statistics from history
+                                const totalApplications = history.length;
+                                const approvedCount = history.filter(h =>
+                                    h.status?.toLowerCase().includes('aprovado') ||
+                                    h.status?.toLowerCase().includes('contratado')
+                                ).length;
+                                const rejectedCount = history.filter(h =>
+                                    h.status?.toLowerCase().includes('rejeitado') ||
+                                    h.status?.toLowerCase().includes('recusado') ||
+                                    h.status?.toLowerCase().includes('reprovado')
+                                ).length;
+
+                                // Get active/participating jobs (not approved or rejected)
+                                const activeJobs = history.filter(h => {
+                                    const status = h.status?.toLowerCase() || '';
+                                    return !status.includes('aprovado') &&
+                                        !status.includes('contratado') &&
+                                        !status.includes('rejeitado') &&
+                                        !status.includes('recusado') &&
+                                        !status.includes('reprovado');
+                                });
+
+                                // Get unique job titles
+                                const uniqueJobs = Array.from(new Set(
+                                    history.map(h => h.jobs?.title).filter(Boolean)
+                                )) as string[];
+
+                                return (
+                                    <div className="space-y-4 animate-fadeIn">
+                                        {/* Statistics Cards */}
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <button
+                                                onClick={() => setShowActiveJobs(!showActiveJobs)}
+                                                className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800 p-4 shadow-sm hover:shadow-md hover:scale-105 transition-all cursor-pointer text-left"
+                                            >
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-500 dark:bg-blue-600 flex items-center justify-center">
+                                                        <Briefcase size={16} className="text-white" />
+                                                    </div>
+                                                </div>
+                                                <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{activeJobs.length}</div>
+                                                <div className="text-xs font-semibold text-blue-600 dark:text-blue-500 uppercase tracking-wide">Participando</div>
+                                            </button>
+
+                                            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl border border-green-200 dark:border-green-800 p-4 shadow-sm">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="w-8 h-8 rounded-lg bg-green-500 dark:bg-green-600 flex items-center justify-center">
+                                                        <CheckCircle size={16} className="text-white" />
+                                                    </div>
+                                                </div>
+                                                <div className="text-2xl font-bold text-green-700 dark:text-green-400">{approvedCount}</div>
+                                                <div className="text-xs font-semibold text-green-600 dark:text-green-500 uppercase tracking-wide">Aprovado</div>
+                                            </div>
+
+                                            <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl border border-red-200 dark:border-red-800 p-4 shadow-sm">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="w-8 h-8 rounded-lg bg-red-500 dark:bg-red-600 flex items-center justify-center">
+                                                        <AlertCircle size={16} className="text-white" />
+                                                    </div>
+                                                </div>
+                                                <div className="text-2xl font-bold text-red-700 dark:text-red-400">{rejectedCount}</div>
+                                                <div className="text-xs font-semibold text-red-600 dark:text-red-500 uppercase tracking-wide">Rejeitado</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Active Jobs Details - Shown when clicking Participando card */}
+                                        {showActiveJobs && activeJobs.length > 0 && (
+                                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-200 dark:border-blue-800 p-4 shadow-sm">
+                                                <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                    <Briefcase size={14} />
+                                                    Vagas Participando Agora
+                                                </h3>
+                                                <div className="space-y-2">
+                                                    {activeJobs.map((app, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="flex items-center justify-between gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30"
+                                                        >
+                                                            <div className="flex-1">
+                                                                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                    {app.jobs?.title || 'Vaga sem título'}
+                                                                </p>
+                                                                {app.jobs?.code && (
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        Código: {app.jobs.code}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded text-xs font-medium">
+                                                                    {app.status || 'Pendente'}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => handleApproveApplication(app.id)}
+                                                                    className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                                                                    title="Aprovar candidato"
+                                                                >
+                                                                    <Check size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleRejectApplication(app.id)}
+                                                                    className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                                                                    title="Rejeitar candidato"
+                                                                >
+                                                                    <X size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Jobs Participated */}
+                                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Briefcase size={14} />
+                                                Todas as Vagas Participadas
+                                            </h3>
+                                            {uniqueJobs.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {uniqueJobs.map((job, idx) => (
+                                                        <span
+                                                            key={idx}
+                                                            className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700"
+                                                        >
+                                                            {job}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-400 dark:text-slate-500">
+                                                    <AlertCircle size={32} className="mx-auto mb-2 opacity-50" />
+                                                    <p className="text-sm">Nenhuma vaga participada ainda</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Quick Stats Summary */}
+                                        {totalApplications > 0 && (
+                                            <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+                                                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                    <Info size={14} />
+                                                    Resumo
+                                                </h3>
+                                                <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                                                    <p>
+                                                        <span className="font-semibold">O candidato participou de {totalApplications} {totalApplications === 1 ? 'vaga' : 'vagas'}</span>
+                                                    </p>
+                                                    {approvedCount > 0 && (
+                                                        <p className="text-green-600 dark:text-green-400">
+                                                            \u2713 Foi aprovado em {approvedCount} {approvedCount === 1 ? 'vaga' : 'vagas'}
+                                                        </p>
+                                                    )}
+                                                    {rejectedCount > 0 && (
+                                                        <p className="text-red-600 dark:text-red-400">
+                                                            \u2717 Foi rejeitado em {rejectedCount} {rejectedCount === 1 ? 'vaga' : 'vagas'}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* TAB: DADOS */}
                             {activeTab === 'dados' && (

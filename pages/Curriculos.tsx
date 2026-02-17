@@ -11,6 +11,7 @@ import {
 import { ResumePreviewModal } from '../components/Resumes/ResumePreviewModal';
 import { BlockCandidateModal } from '../components/modals/BlockCandidateModal';
 import { NoteViewModal } from '../components/modals/NoteViewModal';
+import { ContactModal } from '../components/modals/ContactModal';
 
 // --- Interfaces ---
 
@@ -65,8 +66,16 @@ const formatDate = (dateString: string) => {
 };
 
 const formatPhone = (phone: string) => {
-    return phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '+$1 ($2) $3-$4')
-        .replace(/(\d{2})(\d{1})(\d{4})(\d{4})/, '($1) $2 $3-$4'); // Simple formatter
+    // Remove +55 and format as (XX) XXXXX-XXXX
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 13) {
+        // 55XXXXXXXXXXX -> (XX) XXXXX-XXXX
+        return cleaned.replace(/^55(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    } else if (cleaned.length === 11) {
+        // XXXXXXXXXXX -> (XX) XXXXX-XXXX
+        return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    }
+    return phone; // Return as-is if doesn't match expected format
 };
 
 export const Curriculos: React.FC = () => {
@@ -99,6 +108,11 @@ export const Curriculos: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false); // Summary Modal State
 
+    // Contact Modal State
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+    const [selectedContactPhone, setSelectedContactPhone] = useState('');
+    const [selectedContactName, setSelectedContactName] = useState('');
+
     // Expand Extras
     const [expandedExtras, setExpandedExtras] = useState<string | null>(null);
 
@@ -130,7 +144,7 @@ export const Curriculos: React.FC = () => {
                 .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
 
             if (searchTerm) {
-                query = query.or(`name.ilike.%${searchTerm}%,cargo_principal.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+                query = query.or(`name.ilike.%${searchTerm}%,cargo_principal.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
             }
 
             const { data, error, count } = await query;
@@ -433,27 +447,13 @@ export const Curriculos: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header & Stats */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Banco de Currículos</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie todos os candidatos cadastrados no sistema.</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold">
-                        Total: {totalCount}
-                    </span>
-                </div>
-            </div>
-
             {/* Filters */}
             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Buscar por nome, função ou email..."
+                        placeholder="Buscar por nome, função, email ou telefone..."
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm dark:text-gray-200"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
@@ -474,6 +474,7 @@ export const Curriculos: React.FC = () => {
                                 <th className="p-3 text-center w-16">Sexo</th>
                                 <th className="p-3 text-center w-16">Idade</th>
                                 <th className="p-3 text-left">Local</th>
+                                <th className="p-3 text-left w-28">Contato</th>
                                 <th className="p-3 text-left">Função</th>
                                 <th className="p-3 text-left w-32">Status</th>
                                 <th className="p-4 text-center">Nota</th>
@@ -483,34 +484,31 @@ export const Curriculos: React.FC = () => {
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className="p-8 text-center">
+                                    <td colSpan={11} className="p-8 text-center">
                                         <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
                                     </td>
                                 </tr>
                             ) : candidates.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="p-8 text-center text-slate-400">
+                                    <td colSpan={11} className="p-8 text-center text-slate-400">
                                         Nenhum currículo encontrado.
                                     </td>
                                 </tr>
                             ) : (
                                 candidates.map((row, index) => (
-                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group align-top">
-                                        <td className="p-3 text-center text-slate-400 font-mono text-xs whitespace-nowrap">
+                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                        <td className="p-2 text-center text-slate-400 font-mono text-xs whitespace-nowrap">
                                             {(page - 1) * ITEMS_PER_PAGE + index + 1}
                                         </td>
-                                        <td className="p-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold">{formatDate(row.created_at).date}</span>
-                                                <span className="text-[10px] text-slate-400">{formatDate(row.created_at).time}</span>
-                                            </div>
+                                        <td className="p-2 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                            <span className="font-semibold">{formatDate(row.created_at).date}</span>
                                         </td>
-                                        <td className="p-3 max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis">
+                                        <td className="p-2 max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis">
                                             <div className="truncate" title={row.name}>
-                                                <span className="font-bold text-sm text-slate-800 dark:text-gray-100">{row.name}</span>
+                                                <span className="font-semibold text-xs text-slate-800 dark:text-gray-100">{row.name}</span>
                                             </div>
                                         </td>
-                                        <td className="p-3 text-center whitespace-nowrap">
+                                        <td className="p-2 text-center whitespace-nowrap">
                                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.sex?.toLowerCase() === 'masculino' || row.sex === 'M'
                                                 ? 'bg-blue-50 text-blue-600'
                                                 : row.sex?.toLowerCase() === 'feminino' || row.sex === 'F'
@@ -520,33 +518,40 @@ export const Curriculos: React.FC = () => {
                                                 {row.sex?.toLowerCase() === 'masculino' ? 'M' : row.sex?.toLowerCase() === 'feminino' ? 'F' : '-'}
                                             </span>
                                         </td>
-                                        <td className="p-3 text-center text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                        <td className="p-2 text-center text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                             {row.age || '-'}
                                         </td>
-                                        <td className="p-3 max-w-[150px] whitespace-nowrap overflow-hidden text-ellipsis">
-                                            <div className="truncate text-sm text-slate-600 dark:text-slate-300" title={`${row.city || ''}${row.state ? ` / ${row.state}` : ''}`}>
+                                        <td className="p-2 max-w-[150px] whitespace-nowrap overflow-hidden text-ellipsis">
+                                            <div className="truncate text-xs text-slate-600 dark:text-slate-300" title={`${row.city || ''}${row.state ? ` / ${row.state}` : ''}`}>
                                                 {row.city || '-'}{row.state ? ` / ${row.state}` : ''}
                                             </div>
                                         </td>
-                                        <td className="p-3 max-w-[200px] whitespace-nowrap overflow-hidden text-ellipsis">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="truncate font-semibold text-sm text-slate-700 dark:text-slate-200" title={row.cargo_principal || 'Não informado'}>
-                                                    {row.cargo_principal || 'Não informado'}
-                                                </div>
-                                                {row.cargos_extras && row.cargos_extras.length > 0 && (
-                                                    <div className="relative">
-                                                        <span className="text-[10px] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
-                                                            +{row.cargos_extras.length}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                        <td className="p-3 whitespace-nowrap">
+                                            {row.phone ? (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedContactPhone(row.phone);
+                                                        setSelectedContactName(row.name);
+                                                        setIsContactModalOpen(true);
+                                                    }}
+                                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium transition-colors"
+                                                >
+                                                    {formatPhone(row.phone)}
+                                                </button>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="p-2 max-w-[200px] whitespace-nowrap overflow-hidden text-ellipsis">
+                                            <div className="truncate text-xs text-slate-700 dark:text-slate-200 font-medium" title={row.cargo_principal || 'Não informado'}>
+                                                {row.cargo_principal || 'Não informado'}
                                             </div>
                                         </td>
                                         <td className="p-3 whitespace-nowrap">
                                             <select
                                                 value={(row.status === 'Válido' ? 'Ativo' : row.status) || 'Ativo'}
                                                 onChange={(e) => handleStatusChange(row, e.target.value)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors ${(row.status === 'Bloqueado')
+                                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border bg-transparent cursor-pointer focus:outline-none focus:ring-1 focus:ring-offset-1 transition-colors ${(row.status === 'Bloqueado')
                                                     ? 'text-red-600 border-red-200 bg-red-50 focus:ring-red-500'
                                                     : 'text-green-600 border-green-200 bg-green-50 focus:ring-green-500'
                                                     }`}
@@ -555,7 +560,7 @@ export const Curriculos: React.FC = () => {
                                                 <option value="Bloqueado">Bloqueado</option>
                                             </select>
                                         </td>
-                                        <td className="p-4 text-center whitespace-nowrap">
+                                        <td className="p-2 text-center whitespace-nowrap">
                                             <button
                                                 onClick={() => handleViewNote(row)}
                                                 className={`p-2 rounded-full transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${row.note ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-300 hover:text-slate-500'
@@ -565,7 +570,7 @@ export const Curriculos: React.FC = () => {
                                                 <FileText size={18} />
                                             </button>
                                         </td>
-                                        <td className="p-4 text-right whitespace-nowrap">
+                                        <td className="p-2 text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => {
@@ -658,6 +663,13 @@ export const Curriculos: React.FC = () => {
                 note={selectedNote}
                 candidateName={selectedCandidate?.name || ''}
                 onSave={handleSaveNote}
+            />
+
+            <ContactModal
+                isOpen={isContactModalOpen}
+                onClose={() => setIsContactModalOpen(false)}
+                phone={selectedContactPhone}
+                candidateName={selectedContactName}
             />
 
             {/* Candidate Summary Modal */}
