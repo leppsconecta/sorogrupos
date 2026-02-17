@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     X, Download, ExternalLink, Calendar, MapPin, Briefcase, Mail, Phone, User,
-    CheckCircle, Search, Plus, Info, Clock, AlertCircle
+    CheckCircle, Search, Plus, Info, Clock, AlertCircle, Copy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useFeedback } from '../../contexts/FeedbackContext';
@@ -220,13 +220,19 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                 title="Resume Preview"
                             />
                         ) : (
-                            <div className="w-full h-full overflow-auto flex items-center justify-center p-4">
+                            <a
+                                href={candidate.resume_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full h-full flex items-center justify-center p-4 cursor-pointer hover:bg-slate-200/20 transition-colors"
+                                title="Clique para baixar/abrir original"
+                            >
                                 <img
                                     src={candidate.resume_url}
                                     alt="Resume"
-                                    className="max-w-full shadow-lg rounded-lg"
+                                    className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
                                 />
-                            </div>
+                            </a>
                         )}
                     </div>
 
@@ -445,13 +451,21 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                                             </div>
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                 {app.jobs?.code && (
-                                                                    <button
-                                                                        onClick={() => handleOpenJobDetail(app.job_id)}
-                                                                        className="text-[10px] font-mono bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 hover:text-blue-800 transition-colors px-1.5 py-0.5 rounded cursor-pointer underline decoration-blue-300 underline-offset-2 flex items-center gap-1"
-                                                                        title="Ver detalhes da vaga"
-                                                                    >
-                                                                        {app.jobs.code} <ExternalLink size={8} />
-                                                                    </button>
+                                                                    <div className="flex items-center gap-1.5 bg-blue-50/50 dark:bg-blue-900/10 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800">
+                                                                        <span className="text-[10px] font-mono font-bold text-blue-700 dark:text-blue-300">
+                                                                            {app.jobs.code}
+                                                                        </span>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                navigator.clipboard.writeText(app.jobs.code);
+                                                                                showToast('Código copiado!', 'success');
+                                                                            }}
+                                                                            className="text-blue-400 hover:text-blue-600 dark:text-blue-500 dark:hover:text-blue-300 transition-colors"
+                                                                            title="Copiar código"
+                                                                        >
+                                                                            <Copy size={10} />
+                                                                        </button>
+                                                                    </div>
                                                                 )}
                                                                 <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                                                                     <Calendar size={10} /> {formatDateTime(app.applied_at)}
@@ -504,20 +518,21 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Job Detail Modal Overlay */}
-            <JobDetailModal
-                isOpen={!!viewingJob}
+            < JobDetailModal
+                isOpen={!!viewingJob
+                }
                 onClose={() => setViewingJob(null)}
                 job={viewingJob}
                 onApply={() => { }} // No apply action in admin view
                 onReport={() => { }} // No report action in admin view
                 showFooter={false}
                 customFooter={
-                    <div className="flex justify-end p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                    < div className="flex justify-end p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800" >
                         <button onClick={() => setViewingJob(null)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">Fechar</button>
-                    </div>
+                    </div >
                 }
             />
 
