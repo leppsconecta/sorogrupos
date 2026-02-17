@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Search, Filter, Briefcase, User, CheckCircle, XCircle, Ban, Eye, ChevronRight, Check, MapPin, Calendar, Clock, Folder, CornerUpLeft, ChevronLeft, Send, Megaphone, Star, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ResumePreviewModal } from '../components/Resumes/ResumePreviewModal';
+import { CandidateReviewModal } from '../components/Resumes/CandidateReviewModal';
 import JobDetailModal from '../components/public/modals/JobDetailModal';
 
 // --- Interfaces ---
@@ -21,6 +21,10 @@ interface Candidate {
     age?: number;
     sex?: 'Masculino' | 'Feminino';
     city?: string;
+    state?: string;
+    birth_date?: string;
+    cargo_principal?: string;
+    cargos_extras?: string[];
 }
 
 interface Job {
@@ -141,7 +145,9 @@ export const Candidatos: React.FC = () => {
                             state,
                             sex,
                             birth_date,
-                            resume_url
+                            resume_url,
+                            cargo_principal,
+                            cargos_extras
                         )
                     `)
             ]);
@@ -179,7 +185,11 @@ export const Candidatos: React.FC = () => {
                     created_at: app.created_at,
                     age: calculateAge(app.candidates.birth_date),
                     sex: app.candidates.sex,
-                    city: app.candidates.city
+                    city: app.candidates.city,
+                    state: app.candidates.state,
+                    birth_date: app.candidates.birth_date,
+                    cargo_principal: app.candidates.cargo_principal,
+                    cargos_extras: app.candidates.cargos_extras
                 }));
 
                 return {
@@ -612,28 +622,42 @@ export const Candidatos: React.FC = () => {
                                                     <span>{candidate.sex || 'Sexo N/A'}</span>
                                                 </div>
 
-                                                <div className="mt-1.5 flex items-center justify-between">
+                                                <div className="mt-2 flex items-center justify-between gap-2">
                                                     <div className="flex items-center gap-2">
                                                         {candidate.status === 'pending' && <span className="text-yellow-600 font-bold text-[10px] uppercase bg-yellow-50 px-1.5 py-0.5 rounded">Pendente</span>}
                                                         {candidate.status === 'approved' && <span className="text-green-600 font-bold text-[10px] uppercase bg-green-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Aprovado</span>}
                                                         {candidate.status === 'rejected' && <span className="text-red-500 font-bold text-[10px] uppercase bg-red-50 px-1.5 py-0.5 rounded flex items-center gap-1"><XCircle size={10} /> Reprovado</span>}
                                                     </div>
 
-                                                    {/* Quick Actions */}
-                                                    <div className="flex items-center gap-1">
+                                                    {/* Action Buttons */}
+                                                    <div className="flex items-center gap-2">
                                                         <button
-                                                            onClick={() => { setSelectedCandidate(candidate); setIsPreviewOpen(true); }}
-                                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                            title="Ver Currículo"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUpdateStatus(candidate.id, 'approved');
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${candidate.status === 'approved'
+                                                                ? 'bg-green-600 text-white shadow-md'
+                                                                : 'bg-green-500 text-white hover:bg-green-600 hover:shadow-md'
+                                                                }`}
+                                                            title="Aprovar"
                                                         >
-                                                            <Eye size={16} />
+                                                            <CheckCircle size={14} />
+                                                            Aprovar
                                                         </button>
-                                                        <div className="w-px h-3 bg-slate-200 mx-1"></div>
-                                                        <button onClick={() => handleUpdateStatus(candidate.id, 'approved')} className={`p-1.5 rounded-lg transition-colors ${candidate.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}`} title="Aprovar">
-                                                            <CheckCircle size={16} />
-                                                        </button>
-                                                        <button onClick={() => handleUpdateStatus(candidate.id, 'rejected')} className={`p-1.5 rounded-lg transition-colors ${candidate.status === 'rejected' ? 'text-red-500 bg-red-50' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`} title="Reprovar">
-                                                            <XCircle size={16} />
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUpdateStatus(candidate.id, 'rejected');
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${candidate.status === 'rejected'
+                                                                ? 'bg-red-600 text-white shadow-md'
+                                                                : 'bg-red-500 text-white hover:bg-red-600 hover:shadow-md'
+                                                                }`}
+                                                            title="Rejeitar"
+                                                        >
+                                                            <XCircle size={14} />
+                                                            Rejeitar
                                                         </button>
                                                     </div>
                                                 </div>
@@ -652,7 +676,7 @@ export const Candidatos: React.FC = () => {
                 </div>
             )}
 
-            <ResumePreviewModal
+            <CandidateReviewModal
                 isOpen={isPreviewOpen}
                 onClose={() => setIsPreviewOpen(false)}
                 candidate={selectedCandidate}
