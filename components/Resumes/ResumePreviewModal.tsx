@@ -85,10 +85,11 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     useEffect(() => {
-        if (isOpen && candidate && activeTab === 'historico') {
+        if (isOpen && candidate) {
+            // Fetch history always to filter available jobs in 'vagas' tab too
             fetchHistory();
         }
-    }, [isOpen, candidate, activeTab]);
+    }, [isOpen, candidate]); // Run once when opened/candidate changes
 
     const fetchHistory = async () => {
         if (!candidate) return;
@@ -160,10 +161,14 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 
     if (!isOpen || !candidate) return null;
 
-    const filteredJobs = availableJobs.filter(job =>
-        job.title.toLowerCase().includes(jobSearch.toLowerCase()) ||
-        (job.code && job.code.toLowerCase().includes(jobSearch.toLowerCase()))
-    );
+    const filteredJobs = availableJobs.filter(job => {
+        const matchesSearch = job.title.toLowerCase().includes(jobSearch.toLowerCase()) ||
+            (job.code && job.code.toLowerCase().includes(jobSearch.toLowerCase()));
+
+        const isAlreadyLinked = history.some(app => app.job_id === job.id);
+
+        return matchesSearch && !isAlreadyLinked;
+    });
 
     const formatDateTime = (dateString: string) => {
         return new Date(dateString).toLocaleString('pt-BR', {
@@ -181,11 +186,7 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 
                     {/* LEFT SIDE: Resume Preview */}
                     <div className="flex-1 lg:w-1/2 bg-slate-100 dark:bg-slate-950/50 relative flex flex-col h-1/2 lg:h-full border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800">
-                        <div className="absolute top-4 left-4 z-10 flex gap-2">
-                            <span className="px-3 py-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 pointer-events-none select-none">
-                                Visualização do Currículo
-                            </span>
-                        </div>
+
 
                         {candidate.resume_url?.endsWith('.pdf') ? (
                             <iframe
@@ -237,8 +238,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                             <button
                                 onClick={() => setActiveTab('dados')}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-2 ${activeTab === 'dados'
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 <User size={14} /> Dados
@@ -246,8 +247,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                             <button
                                 onClick={() => setActiveTab('vagas')}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-2 ${activeTab === 'vagas'
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 <Briefcase size={14} /> Vagas
@@ -255,8 +256,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                             <button
                                 onClick={() => setActiveTab('historico')}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-2 ${activeTab === 'historico'
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 transform scale-105'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 <Clock size={14} /> Histórico
@@ -429,8 +430,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                                         <div className="flex items-center gap-3">
                                                             {/* Status Badge */}
                                                             <span className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold tracking-wide border ${app.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900' :
-                                                                    app.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900' :
-                                                                        'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900'
+                                                                app.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900' :
+                                                                    'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900'
                                                                 }`}>
                                                                 {app.status === 'pending' ? 'Pendente' : app.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
                                                             </span>
@@ -438,8 +439,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                                             {/* Origin Tag with Tooltip */}
                                                             <div className="relative group/tooltip">
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-transform group-hover/tooltip:scale-110 cursor-help ${app.origin === 'operator'
-                                                                        ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
-                                                                        : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                                                    ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+                                                                    : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
                                                                     }`}>
                                                                     {app.origin === 'operator' ? 'O' : 'C'}
                                                                 </div>
