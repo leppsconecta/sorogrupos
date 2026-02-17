@@ -290,23 +290,19 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                     <div className="space-y-4 animate-fadeIn">
                                         {/* Statistics Cards / Filters */}
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                            {/* PARTICIPANDO */}
+                                            {/* PARTICIPANDO (PENDENTE) */}
                                             <button
                                                 onClick={() => setFilterStatus('participando')}
                                                 className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'participando'
-                                                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-500 ring-1 ring-blue-500'
-                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700'
+                                                    ? 'bg-red-500 border-red-600 ring-1 ring-red-500 animate-[pulse_2s_infinite]'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-300 dark:hover:border-red-700'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'participando' ? 'bg-blue-500 text-white' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                                                        }`}>
-                                                        <Briefcase size={14} />
-                                                    </div>
-                                                    <span className={`text-sm font-bold ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-medium ${filterStatus === 'participando' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Pendente</span>
                                                 </div>
-                                                <div className={`text-2xl font-bold ${filterStatus === 'participando' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200'
+                                                <div className={`text-2xl font-bold ${filterStatus === 'participando' ? 'text-white' : 'text-slate-700 dark:text-slate-200'
                                                     }`}>
                                                     {activeJobsCount}
                                                 </div>
@@ -316,21 +312,15 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                             <button
                                                 onClick={() => setFilterStatus('aprovado')}
                                                 className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'aprovado'
-                                                    ? 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-500 ring-1 ring-green-500'
+                                                    ? 'bg-green-500 border-green-600 ring-1 ring-green-500'
                                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'aprovado' ? 'bg-green-500 text-white' : 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400'
-                                                        }`}>
-                                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                                            <path d="M20 6L9 17l-5-5" />
-                                                        </svg>
-                                                    </div>
-                                                    <span className={`text-sm font-bold ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-medium ${filterStatus === 'aprovado' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Aprovado</span>
                                                 </div>
-                                                <div className={`text-2xl font-bold ${filterStatus === 'aprovado' ? 'text-green-700 dark:text-green-300' : 'text-slate-700 dark:text-slate-200'
+                                                <div className={`text-2xl font-bold ${filterStatus === 'aprovado' ? 'text-white' : 'text-slate-700 dark:text-slate-200'
                                                     }`}>
                                                     {approvedCount}
                                                 </div>
@@ -340,23 +330,15 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                             <button
                                                 onClick={() => setFilterStatus('rejeitado')}
                                                 className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'rejeitado'
-                                                    ? 'bg-red-50 dark:bg-red-900/30 border-red-500 dark:border-red-500 ring-1 ring-red-500'
+                                                    ? 'bg-red-500 border-red-600 ring-1 ring-red-500'
                                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-300 dark:hover:border-red-700'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'rejeitado' ? 'bg-red-500 text-white' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
-                                                        }`}>
-                                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                                            <circle cx="12" cy="12" r="10" />
-                                                            <line x1="8" y1="8" x2="16" y2="16" />
-                                                            <line x1="16" y1="8" x2="8" y2="16" />
-                                                        </svg>
-                                                    </div>
-                                                    <span className={`text-sm font-bold ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-medium ${filterStatus === 'rejeitado' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Rejeitado</span>
                                                 </div>
-                                                <div className={`text-2xl font-bold ${filterStatus === 'rejeitado' ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-200'
+                                                <div className={`text-2xl font-bold ${filterStatus === 'rejeitado' ? 'text-white' : 'text-slate-700 dark:text-slate-200'
                                                     }`}>
                                                     {rejectedCount}
                                                 </div>
@@ -366,19 +348,15 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                             <button
                                                 onClick={() => setFilterStatus('all')}
                                                 className={`rounded-xl border p-3 shadow-sm transition-all text-left flex flex-col justify-between h-24 ${filterStatus === 'all'
-                                                    ? 'bg-slate-100 dark:bg-slate-700 border-slate-400 dark:border-slate-500 ring-1 ring-slate-400'
+                                                    ? 'bg-slate-600 border-slate-700 ring-1 ring-slate-600'
                                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${filterStatus === 'all' ? 'bg-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                                                        }`}>
-                                                        <Briefcase size={14} />
-                                                    </div>
-                                                    <span className={`text-sm font-bold ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'
+                                                    <span className={`text-sm font-medium ${filterStatus === 'all' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>Todos</span>
                                                 </div>
-                                                <div className={`text-2xl font-bold ${filterStatus === 'all' ? 'text-slate-800 dark:text-slate-200' : 'text-slate-700 dark:text-slate-200'
+                                                <div className={`text-2xl font-bold ${filterStatus === 'all' ? 'text-white' : 'text-slate-700 dark:text-slate-200'
                                                     }`}>
                                                     {totalApplications}
                                                 </div>
@@ -388,7 +366,7 @@ export const CandidateReviewModal: React.FC<CandidateReviewModalProps> = ({
                                         {/* Filters active indicator */}
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                                {filterStatus === 'participando' && <span className="text-blue-600">Vagas Pendentes</span>}
+                                                {filterStatus === 'participando' && <span className="text-red-600">Vagas Pendentes</span>}
                                                 {filterStatus === 'aprovado' && <span className="text-green-600">Vagas Aprovadas</span>}
                                                 {filterStatus === 'rejeitado' && <span className="text-red-600">Vagas Rejeitadas</span>}
                                                 {filterStatus === 'all' && <span className="text-slate-600 dark:text-slate-300">Todas as Vagas</span>}
