@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   LayoutDashboard,
   Megaphone,
@@ -58,6 +59,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
 
   // State
   const [isExpanded, setIsExpanded] = useState(true);
+  const [newCandidatesTotal, setNewCandidatesTotal] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNewCandidates = async () => {
+      try {
+        const { data: jobs } = await supabase
+          .from('jobs')
+          .select('id, last_viewed_candidates_at')
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+
+        if (!jobs) return;
+
+        const { data: apps } = await supabase
+          .from('job_applications')
+          .select('job_id, created_at')
+          .in('job_id', jobs.map(j => j.id));
+
+        if (!apps) return;
+
+        let totalNew = 0;
+        jobs.forEach(job => {
+          const lastViewed = job.last_viewed_candidates_at ? new Date(job.last_viewed_candidates_at) : new Date(0);
+          const jobApps = apps.filter(a => a.job_id === job.id);
+          const newApps = jobApps.filter(a => new Date(a.created_at) > lastViewed);
+          totalNew += newApps.length;
+        });
+
+        setNewCandidatesTotal(totalNew);
+      } catch (error) {
+        console.error("Error fetching badges:", error);
+      }
+    };
+
+    fetchNewCandidates();
+    const interval = setInterval(fetchNewCandidates, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
   const [isPinned, setIsPinned] = useState(true); // Default pinned to true as per request? "O usuario pode fixar...". Let's start pinned or unpinned? Request says "Ao abrir... manter expandido por 2 min, depois recolher". This implies NOT pinned initially.
   // Wait, request says: "Ao abrir o sistem o sidebar deve se manter expandido por 2 minutos., apó isso ele deve recolher".
   // So initial state: expanded=true, pinned=false.
@@ -153,12 +194,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
               to={item.path}
               className={getLinkClasses(item.path)}
             >
-              <div className={`flex-shrink-0 transition-colors duration-200 flex items-center justify-center min-w-[24px] text-yellow-400 ${isExpanded ? 'mr-4' : ''}`}>
+              <div className={`flex-shrink-0 transition-colors duration-200 flex items-center justify-center min-w-[24px] text-yellow-400 ${isExpanded ? 'mr-4' : ''} relative`}>
                 {item.icon}
+                {item.path === '/candidatos' && newCandidatesTotal > 0 && (
+                  <div className="absolute -top-2 -right-3 min-w-[20px] h-5 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-1 rounded-full border-2 border-blue-950 animate-pulse shadow-lg z-10">
+                    {newCandidatesTotal > 99 ? '99+' : newCandidatesTotal}
+                  </div>
+                )}
               </div>
 
               <span className={`text-base font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'
-                } ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'}`}>
+                } ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'} flex items-center justify-between`}>
                 {item.label}
               </span>
 

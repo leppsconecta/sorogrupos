@@ -45,6 +45,7 @@ interface Job {
     requirements?: string[];
     activities?: string[];
     benefits?: string[];
+    last_viewed_candidates_at?: string;
 }
 
 interface CompanyFolder {
@@ -129,7 +130,7 @@ export const Candidatos: React.FC = () => {
             const [companiesRes, sectorsRes, jobsRes, applicationsRes] = await Promise.all([
                 supabase.from('folder_companies').select('*').order('name'),
                 supabase.from('sectors').select('*').order('name'),
-                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id, salary, observation, requirements, benefits, activities').eq('user_id', user?.id).eq('status', 'active'),
+                supabase.from('jobs').select('id, title, code, city, region, created_at, status, folder_company_id, sector_id, salary, observation, requirements, benefits, activities, last_viewed_candidates_at').eq('user_id', user?.id).eq('status', 'active'),
                 supabase.from('job_applications')
                     .select(`
                         id,
@@ -298,6 +299,24 @@ export const Candidatos: React.FC = () => {
         }
     };
 
+    const handleJobClick = async (job: Job) => {
+        setSelectedJob(job);
+
+        const lastViewed = job.last_viewed_candidates_at ? new Date(job.last_viewed_candidates_at) : new Date(0);
+        const hasNewCandidates = job.candidates.some(c => new Date(c.created_at) > lastViewed);
+
+        if (hasNewCandidates || !job.last_viewed_candidates_at) {
+            const now = new Date().toISOString();
+
+            setJobs(prev => prev.map(j => j.id === job.id ? { ...j, last_viewed_candidates_at: now } : j));
+            if (selectedJob?.id === job.id) {
+                setSelectedJob(prev => prev ? { ...prev, last_viewed_candidates_at: now } : null);
+            }
+
+            await supabase.from('jobs').update({ last_viewed_candidates_at: now }).eq('id', job.id);
+        }
+    };
+
     // --- Carousel Navigation ---
     const selectPreviousJob = () => {
         if (!selectedJob) return;
@@ -424,21 +443,34 @@ export const Candidatos: React.FC = () => {
                                     {filteredJobs.map(job => {
                                         const rejectedCount = job.candidates.filter(c => c.status === 'rejected').length;
                                         const availableCount = job.candidates_count - rejectedCount;
+                                        const lastViewed = job.last_viewed_candidates_at ? new Date(job.last_viewed_candidates_at) : new Date(0);
+                                        const newCandidatesCount = job.candidates.filter(c => new Date(c.created_at) > lastViewed).length;
 
                                         return (
                                             <div
                                                 key={job.id}
                                                 className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group flex items-center justify-between gap-4"
-                                                onClick={() => setSelectedJob(job)}
+                                                onClick={() => handleJobClick(job)}
                                             >
                                                 <div className="flex items-center gap-4 min-w-0">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0 relative">
                                                         {job.title.charAt(0)}
+                                                        {newCandidatesCount > 0 && (
+                                                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full shadow-sm animate-pulse">
+                                                                {newCandidatesCount}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <h4 className="font-medium text-slate-800 dark:text-gray-100 text-sm truncate">{job.title}</h4>
                                                             <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-mono">#{job.code}</span>
+                                                            {newCandidatesCount > 0 && (
+                                                                <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                                                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                                                                    {newCandidatesCount} novos
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <p className="text-xs text-slate-400 mt-0.5 truncate flex items-center gap-1.5">
                                                             <span>{job.city || 'N/A'}{job.region ? ` - ${job.region}` : ''}</span>
