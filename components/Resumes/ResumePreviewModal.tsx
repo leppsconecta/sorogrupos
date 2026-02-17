@@ -70,8 +70,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<'dados' | 'vagas' | 'historico'>('dados');
     const [jobSearch, setJobSearch] = useState('');
-    const [selectedJobId, setSelectedJobId] = useState(''); // For linking
-    const [isLinking, setIsLinking] = useState(false);
+    const [linkingJobId, setLinkingJobId] = useState<string | null>(null); // Track specific job being linked
+    const [isLinking, setIsLinking] = useState(false); // Global locking to prevent double clicks
 
     // History State
     const [history, setHistory] = useState<JobApplication[]>([]);
@@ -110,24 +110,27 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
         }
     };
 
-    const handleLinkJob = async () => {
-        if (!selectedJobId || !candidate || !onLinkJob) return;
+    const handleLinkJob = async (jobId: string) => {
+        if (!jobId || !candidate || !onLinkJob) return;
+
         setIsLinking(true);
+        setLinkingJobId(jobId);
+
         try {
-            await onLinkJob(candidate.id, selectedJobId);
-            setSelectedJobId('');
+            await onLinkJob(candidate.id, jobId);
 
             // Show Success Modal
             setShowSuccessModal(true);
 
-            // Refresh history in background so it's ready if they switch tabs
-            fetchHistory();
+            // Refresh history in background so it's ready if they switch tabs and to update the list buttons
+            await fetchHistory();
 
         } catch (error) {
             // Error handling usually in parent, but we might want to show error here?
             console.error("Link error inside modal", error);
         } finally {
             setIsLinking(false);
+            setLinkingJobId(null);
         }
     };
 
@@ -165,9 +168,8 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
         const matchesSearch = job.title.toLowerCase().includes(jobSearch.toLowerCase()) ||
             (job.code && job.code.toLowerCase().includes(jobSearch.toLowerCase()));
 
-        const isAlreadyLinked = history.some(app => app.job_id === job.id);
-
-        return matchesSearch && !isAlreadyLinked;
+        // We now show all matching active jobs, and the UI handles the "Linked" state
+        return matchesSearch;
     });
 
     const formatDateTime = (dateString: string) => {
@@ -345,27 +347,49 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                             />
                                         </div>
 
-                                        <div className="h-[250px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-1 bg-slate-50/50 dark:bg-slate-900/50 custom-scrollbar">
+                                        <div className="h-[320px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-1 bg-slate-50/50 dark:bg-slate-900/50 custom-scrollbar">
                                             {filteredJobs.length > 0 ? (
                                                 <div className="space-y-1">
-                                                    {filteredJobs.map(job => (
-                                                        <button
-                                                            key={job.id}
-                                                            onClick={() => setSelectedJobId(selectedJobId === job.id ? '' : job.id)}
-                                                            className={`w-full text-left p-3 rounded-md text-xs transition-all flex items-center justify-between group ${selectedJobId === job.id
-                                                                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-600/20'
-                                                                : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-transparent hover:border-slate-200 dark:hover:border-slate-600'
-                                                                }`}
-                                                        >
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold flex items-center gap-1.5">
-                                                                    {job.title}
-                                                                </span>
-                                                                {job.code && <span className={`text-[10px] ${selectedJobId === job.id ? 'text-blue-100' : 'text-slate-400'}`}>Cód: {job.code}</span>}
+                                                    {filteredJobs.map(job => {
+                                                        const isAlreadyLinked = history.some(app => app.job_id === job.id);
+                                                        const isLinkingThis = linkingJobId === job.id;
+
+                                                        return (
+                                                            <div
+                                                                key={job.id}
+                                                                className="w-full p-3 rounded-md text-xs transition-all flex items-center justify-between group bg-white dark:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-600 shadow-sm"
+                                                            >
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                                                                        {job.title}
+                                                                    </span>
+                                                                    {job.code && <span className="text-[10px] text-slate-400">Cód: {job.code}</span>}
+                                                                </div>
+
+                                                                {isAlreadyLinked ? (
+                                                                    <button
+                                                                        disabled
+                                                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 flex items-center gap-1.5 opacity-100 cursor-default"
+                                                                    >
+                                                                        <CheckCircle size={12} /> Vinculado
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => handleLinkJob(job.id)}
+                                                                        disabled={isLinkingThis || isLinking} // Disable if linking ANY job, essentially
+                                                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/20 flex items-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        {isLinkingThis ? (
+                                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                                        ) : (
+                                                                            <Plus size={12} />
+                                                                        )}
+                                                                        {isLinkingThis ? 'Vinculando...' : 'Vincular'}
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            {selectedJobId === job.id && <CheckCircle size={16} className="shrink-0 animate-scaleIn" />}
-                                                        </button>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             ) : (
                                                 <div className="h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
@@ -374,21 +398,6 @@ export const ResumePreviewModal: React.FC<ResumePreviewModalProps> = ({
                                                 </div>
                                             )}
                                         </div>
-
-                                        <button
-                                            onClick={handleLinkJob}
-                                            disabled={!selectedJobId || isLinking}
-                                            className="w-full mt-4 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs uppercase tracking-wide"
-                                        >
-                                            {isLinking ? (
-                                                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Vinculando...</>
-                                            ) : (
-                                                <><Plus size={16} /> Incluir e Salvar</>
-                                            )}
-                                        </button>
-                                        <p className="text-[10px] text-center text-slate-400 mt-2">
-                                            O candidato será vinculado apenas à vaga selecionada acima.
-                                        </p>
                                     </div>
                                 </div>
                             )}
