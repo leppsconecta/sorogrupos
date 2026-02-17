@@ -196,18 +196,24 @@ export const Curriculos: React.FC = () => {
         setIsSubmitting(true);
         try {
             // 1. Update Candidate Status
+            console.log('[DEBUG] Updating candidate status...', { id: candidateToBlock.id, status: 'Bloqueado' });
             const { error: updateError } = await supabase
                 .from('candidates')
                 .update({
                     status: 'Bloqueado',
-                    note: reason,
+                    // note: reason, // Removed to preserve existing note (Nota Basica)
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', candidateToBlock.id);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                console.error('[ERROR] Failed to update candidate status:', updateError);
+                throw updateError;
+            }
+            console.log('[DEBUG] Candidate status updated successfully');
 
             // 2. Add History Entry
+            console.log('[DEBUG] Inserting history entry...');
             const { error: historyError } = await supabase
                 .from('candidate_history')
                 .insert({
@@ -218,22 +224,27 @@ export const Curriculos: React.FC = () => {
                 });
 
             if (historyError) {
-                console.error('Error logging history:', historyError);
+                console.error('[ERROR] Failed to insert history:', historyError);
+                // Don't throw, just log
+            } else {
+                console.log('[DEBUG] History entry inserted successfully');
             }
 
             // 3. Log Operator Action
+            console.log('[DEBUG] Logging operator action...');
             await logOperatorAction('UPDATE', {
                 candidate_id: candidateToBlock.id,
                 action: 'BLOCK_CANDIDATE',
                 reason
             });
+            console.log('[DEBUG] Operator action logged successfully');
 
             showToast('Candidato bloqueado com sucesso', 'success');
             setIsBlockModalOpen(false);
             setCandidateToBlock(null);
             fetchCandidates(false); // Refresh list
         } catch (error) {
-            console.error('Error blocking candidate:', error);
+            console.error('[ERROR] Error blocking candidate:', error);
             showToast('Erro ao bloquear candidato', 'error');
         } finally {
             setIsSubmitting(false);
@@ -279,8 +290,44 @@ export const Curriculos: React.FC = () => {
         }
     };
 
-    const handleViewNote = (candidate: Candidate) => {
-        setSelectedNote(candidate.note || '');
+    const handleViewNote = async (candidate: Candidate) => {
+        let noteToDisplay = candidate.note || '';
+
+        if (candidate.status === 'Bloqueado') {
+            try {
+                // Fetch latest block reason
+                const { data: historyData, error } = await supabase
+                    .from('candidate_history')
+                    .select('description')
+                    .eq('candidate_id', candidate.id)
+                    .eq('action', 'Bloqueado') // Assuming 'Bloqueado' is the action name used in handleStatusChange log
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (historyData?.description) {
+                    const blockReason = historyData.description;
+                    const separator = "\n---------------------------------------\n";
+                    const blockPrefix = "Bloqueio: ";
+
+                    if (noteToDisplay.includes(separator)) {
+                        // Update existing block section
+                        const parts = noteToDisplay.split(separator);
+                        noteToDisplay = `${parts[0]}${separator}${blockPrefix}${blockReason}`;
+                    } else {
+                        // Append new block section
+                        // If note is empty, maybe just show the block reason or prefix with "Nota basica: (vazia)"?
+                        // User requested: "Nota basica: [conteudo]\n---\nBloqueio: [motivo]"
+                        const basicNote = noteToDisplay ? `Nota basica: ${noteToDisplay}` : "Nota basica: ";
+                        noteToDisplay = `${basicNote}${separator}${blockPrefix}${blockReason}`;
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching block history:', err);
+            }
+        }
+
+        setSelectedNote(noteToDisplay);
         setSelectedCandidate(candidate); // For name display
         setIsNoteModalOpen(true);
     };

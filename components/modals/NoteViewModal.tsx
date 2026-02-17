@@ -22,11 +22,11 @@ export const NoteViewModal: React.FC<NoteViewModalProps> = ({
         setCurrentNote(note);
     }, [note]);
 
-    const handleBlur = () => {
-        if (currentNote !== note) {
-            onSave(currentNote);
-        }
+    const handleSave = () => {
+        onSave(currentNote);
+        onClose();
     };
+
     if (!isOpen) return null;
 
     return (
@@ -56,19 +56,24 @@ export const NoteViewModal: React.FC<NoteViewModalProps> = ({
                         <textarea
                             value={currentNote}
                             onChange={(e) => setCurrentNote(e.target.value)}
-                            onBlur={handleBlur}
                             className="w-full h-40 bg-transparent resize-none focus:outline-none text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400"
                             placeholder="Adicione uma nota interna..."
                         />
                     </div>
                 </div>
 
-                <div className="flex justify-end p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex justify-end gap-3 p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all"
+                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
                     >
-                        Fechar
+                        Sair
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-600/20 transition-all"
+                    >
+                        Salvar
                     </button>
                 </div>
             </div>
