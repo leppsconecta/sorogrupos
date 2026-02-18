@@ -1985,13 +1985,13 @@ Cód. Vaga: *${code}*
               <div className="bg-slate-200 dark:bg-slate-900 p-1 rounded-xl flex items-center gap-1">
                 <button
                   onClick={() => setPreviewMode('whatsapp')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'whatsapp' ? 'bg-white dark:bg-slate-800 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'whatsapp' ? 'bg-[#25d366] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   WhatsApp
                 </button>
                 <button
                   onClick={() => setPreviewMode('site')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'site' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${previewMode === 'site' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   Site
                 </button>
