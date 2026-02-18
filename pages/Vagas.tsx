@@ -1979,7 +1979,7 @@ Cód. Vaga: *${code}*
             onClick={() => setIsViewModalOpen(false)}
           />
 
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp">
             {/* Header com Toggle */}
             <div className="p-4 bg-slate-50 dark:bg-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 shrink-0">
               <div className="bg-slate-200 dark:bg-slate-900 p-1 rounded-xl flex items-center gap-1">
