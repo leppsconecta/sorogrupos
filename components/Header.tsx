@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
             >
               <OfficialWhatsAppIcon size={16} />
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest inline">
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400 inline">
                   {connectedPhone ? connectedPhone : 'Conectado'}
                 </span>
                 <CheckCircle2 size={12} className="text-emerald-500" />
@@ -93,14 +93,13 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
               <div className="text-white">
                 <OfficialWhatsAppIcon size={16} color="currentColor" />
               </div>
-              <span className="inline text-[10px] font-bold text-white uppercase tracking-widest">WhatsApp Desconectado</span>
+              <span className="inline text-sm font-medium text-white">WhatsApp Desconectado</span>
             </button>
           )}
 
-          {/* Minha Página Button */}
           <button
             onClick={() => navigate('/perfil')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider ${company?.is_public_active === false
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all font-medium text-sm ${company?.is_public_active === false
               ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40' // Offline Style
               : 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40' // Online Style
               }`}
@@ -111,27 +110,29 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onLogout, is
             </span>
           </button>
 
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors mr-1"
-            title={theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
+          <div className="flex items-center gap-1 ml-2">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              title={theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}
+            >
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
 
-          {/* Separator */}
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1"></div>
+            {/* Separator */}
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-800"></div>
 
-          {/* Logout Button */}
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all font-bold text-sm"
-            title="Sair"
-          >
-            <LogOut size={18} />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
+            {/* Logout Button */}
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all font-medium text-sm"
+              title="Sair"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
     </>
