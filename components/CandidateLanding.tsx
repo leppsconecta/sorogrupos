@@ -24,42 +24,75 @@ export const CandidateLanding = () => {
         setFoundJob(null);
 
         try {
-            // Search by code (case insensitive if possible, but code is usually uppercase)
-            // Or ID slice. Original platform uses ID slice as code often.
-            // Let's try to match 'code' column OR 'id' starts with.
-            // Assuming 'code' column exists as per PublicPage.tsx
-
+            // Use RPC function to bypass RLS for hidden jobs and ensure consistent data retrieval
             const { data, error } = await supabase
-                .from('jobs')
-                .select('*, company:user_id(name, profile_header_color, whatsapp, id)') // Fetch company details too if possible, or just 'user_id'
-                // We need company name for the modal.
-                // Actually PublicPage uses 'companies' table joined by 'owner_id' = job.user_id
-                .or(`code.eq.${jobCode},id.eq.${jobCode}`)
-                .single();
+                .rpc('get_job_details_by_code', { search_code: jobCode })
+                .maybeSingle();
 
-            if (error || !data) {
-                // Try searching by ID prefix if code fails
-                const { data: dataId, error: errorId } = await supabase
-                    .from('jobs')
-                    .select('*')
-                    .ilike('id', `${jobCode}%`)
-                    .limit(1)
-                    .maybeSingle();
-
-                if (errorId || !dataId) {
-                    throw new Error('Vaga não encontrada. Verifique o código.');
-                }
-                // If found by ID slice
-                // We need to fetch company info separately if not joined
-                const { data: companyData } = await supabase.from('companies').select('*').eq('owner_id', dataId.user_id).single();
-                dataId.company = companyData?.name;
-                dataId.companyData = companyData;
-                setFoundJob(mapJob(dataId, companyData));
-            } else {
-                // Found by code
-                const { data: companyData } = await supabase.from('companies').select('*').eq('owner_id', data.user_id).single();
-                setFoundJob(mapJob(data, companyData));
+            if (error) {
+                console.error('Search error:', error);
+                throw new Error('Erro ao buscar vaga. Tente novamente.');
             }
+
+            if (!data) {
+                throw new Error('Vaga não encontrada. Verifique o código.');
+            }
+
+            // Check if job is active
+            if (data.status !== 'active') {
+                // Scroll to WhatsApp groups
+                const groupsSection = document.getElementById('grupos-whatsapp');
+                if (groupsSection) {
+                    groupsSection.scrollIntoView({ behavior: 'smooth' });
+                }
+                throw new Error('Esta vaga encerrou o processo de seleção. Acesse nossos grupos para novas oportunidades!');
+            }
+
+            // Robust JSON parser helper
+            const parseList = (field: any) => {
+                if (!field) return [];
+                if (Array.isArray(field)) return field;
+                if (typeof field === 'string') {
+                    try {
+                        const parsed = JSON.parse(field);
+                        if (Array.isArray(parsed)) return parsed;
+                        return [parsed];
+                    } catch (e) {
+                        // Fallback for non-JSON strings
+                        if (field.includes('\n')) return field.split('\n').filter((s: string) => s.trim().length > 0);
+                        if (field.includes(',')) return field.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+                        return [field];
+                    }
+                }
+                return [];
+            };
+
+            // Map data from RPC format to Job interface
+            const mappedJob: Job = {
+                id: data.id,
+                code: data.code || data.id.slice(0, 8).toUpperCase(),
+                title: data.title,
+                company: data.company_name || 'Confidencial',
+                location: data.city || 'Local não informado',
+                type: data.employment_type === 'CLT' ? 'CLT' : data.employment_type === 'PJ' ? 'PJ' : 'Freelance',
+                salary: data.salary_range ? `R$ ${data.salary_range}` : undefined,
+                postedAt: new Date(data.created_at).toLocaleDateString(),
+                description: data.description || '',
+                requirements: parseList(data.requirements),
+                benefits: parseList(data.benefits),
+                activities: parseList(data.activities),
+                isFeatured: data.is_featured,
+                companyId: data.company_id,
+                ownerId: data.user_id,
+                companyData: {
+                    name: data.company_name,
+                    profile_header_color: data.company_profile_header_color,
+                    whatsapp: data.company_whatsapp,
+                    id: data.company_id
+                }
+            } as any;
+
+            setFoundJob(mappedJob);
 
             setIsDetailModalOpen(true);
 
@@ -72,13 +105,26 @@ export const CandidateLanding = () => {
 
     const mapJob = (j: any, company: any): Job => {
         const parseList = (field: any) => {
+            if (!field) return [];
             if (Array.isArray(field)) return field;
             if (typeof field === 'string') {
                 try {
+                    // Try to parse as JSON
                     const parsed = JSON.parse(field);
                     if (Array.isArray(parsed)) return parsed;
+                    // If parsed but not an array (e.g. "some string" in JSON), return as array
+                    return [parsed];
                 } catch (e) {
-                    return field.split('\n').filter(s => s.trim().length > 0);
+                    // If JSON parse fails, check if it's a comma-separated list or newline-separated
+                    if (field.includes('\n')) {
+                        return field.split('\n').filter(s => s.trim().length > 0);
+                    }
+                    if (field.includes(',')) {
+                        // Optional: split by comma if it looks like a list
+                        return field.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    }
+                    // Fallback: return as single string item
+                    return [field];
                 }
             }
             return [];
@@ -166,8 +212,7 @@ export const CandidateLanding = () => {
                     <div className="text-center mb-16">
                         <div className="w-16 h-16 bg-[#25D366] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30 rotate-3">
                             <svg viewBox="0 0 24 24" width="32" height="32" fill="white">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                            </svg>
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
                         </div>
                         <h2 className="text-3xl font-bold text-blue-950 mb-4">Grupos de WhatsApp</h2>
                         <p className="text-slate-500 max-w-2xl mx-auto">Participe dos nossos grupos e receba vagas diretamente no seu celular. Selecione qual tipo de vaga você busca!</p>
