@@ -2019,27 +2019,46 @@ Cód. Vaga: *${code}*
 
 
                   <div className="flex-1 overflow-y-auto px-4 pb-4">
-                    <JobDetailContent
-                      job={{
-                        id: viewingJob.id,
-                        code: viewingJob.jobCode || '---',
-                        title: viewingJob.role || viewingJob.title || '',
-                        company: viewingJob.companyName || company?.name || 'Sua Empresa',
-                        location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
-                        type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
-                        salary: viewingJob.salary,
-                        postedAt: viewingJob.date || 'Hoje',
-                        description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
-                        requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                        benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                        activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
-                        isFeatured: viewingJob.is_featured
-                      }}
-                      onApply={() => { }}
-                      onReport={() => { }}
-                      onQuestion={() => { }}
-                      showFooter={false}
-                    />
+                    {(viewingJob.type === 'file' || viewingJob.type === 'image') ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6 animate-fadeIn">
+                        <div className="w-24 h-24 bg-amber-50 dark:bg-amber-900/10 text-amber-500 rounded-[2rem] flex items-center justify-center mb-4 shadow-sm">
+                          <ImageIcon size={48} />
+                        </div>
+                        <div className="max-w-sm space-y-3">
+                          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Formato de Imagem</h3>
+                          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                            Este formato de vaga foi otimizado para compartilhamento via WhatsApp e não possui texto estruturado para exibição no site.
+                          </p>
+                          <div className="pt-2">
+                            <p className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                              Para exibir no site, converta para o formato Texto.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <JobDetailContent
+                        job={{
+                          id: viewingJob.id,
+                          code: viewingJob.jobCode || '---',
+                          title: viewingJob.role || viewingJob.title || '',
+                          company: viewingJob.companyName || company?.name || 'Sua Empresa',
+                          location: `${viewingJob.city || ''}${viewingJob.city && viewingJob.region ? ' - ' : ''}${viewingJob.region || ''}`,
+                          type: (viewingJob.bond?.includes('CLT') ? 'CLT' : viewingJob.bond?.includes('PJ') ? 'PJ' : 'Freelance') as any,
+                          salary: viewingJob.salary,
+                          postedAt: viewingJob.date || 'Hoje',
+                          description: viewingJob.observation || (viewingJob.type === 'file' ? 'Vaga modo imagem.' : 'Sem descrição detalhada.'),
+                          requirements: viewingJob.requirements ? viewingJob.requirements.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                          benefits: viewingJob.benefits ? viewingJob.benefits.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                          activities: viewingJob.activities ? viewingJob.activities.split('\n').filter(i => (typeof i === 'string' && i.trim())) : [],
+                          isFeatured: viewingJob.is_featured
+                        }}
+                        onApply={() => { }}
+                        onReport={() => { }}
+                        onQuestion={() => { }}
+                        showFooter={false}
+                      />
+                    )}
                   </div>
                 </div>
               )}
