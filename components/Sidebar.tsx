@@ -194,18 +194,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
               to={item.path}
               className={getLinkClasses(item.path)}
             >
-              <div className={`flex-shrink-0 transition-colors duration-200 flex items-center justify-center min-w-[24px] text-yellow-400 ${isExpanded ? 'mr-4' : ''} relative`}>
+              <div className={`flex-shrink-0 transition-colors duration-200 flex items-center justify-center min-w-[24px] text-yellow-400 ${isExpanded ? 'mr-4' : ''}`}>
                 {item.icon}
-                {item.path === '/candidatos' && newCandidatesTotal > 0 && (
-                  <div className="absolute -top-2 -right-3 min-w-[20px] h-5 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-1 rounded-full border-2 border-blue-950 animate-pulse shadow-lg z-10">
-                    {newCandidatesTotal > 99 ? '99+' : newCandidatesTotal}
-                  </div>
-                )}
               </div>
 
               <span className={`text-base font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'
                 } ${isActive(item.path) ? 'text-white font-bold' : 'text-blue-100/70 group-hover:text-white'} flex items-center justify-between`}>
                 {item.label}
+                {item.path === '/candidatos' && newCandidatesTotal > 0 && (
+                  <span className="ml-auto min-w-[20px] h-5 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-1 rounded-full animate-pulse shadow-sm">
+                    {newCandidatesTotal > 99 ? '99+' : newCandidatesTotal}
+                  </span>
+                )}
               </span>
 
               {/* Active Indicator */}

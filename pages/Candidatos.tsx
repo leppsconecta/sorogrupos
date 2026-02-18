@@ -81,6 +81,18 @@ const calculateAge = (birthDate: string) => {
     return age;
 };
 
+// --- Caching ---
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+interface CachedData {
+    timestamp: number;
+    companies: CompanyFolder[];
+    sectors: SectorFolder[];
+    jobs: Job[];
+}
+
+let memoryCache: CachedData | null = null;
+
 export const Candidatos: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -119,12 +131,21 @@ export const Candidatos: React.FC = () => {
     // --- Fetch Data ---
     useEffect(() => {
         if (user) {
-            fetchData();
+            // Check cache
+            if (memoryCache && (Date.now() - memoryCache.timestamp < CACHE_DURATION)) {
+                setCompanies(memoryCache.companies);
+                setSectors(memoryCache.sectors);
+                setJobs(memoryCache.jobs);
+                setLoading(false);
+                fetchData(true); // Background refresh
+            } else {
+                fetchData(false);
+            }
         }
     }, [user]);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchData = async (isBackground = false) => {
+        if (!isBackground) setLoading(true);
         try {
             // Parallel Fetch
             const [companiesRes, sectorsRes, jobsRes, applicationsRes] = await Promise.all([
@@ -199,6 +220,14 @@ export const Candidatos: React.FC = () => {
                     candidates_count: mappedCandidates.length
                 };
             });
+
+            // Update Cache
+            memoryCache = {
+                timestamp: Date.now(),
+                companies: companiesRes.data || [],
+                sectors: sectorsRes.data || [],
+                jobs: jobWithCandidates
+            };
 
             setCompanies(companiesRes.data || []);
             setSectors(sectorsRes.data || []);
@@ -453,13 +482,8 @@ export const Candidatos: React.FC = () => {
                                                 onClick={() => handleJobClick(job)}
                                             >
                                                 <div className="flex items-center gap-4 min-w-0">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0 relative">
+                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
                                                         {job.title.charAt(0)}
-                                                        {newCandidatesCount > 0 && (
-                                                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full shadow-sm animate-pulse">
-                                                                {newCandidatesCount}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2">
