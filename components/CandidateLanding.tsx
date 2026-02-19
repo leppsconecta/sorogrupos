@@ -21,7 +21,8 @@ export const CandidateLanding = () => {
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!jobCode.trim()) return;
+        const cleanJobCode = jobCode.replace(/\s+/g, '').toUpperCase();
+        if (!cleanJobCode) return;
 
         setLoading(true);
         setSearchError('');
@@ -31,7 +32,7 @@ export const CandidateLanding = () => {
         try {
             // Use RPC function to bypass RLS for hidden jobs and ensure consistent data retrieval
             const { data: rpcData, error } = await supabase
-                .rpc('get_job_details_by_code', { search_code: jobCode })
+                .rpc('get_job_details_by_code', { search_code: cleanJobCode })
                 .maybeSingle();
 
             if (error) {
