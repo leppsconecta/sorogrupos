@@ -5,6 +5,7 @@ import JobDetailModal from './public/modals/JobDetailModal';
 import ApplicationModal from './public/modals/ApplicationModal';
 // Assuming Job type is available or redefine a minimal one
 import { Job } from './public/types';
+import InactiveJobModal from './public/modals/InactiveJobModal';
 
 export const CandidateLanding = () => {
     const [jobCode, setJobCode] = useState('');
@@ -14,6 +15,7 @@ export const CandidateLanding = () => {
     const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
     const [selectedGroupType, setSelectedGroupType] = useState<'CLT' | 'FREELANCE' | null>(null);
     const [searchError, setSearchError] = useState('');
+    const [isInactiveJobModalOpen, setIsInactiveJobModalOpen] = useState(false);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,10 +24,11 @@ export const CandidateLanding = () => {
         setLoading(true);
         setSearchError('');
         setFoundJob(null);
+        setIsInactiveJobModalOpen(false); // Reset
 
         try {
             // Use RPC function to bypass RLS for hidden jobs and ensure consistent data retrieval
-            const { data, error } = await supabase
+            const { data: rpcData, error } = await supabase
                 .rpc('get_job_details_by_code', { search_code: jobCode })
                 .maybeSingle();
 
@@ -34,18 +37,16 @@ export const CandidateLanding = () => {
                 throw new Error('Erro ao buscar vaga. Tente novamente.');
             }
 
-            if (!data) {
+            if (!rpcData) {
                 throw new Error('Vaga não encontrada. Verifique o código.');
             }
 
+            const data = rpcData as any;
+
             // Check if job is active
             if (data.status !== 'active') {
-                // Scroll to WhatsApp groups
-                const groupsSection = document.getElementById('grupos-whatsapp');
-                if (groupsSection) {
-                    groupsSection.scrollIntoView({ behavior: 'smooth' });
-                }
-                throw new Error('Esta vaga encerrou o processo de seleção. Acesse nossos grupos para novas oportunidades!');
+                setIsInactiveJobModalOpen(true);
+                return; // Stop processing, modal controls the flow
             }
 
             // Robust JSON parser helper
@@ -93,7 +94,6 @@ export const CandidateLanding = () => {
             } as any;
 
             setFoundJob(mappedJob);
-
             setIsDetailModalOpen(true);
 
         } catch (err: any) {
@@ -285,7 +285,7 @@ export const CandidateLanding = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <a href={group.link} className="px-5 py-2.5 bg-[#25D366] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#128C7E] transition-colors shadow-lg shadow-green-500/20">
+                                            <a href={group.link} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-[#25D366] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#128C7E] transition-colors shadow-lg shadow-green-500/20">
                                                 Entrar
                                             </a>
                                         </div>
@@ -297,7 +297,6 @@ export const CandidateLanding = () => {
                 </div>
             </section>
 
-            {/* Modals */}
             {foundJob && (
                 <>
                     <JobDetailModal
@@ -319,6 +318,11 @@ export const CandidateLanding = () => {
                 </>
             )}
 
+            {/* Inactive Job Modal */}
+            <InactiveJobModal
+                isOpen={isInactiveJobModalOpen}
+                onClose={() => setIsInactiveJobModalOpen(false)}
+            />
         </div>
     );
 };

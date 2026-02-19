@@ -281,56 +281,28 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             const [day, month, year] = formData.birthDate.split('/');
             const dbBirthDate = `${year}-${month}-${day}`;
 
-            // 1. Upsert Candidate
+            // 1. Upsert Candidate via Secure RPC
             let currCandidateId = '';
 
-            const { data: existingCandidate, error: fetchError } = await supabase
-                .from('candidates')
-                .select('id')
-                .eq('email', formData.email)
-                .single();
+            const { data: rpcData, error: rpcError } = await supabase
+                .rpc('register_candidate', {
+                    p_name: formData.name,
+                    p_email: formData.email,
+                    p_phone: formattedPhone,
+                    p_city: formData.city,
+                    p_state: formData.state,
+                    p_sex: formData.sex,
+                    p_birth_date: dbBirthDate,
+                    p_cargo_principal: formData.mainRole,
+                    p_cargos_extras: formData.extraRoles.filter(r => r.trim() !== '')
+                });
 
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                console.error("Error checking candidate:", fetchError);
+            if (rpcError) {
+                console.error("Error registering candidate:", rpcError);
+                throw new Error('Falha ao cadastrar candidato via sistema seguro.');
             }
 
-            if (existingCandidate) {
-                currCandidateId = existingCandidate.id;
-                const { error: updateError } = await supabase
-                    .from('candidates')
-                    .update({
-                        name: formData.name,
-                        phone: formattedPhone,
-                        state: formData.state,
-                        sex: formData.sex,
-                        birth_date: dbBirthDate,
-                        cargo_principal: formData.mainRole,
-                        cargos_extras: formData.extraRoles.filter(r => r.trim() !== ''),
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', currCandidateId);
-
-                if (updateError) throw new Error('Falha ao atualizar dados do candidato.');
-            } else {
-                const { data: newCandidate, error: insertError } = await supabase
-                    .from('candidates')
-                    .insert({
-                        name: formData.name,
-                        email: formData.email,
-                        phone: formattedPhone,
-                        city: formData.city,
-                        state: formData.state,
-                        sex: formData.sex,
-                        birth_date: dbBirthDate,
-                        cargo_principal: formData.mainRole,
-                        cargos_extras: formData.extraRoles.filter(r => r.trim() !== '')
-                    })
-                    .select('id')
-                    .single();
-
-                if (insertError) throw new Error('Falha ao cadastrar candidato.');
-                currCandidateId = newCandidate.id;
-            }
+            currCandidateId = rpcData;
 
             setCandidateId(currCandidateId);
 
