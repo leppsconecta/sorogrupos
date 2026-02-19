@@ -6,6 +6,7 @@ import ApplicationModal from './public/modals/ApplicationModal';
 // Assuming Job type is available or redefine a minimal one
 import { Job } from './public/types';
 import InactiveJobModal from './public/modals/InactiveJobModal';
+import ReportModal from './public/modals/ReportModal';
 
 export const CandidateLanding = () => {
     const [jobCode, setJobCode] = useState('');
@@ -16,6 +17,7 @@ export const CandidateLanding = () => {
     const [selectedGroupType, setSelectedGroupType] = useState<'CLT' | 'FREELANCE' | null>(null);
     const [searchError, setSearchError] = useState('');
     const [isInactiveJobModalOpen, setIsInactiveJobModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -304,7 +306,7 @@ export const CandidateLanding = () => {
                         onClose={() => setIsDetailModalOpen(false)}
                         job={foundJob}
                         onApply={() => { setIsDetailModalOpen(false); setIsApplicationModalOpen(true); }}
-                        onReport={() => { }}
+                        onReport={() => { setIsDetailModalOpen(false); setIsReportModalOpen(true); }}
                         brandColor={(foundJob as any).companyData?.profile_header_color || '#1e293b'}
                     />
                     <ApplicationModal
@@ -314,6 +316,14 @@ export const CandidateLanding = () => {
                         jobOwnerId={(foundJob as any).ownerId}
                         jobId={foundJob.id}
                         companyId={(foundJob as any).companyId}
+                    />
+                    <ReportModal
+                        isOpen={isReportModalOpen}
+                        onClose={() => setIsReportModalOpen(false)}
+                        jobTitle={foundJob.title}
+                        userId={(foundJob as any).ownerId}
+                        jobCode={(foundJob as any).code}
+                        jobId={foundJob.id}
                     />
                 </>
             )}
