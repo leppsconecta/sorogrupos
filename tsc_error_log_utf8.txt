@@ -1,0 +1,2 @@
+﻿src/components/feedback/ConfirmModal.tsx(3,32): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+src/components/feedback/Toast.tsx(3,30): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.

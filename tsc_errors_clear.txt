@@ -1,0 +1,8 @@
+﻿src/components/modals/CandidateReviewModal.tsx(5,26): error TS2307: Cannot find module '../../../lib/supabase' or its corresponding type declarations.
+src/components/modals/JobEditModal.tsx(27,38): error TS2307: Cannot find module './OfficialWhatsAppIcon' or its corresponding type declarations.
+src/components/modals/ResumePreviewModal.tsx(6,26): error TS2307: Cannot find module '../../../lib/supabase' or its corresponding type declarations.
+src/components/modals/ResumePreviewModal.tsx(7,29): error TS2307: Cannot find module '../../../contexts/FeedbackContext' or its corresponding type declarations.
+src/components/public/modals/ApplicationModal.tsx(4,26): error TS2307: Cannot find module '../../../../lib/supabase' or its corresponding type declarations.
+src/pages/MinhaAgenda.tsx(2,34): error TS2307: Cannot find module '../components/UnderDevelopment' or its corresponding type declarations.
+src/pages/Perfil.tsx(43,49): error TS2307: Cannot find module '../components/public/types' or its corresponding type declarations.
+src/pages/PublicPage.tsx(19,49): error TS2307: Cannot find module '../components/public/types' or its corresponding type declarations.
