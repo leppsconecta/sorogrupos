@@ -31,16 +31,19 @@ import { supabase } from './lib/supabase';
 import { ResetPasswordModal } from './components/modals/ResetPasswordModal';
 import { OnboardingModal } from './components/modals/OnboardingModal';
 
-// ScrollToTop component to fix navigation starting at bottom/footer
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  return null;
-};
+// ScrollToTop removed as it's now handled within AppContent using a ref to the scrollable container.
 
 const AppContent: React.FC = () => {
+  const mainRef = React.useRef<HTMLElement>(null);
+  const location = useLocation();
+
+  // Scroll to top on pathname change
+  React.useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
+
   // Force HMR Update
   const { session, signOut, onboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
@@ -117,8 +120,6 @@ const AppContent: React.FC = () => {
     onOpenConnect: openConnectModal
   };
 
-  const location = useLocation();
-
   const dashboardPaths = [
     '/painel', '/anunciar', '/calendario',
     '/meuplano', '/suporte', '/configuracao', '/perfil',
@@ -169,7 +170,10 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        <main className={`flex-1 overflow-y-auto ${showDashboardUI ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}>
+        <main
+          ref={mainRef}
+          className={`flex-1 overflow-y-auto ${showDashboardUI ? 'p-4 md:p-6 lg:p-8 pb-24 lg:pb-8' : ''} custom-scrollbar`}
+        >
           <div className={showDashboardUI ? "w-full max-w-7xl mx-auto" : "w-full h-full"}>
             <React.Suspense fallback={
               <div className="flex h-full w-full items-center justify-center min-h-[50vh] text-slate-400 gap-3">
@@ -469,7 +473,6 @@ const App: React.FC = () => {
       <AuthProvider>
         <FeedbackProvider>
           <WhatsAppProvider>
-            <ScrollToTop />
             <AppContent />
           </WhatsAppProvider>
         </FeedbackProvider>

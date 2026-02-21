@@ -75,10 +75,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
   const [groupSearch, setGroupSearch] = useState('');
 
   // Lead Capture States
+  const [leadStep, setLeadStep] = useState(1);
   const [leadName, setLeadName] = useState('');
-  const [leadProfile, setLeadProfile] = useState<'empresa' | 'voluntario' | 'agencia' | ''>('');
+  const [leadProfile, setLeadProfile] = useState<'empresa' | 'voluntário' | 'agência' | ''>('');
   const [leadPhone, setLeadPhone] = useState('');
   const [leadEmail, setLeadEmail] = useState('');
+  const [candidateRole, setCandidateRole] = useState('');
+  const [additionalAreas, setAdditionalAreas] = useState<string[]>(['']);
   const [leadLoading, setLeadLoading] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -170,8 +173,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
     e.preventDefault();
     const phoneDigits = leadPhone.replace(/\D/g, '');
 
-    if (!leadName || !leadProfile || phoneDigits.length < 10 || !leadEmail || !selectedGroup) {
+    if (!leadName || (landingMode === 'EMP' && !leadProfile) || phoneDigits.length < 10 || !leadEmail || !selectedGroup) {
       alert("Preencha todos os campos corretamente.");
+      return;
+    }
+
+    if (landingMode === 'CAND' && !candidateRole) {
+      alert("Informe sua área de atuação.");
       return;
     }
 
@@ -185,12 +193,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
     try {
       const params = new URLSearchParams();
       params.append('name', leadName);
-      params.append('profile', leadProfile);
+      params.append('profile', landingMode === 'EMP' ? leadProfile : 'Candidato');
       params.append('phone', leadPhone);
       params.append('email', leadEmail);
       params.append('target_group', selectedGroup.nome_grupo);
       params.append('group_id', selectedGroup.id);
       params.append('date', new Date().toISOString());
+
+      if (landingMode === 'CAND') {
+        params.append('area_principal', candidateRole);
+        params.append('areas_adicionais', additionalAreas.filter(a => a.trim() !== '').join(', '));
+      }
 
       await fetch('https://webhook.leppsconecta.com.br/webhook/b3728120-3da1-4bf5-9a9d-91b177ba1ff8', {
         method: 'POST',
@@ -206,13 +219,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
 
       // Reset and close
       setIsLeadModalOpen(false);
+      setLeadStep(1);
       setLeadName('');
       setLeadProfile('');
       setLeadPhone('');
       setLeadEmail('');
-      // setGroupStep('type'); // Keep the step in the section
+      setCandidateRole('');
+      setAdditionalAreas(['']);
       setSelectedGroup(null);
-      // setSelectedGroupVinculo(null); // Keep the vinculo
     } catch (error) {
       console.error(error);
       alert("Erro ao processar lead. Tente novamente.");
@@ -771,34 +785,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
                 </div>
               </div>
             </section>
-
-            {/* WhatsApp CTA Section for EMP Mode (Simple - Igual ao Candidato) */}
-            <section id="grupos-whatsapp" className="py-10 md:py-16 px-6 md:px-12 lg:px-24 bg-[#25D366]">
-              <div className="max-w-3xl mx-auto text-center">
-                <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg rotate-3">
-                  <WhatsAppIcon size={40} className="text-white" />
-                </div>
-                <h2 className="text-3xl md:text-4xl font-black text-white mb-4 leading-tight">
-                  Milhares de candidatos esperando por você
-                </h2>
-                <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-                  Escolha a categoria para ver os grupos e anuncie sua vaga agora mesmo.
-                </p>
-
-                <button
-                  onClick={() => setIsGroupModalOpen(true)}
-                  className="inline-flex items-center gap-3 bg-white text-[#25D366] font-black text-sm uppercase tracking-widest px-8 py-4 rounded-2xl hover:bg-green-50 transition-all shadow-xl shadow-green-900/20 active:scale-95"
-                >
-                  <WhatsAppIcon size={20} />
-                  Ver Grupos
-                </button>
-              </div>
-            </section>
           </>
         ) : (
           <CandidateLanding />
         )
       }
+
+      {/* Unified WhatsApp CTA Section (CAND & EMP) */}
+      <section id="grupos-whatsapp" className="py-10 md:py-16 px-6 md:px-12 lg:px-24 bg-[#25D366]">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg rotate-3">
+            <WhatsAppIcon size={40} className="text-white" />
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-4 leading-tight">
+            {landingMode === 'EMP' ? 'Milhares de candidatos esperando por você' : 'Centenas de vagas diariamente te esperando!'}
+          </h2>
+          <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
+            Acesse nossos grupos oficiais e {landingMode === 'EMP' ? 'anuncie suas vagas agora mesmo.' : 'confira as melhores oportunidades.'}
+          </p>
+
+          <button
+            onClick={() => setIsGroupModalOpen(true)}
+            className="inline-flex items-center gap-3 bg-white text-[#25D366] font-black text-sm uppercase tracking-widest px-10 py-4 rounded-2xl hover:scale-105 transition-all shadow-xl shadow-green-900/20 active:scale-95"
+          >
+            <WhatsAppIcon size={20} />
+            Ver Grupos
+          </button>
+        </div>
+      </section>
 
       {/* Simplified Footer */}
       <footer className="bg-blue-950 text-white py-6 px-6 mt-auto">
@@ -1230,192 +1244,246 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
         </div>
       )}
 
-      {/* Group Selection Modal (Restaurado) */}
+      {/* Group Selection Modal (Simplified & Fast) */}
       {isGroupModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-blue-950/80 backdrop-blur-md" onClick={() => setIsGroupModalOpen(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-6 md:p-10 animate-scaleUp border border-slate-100 max-h-[90vh] flex flex-col">
+          <div className="absolute inset-0 bg-blue-950/40" onClick={() => setIsGroupModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-lg rounded-[2rem] shadow-2xl p-6 md:p-8 flex flex-col font-sans max-h-[90vh]">
             <button
               onClick={() => setIsGroupModalOpen(false)}
-              className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-600 transition-colors z-10"
+              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition-colors z-10"
             >
               <X size={24} />
             </button>
 
-            <div className="py-2 overflow-y-auto flex flex-col h-full">
-              <div className="text-center mb-8 pt-4 shrink-0">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3">
-                  <WhatsAppIcon size={12} /> Grupos de Vagas
-                </div>
-                <h4 className="text-2xl font-black text-blue-950 mb-2">Selecione a Categoria</h4>
-                <p className="text-slate-500 text-sm">Escolha onde deseja anunciar sua vaga</p>
-              </div>
+            <div className="text-center mb-6 pt-2 shrink-0">
+              <h4 className="text-xl text-blue-950 tracking-tight">Escolha a Categoria</h4>
+            </div>
 
-              {/* Categories Side-by-Side */}
-              <div className="grid grid-cols-2 gap-3 mb-8 px-2 shrink-0">
-                <button
-                  onClick={() => { setSelectedGroupVinculo('CLT'); }}
-                  className={`group p-4 rounded-3xl flex flex-col items-center gap-2 transition-all border-2 ${selectedGroupVinculo === 'CLT' ? 'border-green-500 bg-green-50 text-green-600 shadow-lg' : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedGroupVinculo === 'CLT' ? 'bg-green-100' : 'bg-white'}`}>
-                    <Briefcase size={20} className={selectedGroupVinculo === 'CLT' ? 'text-green-600' : 'text-slate-400'} />
-                  </div>
-                  <p className="font-black text-xs uppercase tracking-tight">Vagas CLT</p>
-                </button>
+            {/* Categories */}
+            <div className="grid grid-cols-2 gap-3 mb-6 px-1 shrink-0">
+              <button
+                onClick={() => { setSelectedGroupVinculo('CLT'); }}
+                className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all border ${selectedGroupVinculo === 'CLT' ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}
+              >
+                <Briefcase size={20} />
+                <p className="text-[10px] tracking-wide">Vagas CLT</p>
+              </button>
+              <button
+                onClick={() => { setSelectedGroupVinculo('FREELANCE'); }}
+                className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all border ${selectedGroupVinculo === 'FREELANCE' ? 'border-green-500 bg-green-50 text-green-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}
+              >
+                <Zap size={20} />
+                <p className="text-[10px] tracking-wide">Freelance</p>
+              </button>
+            </div>
 
-                <button
-                  onClick={() => { setSelectedGroupVinculo('FREELANCE'); }}
-                  className={`group p-4 rounded-3xl flex flex-col items-center gap-2 transition-all border-2 ${selectedGroupVinculo === 'FREELANCE' ? 'border-green-500 bg-green-50 text-green-600 shadow-lg' : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedGroupVinculo === 'FREELANCE' ? 'bg-green-100' : 'bg-white'}`}>
-                    <Zap size={20} className={selectedGroupVinculo === 'FREELANCE' ? 'text-green-600' : 'text-slate-400'} />
-                  </div>
-                  <p className="font-black text-xs uppercase tracking-tight text-center">Freelance & Bicos</p>
-                </button>
-              </div>
+            {/* Search */}
+            <div className="relative mb-4 px-1 shrink-0">
+              <Search size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" />
+              <input
+                type="text"
+                value={groupSearch}
+                onChange={e => setGroupSearch(e.target.value)}
+                placeholder="Pesquisar cidade..."
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800"
+              />
+            </div>
 
-              {/* Search Bar */}
-              <div className="relative mb-6 px-2 shrink-0">
-                <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={groupSearch}
-                  onChange={e => setGroupSearch(e.target.value)}
-                  placeholder="Pesquisar cidade ou nome do grupo..."
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-3xl text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800 placeholder:text-slate-300"
-                />
-              </div>
-
-              {/* Groups List */}
-              <div className="flex-1 overflow-y-auto space-y-3 px-2 pb-4 scrollbar-thin scrollbar-thumb-slate-200">
-                {groupsLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-xs font-bold uppercase tracking-widest">Carregando grupos...</p>
-                  </div>
-                ) : filteredGroups.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400">
-                    <MapPin size={40} className="mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium">Nenhum grupo encontrado.</p>
-                  </div>
-                ) : (
-                  filteredGroups.map(g => (
-                    <div key={g.id} className="bg-slate-50 p-4 rounded-3xl flex items-center justify-between hover:scale-[1.01] transition-all border border-transparent hover:border-slate-200">
+            {/* List */}
+            <div className="flex-1 overflow-y-auto space-y-2 px-1 pb-2">
+              {groupsLoading && filteredGroups.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-[10px] tracking-widest">Carregando...</div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-xs italic">Nenhum grupo encontrado.</div>
+              ) : (
+                <div className={`space-y-2 transition-opacity ${groupsLoading ? 'opacity-50' : 'opacity-100'}`}>
+                  {filteredGroups.map(g => (
+                    <div key={g.id} className="bg-slate-50 p-3 rounded-xl flex items-center justify-between border border-transparent hover:border-slate-200 transition-colors">
                       <div className="min-w-0 pr-2">
-                        <p className="font-bold text-blue-950 text-sm truncate">{g.nome_grupo}</p>
-                        <div className="flex items-center gap-3 mt-1 opacity-60">
-                          <span className="text-[10px] flex items-center gap-1 font-bold text-slate-500">
-                            <MapPin size={10} /> {g.cidade || 'Geral'}
-                          </span>
-                        </div>
+                        <p className="text-blue-950 text-xs truncate tracking-tight">{g.nome_grupo}</p>
+                        <p className="text-[9px] text-slate-400 leading-none mt-0.5">{g.cidade || 'Geral'}</p>
                       </div>
                       <button
                         onClick={() => {
                           setSelectedGroup(g);
                           setIsGroupModalOpen(false);
+                          setLeadStep(1);
                           setIsLeadModalOpen(true);
                         }}
-                        className="shrink-0 px-5 py-2.5 bg-[#25D366] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/20"
+                        className="shrink-0 px-4 py-2 bg-[#25D366] text-white text-[9px] rounded-lg hover:bg-green-600 transition-colors shadow-sm active:scale-95"
                       >
-                        Selecionar
+                        Entrar
                       </button>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Lead Capture Modal */}
+      {/* Lead Capture Modal (Simplified & Multi-step) */}
       {isLeadModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-blue-950/80 backdrop-blur-md" onClick={() => setIsLeadModalOpen(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-6 md:p-10 animate-scaleUp border border-slate-100 max-h-[90vh] flex flex-col">
+          <div className="absolute inset-0 bg-blue-950/40" onClick={() => setIsLeadModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-6 md:p-8 flex flex-col font-sans max-h-[95vh] overflow-y-auto">
             <button
               onClick={() => setIsLeadModalOpen(false)}
-              className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-600 transition-colors z-10"
+              className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X size={24} />
             </button>
 
-            <div className="py-2 overflow-y-auto">
-              <div className="text-center mb-8 pt-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3">
-                  <CheckCircle2 size={12} /> Quase lá!
-                </div>
-                <h4 className="text-2xl font-black text-blue-950 mb-2">Dados de Acesso</h4>
-                <p className="text-slate-500 text-sm">Preencha rapidamente para entrar no grupo<br /><span className="text-slate-800 font-bold">{selectedGroup?.nome_grupo}</span></p>
-              </div>
-
-              <form onSubmit={handleLeadSubmit} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu Nome</label>
-                  <input
-                    required
-                    type="text"
-                    value={leadName}
-                    onChange={e => setLeadName(e.target.value)}
-                    placeholder="Nome completo"
-                    className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800 font-semibold"
-                  />
+            {leadStep === 1 ? (
+              <div className="flex flex-col">
+                <div className="text-center mb-6 pt-2">
+                  <h4 className="text-xl text-blue-950 tracking-tight">Dados de Acesso</h4>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Você é:</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'empresa', label: 'Empresa', desc: 'Restaurante, mercado...' },
-                      { id: 'voluntario', label: 'Voluntário', desc: 'Anuncia grátis' },
-                      { id: 'agencia', label: 'Agência', desc: 'Recrutamento' }
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setLeadProfile(opt.id as any)}
-                        className={`p-3 rounded-2xl border-2 text-center transition-all flex flex-col items-center justify-center gap-1 ${leadProfile === opt.id ? 'border-green-500 bg-green-50' : 'border-slate-50 bg-slate-50 hover:border-slate-200'}`}
-                      >
-                        <span className={`text-[10px] font-black uppercase tracking-tight ${leadProfile === opt.id ? 'text-green-700' : 'text-slate-600'}`}>{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
-                  <input
-                    required
-                    type="text"
-                    inputMode="numeric"
-                    value={leadPhone}
-                    onChange={handleLeadPhoneChange}
-                    placeholder="(15) 9 9999-9999"
-                    className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800 font-semibold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Profissional</label>
-                  <input
-                    required
-                    type="email"
-                    value={leadEmail}
-                    onChange={e => setLeadEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    className="w-full bg-slate-50 border-none rounded-2xl px-6 py-3.5 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800 font-semibold"
-                  />
-                </div>
-
-                <button
-                  disabled={leadLoading}
-                  type="submit"
-                  className="w-full py-4 mt-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] shadow-xl shadow-green-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (landingMode === 'CAND') {
+                      setLeadStep(2);
+                    } else {
+                      handleLeadSubmit(e);
+                    }
+                  }}
+                  className="space-y-4"
                 >
-                  {leadLoading ? 'Processando...' : (<>Entrar no Grupo <ArrowRight size={18} /></>)}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-blue-950 ml-1">Nome</label>
+                    <input
+                      required
+                      type="text"
+                      value={leadName}
+                      onChange={e => setLeadName(e.target.value)}
+                      placeholder="Seu nome"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  {landingMode === 'EMP' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-blue-950 ml-1">Você é:</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'empresa', label: 'Empresa' },
+                          { id: 'voluntário', label: 'Voluntário' },
+                          { id: 'agência', label: 'Agência' }
+                        ].map(opt => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setLeadProfile(opt.id as any)}
+                            className={`py-2.5 rounded-xl border text-[10px] transition-all ${leadProfile === opt.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-100 bg-slate-50 text-slate-400'}`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-blue-950 ml-1">WhatsApp</label>
+                    <input
+                      required
+                      type="text"
+                      inputMode="numeric"
+                      value={leadPhone}
+                      onChange={handleLeadPhoneChange}
+                      placeholder="(15) 9 9999-9999"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-blue-950 ml-1">E-mail</label>
+                    <input
+                      required
+                      type="email"
+                      value={leadEmail}
+                      onChange={e => setLeadEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  <button
+                    disabled={leadLoading}
+                    type="submit"
+                    className="w-full py-4 mt-2 bg-[#25D366] text-white rounded-xl text-xs shadow-lg shadow-green-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                  >
+                    {landingMode === 'CAND' ? 'Próxima Etapa' : (leadLoading ? 'Processando...' : 'Entrar no Grupo')}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="flex flex-col">
+                <button
+                  onClick={() => setLeadStep(1)}
+                  className="inline-flex items-center gap-1 text-[10px] text-slate-400 mb-4 hover:text-blue-950 transition-colors w-fit"
+                >
+                  <ChevronLeft size={14} /> Voltar
                 </button>
-              </form>
-            </div>
+
+                <div className="text-center mb-6">
+                  <h4 className="text-xl text-blue-950 tracking-tight">Dados Profissionais</h4>
+                </div>
+
+                <form onSubmit={handleLeadSubmit} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-blue-950 ml-1">Em qual área procura emprego?</label>
+                    <input
+                      required
+                      type="text"
+                      value={candidateRole}
+                      onChange={e => setCandidateRole(e.target.value)}
+                      placeholder="Ex: Auxiliar Administrativo"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-blue-950 ml-1">Áreas Adicionais (opcional)</label>
+                    {additionalAreas.map((area, index) => (
+                      <input
+                        key={index}
+                        type="text"
+                        value={area}
+                        onChange={e => {
+                          const newAreas = [...additionalAreas];
+                          newAreas[index] = e.target.value;
+                          setAdditionalAreas(newAreas);
+                        }}
+                        placeholder={`Área extra ${index + 1}`}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-green-500 transition-all text-slate-800 mb-2"
+                      />
+                    ))}
+                    {additionalAreas.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setAdditionalAreas([...additionalAreas, ''])}
+                        className="text-[10px] text-blue-600 hover:underline ml-1"
+                      >
+                        + Adicionar outra área
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    disabled={leadLoading}
+                    type="submit"
+                    className="w-full py-4 mt-4 bg-[#25D366] text-white rounded-xl text-xs shadow-xl shadow-green-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                  >
+                    {leadLoading ? 'Processando...' : 'Entrar no Grupo'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}
