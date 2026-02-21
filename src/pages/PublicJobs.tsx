@@ -48,7 +48,10 @@ export const PublicJobs = () => {
             }
 
             if (searchTerm) {
-                query = query.or(`title.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,salary_range.ilike.%${searchTerm}%`);
+                const safeTerm = searchTerm.replace(/[%_(),]/g, '').trim();
+                if (safeTerm) {
+                    query = query.or(`title.ilike.%${safeTerm}%,code.ilike.%${safeTerm}%,city.ilike.%${safeTerm}%,salary_range.ilike.%${safeTerm}%`);
+                }
             }
 
             const { data: jobsData, error: jobsError } = await query;

@@ -25,10 +25,28 @@ export const AdvertiserOrientationModal: React.FC<AdvertiserOrientationModalProp
     const handleWhatsAppClick = () => {
         if (job.anunciante) {
             const phone = job.anunciante.replace(/\D/g, '');
-            const message = encodeURIComponent(`Olá tenho interesse nesta vaga\n*${job.title}*\nCód: *${job.code}*`);
+            const req = Array.isArray(job.requirements) ? job.requirements.join(', ') : (job.requirements || 'Não informado');
+            const ben = Array.isArray(job.benefits) ? job.benefits.join(', ') : (job.benefits || 'Não informado');
+            const act = Array.isArray(job.activities) ? job.activities.join(', ') : (job.activities || 'Não informado');
+            const message = encodeURIComponent(
+                `Olá, vi esta vaga na soroempregos.com e tenho interesse.
+----------------------
+Função: ${job.title}
+Cód. *Vaga: ${job.code || '---'}*
+-----------------------------
+*Vínculo:* ${job.type || 'Não informado'}
+*Empresa:* ${job.company || 'Não informado'}
+*Cidade/Bairro:* ${job.city || ''} - ${job.region || ''}
+*Requisitos:* ${req}
+*Benefícios:* ${ben}
+*Atividades:* ${act}
+*Salario:* ${job.salary || 'A combinar'}
+`
+            );
             window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
         }
     };
+
 
     const hasLink = !!job.application_link;
     const hasPhone = !!job.anunciante;
@@ -137,6 +155,13 @@ export const AdvertiserOrientationModal: React.FC<AdvertiserOrientationModalProp
                                 </button>
                             </div>
                         </div>
+                    )}
+
+                    {/* Advertiser credit */}
+                    {job.anunciante && (
+                        <p className="text-center text-xs text-slate-400 dark:text-slate-600 pt-2">
+                            Anunciante da vaga: <span className="font-medium">{job.anunciante}</span>
+                        </p>
                     )}
 
                 </div>

@@ -1,22 +1,58 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Briefcase, Zap, MapPin, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Briefcase, Zap, MapPin, Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+
+type GroupType = 'CLT' | 'FREELANCE';
+
+interface WhatsAppGroup {
+    id: string;
+    name_group: string;
+    link_invite: string;
+    description: string | null;
+    image: string | null;
+}
+
+const WaIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill={color}>
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+    </svg>
+);
 
 export const PublicGroups = () => {
-    const [selectedGroupType, setSelectedGroupType] = useState<'CLT' | 'FREELANCE' | null>(null);
+    const [selectedType, setSelectedType] = useState<GroupType | null>(null);
+    const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [citySearch, setCitySearch] = useState('');
 
-    // Mock Groups Data (To be replaced by DB or Config if needed)
-    const groupsCLT = [
-        { name: 'Vagas Sorocaba Oficial', location: 'Sorocaba e Região', link: '#' },
-        { name: 'Vagas Itu e Salto', location: 'Itu e Região', link: '#' },
-        { name: 'Empregos Araçoiaba', location: 'Araçoiaba e Região', link: '#' },
-        { name: 'Votorantim Vagas', location: 'Votorantim e Região', link: '#' },
-    ];
+    useEffect(() => {
+        if (!selectedType) return;
+        setLoading(true);
+        setCitySearch('');
 
-    const groupsFreelance = [
-        { name: 'Bicos & Freelance Sorocaba', location: 'Sorocaba e Região', link: '#' },
-        { name: 'Freelance SP Interior', location: 'Interior de SP', link: '#' },
-    ];
+        // Filter by name_group containing the type keyword as a fallback
+        // since the table doesn't have a dedicated type column yet
+        const keyword = selectedType === 'CLT' ? 'CLT' : 'Freelance';
+
+        supabase
+            .from('whatsapp_groups')
+            .select('id, name_group, link_invite, description, image')
+            .or(`name_group.ilike.%${keyword}%,description.ilike.%${keyword}%`)
+            .order('name_group', { ascending: true })
+            .then(({ data }) => {
+                setGroups((data as WhatsAppGroup[]) || []);
+                setLoading(false);
+            });
+    }, [selectedType]);
+
+    const filtered = groups.filter(g => {
+        if (citySearch.trim() === '') return true;
+        const search = citySearch.toLowerCase();
+        return (
+            g.name_group?.toLowerCase().includes(search) ||
+            g.description?.toLowerCase().includes(search)
+        );
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pt-20">
@@ -25,95 +61,116 @@ export const PublicGroups = () => {
                 <Link to="/" className="text-white hover:text-yellow-400 transition-colors flex items-center gap-2 font-bold uppercase tracking-widest text-xs">
                     <ArrowLeft size={16} /> Voltar
                 </Link>
-                <div className="flex-1 flex justify-center">
-                    <h1 className="text-xl font-bold text-white">Grupos de WhatsApp</h1>
-                </div>
-                <div className="w-16"></div> {/* Spacer for centering */}
             </header>
 
             <div className="max-w-4xl mx-auto px-6 py-12">
+
+                {/* Hero */}
                 <div className="text-center mb-10">
-                    <div className="w-16 h-16 bg-[#25D366] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30 rotate-3">
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="white">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
+                    <div className="w-20 h-20 bg-[#25D366] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30 rotate-3">
+                        <WaIcon size={36} color="white" />
                     </div>
-                    <p className="text-slate-500 max-w-2xl mx-auto">Selecione uma categoria para ver os grupos disponíveis.</p>
+                    <h2 className="text-2xl md:text-3xl font-black text-blue-950 mb-2">
+                        Escolha a categoria
+                    </h2>
+                    <p className="text-slate-500">
+                        Selecione o tipo de vaga para ver os grupos disponíveis.
+                    </p>
                 </div>
 
-                {!selectedGroupType ? (
-                    <div className="grid md:grid-cols-2 gap-8">
+                {/* Type selector tabs */}
+                <div className="flex gap-3 justify-center mb-10">
+                    {(['CLT', 'FREELANCE'] as GroupType[]).map(type => (
                         <button
-                            onClick={() => setSelectedGroupType('CLT')}
-                            className="group relative bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 hover:border-green-400 hover:shadow-2xl hover:shadow-green-500/10 transition-all text-left overflow-hidden"
+                            key={type}
+                            onClick={() => setSelectedType(type)}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 ${selectedType === type
+                                ? type === 'CLT'
+                                    ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20'
+                                    : 'bg-yellow-500 text-white border-yellow-500 shadow-lg shadow-yellow-500/20'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-green-400'
+                                }`}
                         >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-bl-[2.5rem] -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-                            <div className="p-4 bg-green-100 w-16 h-16 rounded-2xl flex items-center justify-center text-green-600 mb-6 relative z-10 group-hover:scale-110 transition-transform">
-                                <Briefcase size={32} />
-                            </div>
-                            <h3 className="text-2xl font-bold text-blue-950 mb-2 relative z-10">Vagas CLT</h3>
-                            <p className="text-slate-500 relative z-10">Oportunidades com registro em carteira, benefícios e estabilidade.</p>
-                            <div className="mt-8 flex items-center gap-2 text-green-600 font-bold uppercase text-sm tracking-wider group-hover:gap-4 transition-all">
-                                Ver Grupos <ArrowRight size={18} />
-                            </div>
+                            {type === 'CLT' ? <Briefcase size={18} /> : <Zap size={18} />}
+                            {type === 'CLT' ? 'Vagas CLT' : 'Freelance & Bicos'}
                         </button>
+                    ))}
+                </div>
 
-                        <button
-                            onClick={() => setSelectedGroupType('FREELANCE')}
-                            className="group relative bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 hover:border-green-400 hover:shadow-2xl hover:shadow-green-500/10 transition-all text-left overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-50 rounded-bl-[2.5rem] -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-                            <div className="p-4 bg-yellow-100 w-16 h-16 rounded-2xl flex items-center justify-center text-yellow-600 mb-6 relative z-10 group-hover:scale-110 transition-transform">
-                                <Zap size={32} />
-                            </div>
-                            <h3 className="text-2xl font-bold text-blue-950 mb-2 relative z-10">Freelance e Bicos</h3>
-                            <p className="text-slate-500 relative z-10">Trabalhos temporários, diárias e oportunidades autônomas.</p>
-                            <div className="mt-8 flex items-center gap-2 text-yellow-600 font-bold uppercase text-sm tracking-wider group-hover:gap-4 transition-all">
-                                Ver Grupos <ArrowRight size={18} />
-                            </div>
-                        </button>
+                {!selectedType && (
+                    <div className="text-center py-16 text-slate-400">
+                        <WaIcon size={48} color="#cbd5e1" />
+                        <p className="mt-4 font-medium">Selecione uma categoria acima para ver os grupos.</p>
                     </div>
-                ) : (
-                    <div className="animate-fadeIn">
-                        <button onClick={() => setSelectedGroupType(null)} className="mb-8 flex items-center gap-2 text-slate-500 hover:text-blue-950 transition-colors font-medium">
-                            <ArrowLeft size={20} /> Voltar para categorias
-                        </button>
+                )}
 
-                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className={`p-4 rounded-2xl ${selectedGroupType === 'CLT' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                                    {selectedGroupType === 'CLT' ? <Briefcase size={32} /> : <Zap size={32} />}
-                                </div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-blue-950">
-                                        {selectedGroupType === 'CLT' ? 'Grupos de Vagas CLT' : 'Grupos de Freelance & Bicos'}
-                                    </h3>
-                                    <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">
-                                        {selectedGroupType === 'CLT' ? 'Selecione sua região' : 'Encontre oportunidades rápidas'}
-                                    </p>
-                                </div>
+                {selectedType && (
+                    <div>
+                        {/* City / keyword search */}
+                        <div className="relative mb-6 max-w-md mx-auto">
+                            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                value={citySearch}
+                                onChange={e => setCitySearch(e.target.value)}
+                                placeholder="Pesquisar cidade ou nome do grupo..."
+                                className="w-full pl-11 pr-10 py-3 rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/20 text-slate-800 placeholder:text-slate-400 transition-all"
+                            />
+                            {citySearch && (
+                                <button onClick={() => setCitySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <X size={16} />
+                                </button>
+                            )}
+                        </div>
+
+                        {loading ? (
+                            <div className="text-center py-16 text-slate-400">
+                                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                <p className="font-medium">Carregando grupos...</p>
                             </div>
-
+                        ) : filtered.length === 0 ? (
+                            <div className="text-center py-16 text-slate-400">
+                                <MapPin size={40} className="mx-auto mb-3 opacity-40" />
+                                <p className="font-medium">
+                                    {citySearch ? `Nenhum grupo encontrado para "${citySearch}".` : 'Nenhum grupo disponível no momento.'}
+                                </p>
+                            </div>
+                        ) : (
                             <div className="grid md:grid-cols-2 gap-4">
-                                {(selectedGroupType === 'CLT' ? groupsCLT : groupsFreelance).map((group, i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-green-400 hover:bg-green-50/30 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white shadow-sm text-[#25D366] rounded-full flex items-center justify-center">
-                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.438 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
+                                {filtered.map(group => (
+                                    <div
+                                        key={group.id}
+                                        className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-green-400 hover:shadow-md hover:shadow-green-500/10 transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-11 h-11 bg-green-50 text-[#25D366] rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                                                {group.image ? (
+                                                    <img src={group.image} alt={group.name_group} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <WaIcon size={20} color="#25D366" />
+                                                )}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-slate-800 text-sm">{group.name}</p>
-                                                <div className="flex items-center gap-1 text-slate-400 text-xs">
-                                                    <MapPin size={12} /> {group.location}
-                                                </div>
+                                                <p className="font-bold text-slate-800 text-sm leading-tight">{group.name_group}</p>
+                                                {group.description && (
+                                                    <div className="flex items-center gap-1 text-slate-400 text-xs mt-0.5">
+                                                        <MapPin size={11} /> {group.description}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                        <a href={group.link} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-[#25D366] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#128C7E] transition-colors shadow-lg shadow-green-500/20">
+                                        <a
+                                            href={group.link_invite}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="ml-3 shrink-0 px-4 py-2 bg-[#25D366] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#128C7E] transition-colors shadow-md shadow-green-500/20"
+                                        >
                                             Entrar
                                         </a>
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>

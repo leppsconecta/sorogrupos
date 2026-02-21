@@ -1,6 +1,6 @@
 import React from 'react';
 import { Job } from '../../../types';
-import { JobContactActions } from '../JobContactActions';
+
 import { AdvertiserOrientationModal } from './AdvertiserOrientationModal';
 import {
     X,
@@ -167,15 +167,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                 </div>
             </div>
 
-            {/* Contact Actions Section */}
-            <div className="px-6 pb-2">
-                <JobContactActions
-                    whatsapp={(job as any).companyData?.whatsapp || (job as any).whatsapp}
-                    email={(job as any).companyData?.email || (job as any).email}
-                    address={(job as any).companyData?.address || (job as any).address}
-                    jobTitle={job.title}
-                />
-            </div>
+
 
             {/* Compact Footer */}
             {
@@ -191,8 +183,8 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                                 className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
                                 style={brandColor ? { backgroundColor: brandColor } : {}}
                             >
-                                {job.status_anunciante ? <MessageCircle size={16} /> : <Send size={16} />}
-                                {job.status_anunciante ? (job.anunciante || job.application_text || 'Candidatar-se') : 'Enviar Currículo'}
+                                <Send size={16} />
+                                Enviar Currículo
                             </button>
 
                             <button
@@ -225,13 +217,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                             </button>
                         </div>
 
-                        {job.status_anunciante && job.anunciante && (
-                            <div className="text-center">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Contato do anunciante: <span className="font-semibold text-slate-900 dark:text-white">{job.anunciante}</span>
-                                </span>
-                            </div>
-                        )}
+
                     </div>
                 )
             }

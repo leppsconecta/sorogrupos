@@ -28,7 +28,8 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         extraRoles: [] as string[]
     });
     const [verificationCode, setVerificationCode] = useState('');
-    const [generatedToken, setGeneratedToken] = useState('');
+    // NOTE: verification code is generated and validated server-side (Supabase RPC)
+    // It is NEVER stored in client state to prevent DevTools bypass.
     const [candidateId, setCandidateId] = useState('');
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +60,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             });
             setResumeFile(null);
             setVerificationCode('');
-            setGeneratedToken('');
+
             setCandidateId('');
             setError('');
             setTimeLeft(0);
@@ -268,9 +269,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         setIsSubmitting(true);
         setError('');
 
-        const code = Math.floor(1000 + Math.random() * 9000).toString();
-        setGeneratedToken(code);
-
         try {
             const cleanPhone = formData.phone.replace(/\D/g, '');
             const ddd = cleanPhone.substring(0, 2);
@@ -282,8 +280,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             const dbBirthDate = `${year}-${month}-${day}`;
 
             // 1. Upsert Candidate via Secure RPC
-            let currCandidateId = '';
-
             const { data: rpcData, error: rpcError } = await supabase
                 .rpc('register_candidate', {
                     p_name: formData.name,
@@ -297,37 +293,33 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                     p_cargos_extras: formData.extraRoles.filter(r => r.trim() !== '')
                 });
 
-            if (rpcError) {
-                console.error("Error registering candidate:", rpcError);
-                throw new Error('Falha ao cadastrar candidato via sistema seguro.');
-            }
+            if (rpcError) throw new Error('Falha ao cadastrar candidato via sistema seguro.');
 
-            currCandidateId = rpcData;
-
+            const currCandidateId = rpcData as string;
             setCandidateId(currCandidateId);
 
-            // 2. Send Webhook
-            const payload = {
-                type: 'solicita_codigo',
-                user_id: jobOwnerId,
-                job_id: jobId, // Reverted to job_id (lowercase) to fix 500 error
-                phone: formattedPhone,
-                code: code,
-                id_candidate: currCandidateId,
-                formato: '55+ddd+numero'
-            };
+            // 2. Generate verification code SERVER-SIDE (never stored in React state)
+            const { data: serverCode, error: codeError } = await supabase
+                .rpc('generate_verification_code', { p_candidate_id: currCandidateId });
 
-            console.log('Sending webhook payload:', payload);
+            if (codeError || !serverCode) throw new Error('Falha ao gerar código de verificação.');
 
+            // 3. Send Webhook with the server-generated code
             const response = await fetch('https://webhook.leppsconecta.com.br/webhook/1b3c5fe0-68c9-4c9f-b8b0-2afce5e08718', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    type: 'solicita_codigo',
+                    user_id: jobOwnerId,
+                    job_id: jobId,
+                    phone: formattedPhone,
+                    code: serverCode,   // server-generated — not stored in state
+                    id_candidate: currCandidateId,
+                    formato: '55+ddd+numero'
+                })
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Webhook failed:', response.status, errorText);
                 throw new Error(`Falha ao enviar solicitação: ${response.status}`);
             }
 
@@ -335,8 +327,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
             startTimer();
 
         } catch (error: any) {
-            console.error(error);
-            setError(error.message || "Erro ao enviar solicitação. Tente novamente.");
+            setError(error.message || 'Erro ao enviar solicitação. Tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -430,16 +421,23 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         setIsSubmitting(true);
 
         try {
-            // Client-side validation
-            if (verificationCode === generatedToken) {
+            // Server-side validation — code is checked in the database, never in React state
+            const { data: isValid, error: validateError } = await supabase
+                .rpc('validate_verification_code', {
+                    p_candidate_id: candidateId,
+                    p_code: verificationCode
+                });
+
+            if (validateError) throw new Error('Erro ao verificar código.');
+
+            if (isValid) {
                 await handleFinalSubmission();
             } else {
-                setError('Código incorreto.');
+                setError('Código incorreto ou expirado. Tente reenviar.');
                 setIsSubmitting(false);
             }
-        } catch (error) {
-            console.error(error);
-            setError("Erro ao validar código.");
+        } catch (error: any) {
+            setError(error.message || 'Erro ao validar código.');
             setIsSubmitting(false);
         }
     };
