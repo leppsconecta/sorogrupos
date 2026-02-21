@@ -16,6 +16,7 @@
             fadeIn: 'fadeIn 0.3s ease-out',
             scaleUp: 'scaleUp 0.2s ease-out',
             'pulse-scale': 'pulseScale 2s infinite',
+            'pulse-subtle': 'pulseSubtle 3s infinite',
           },
           keyframes: {
             fadeIn: {
@@ -29,6 +30,10 @@
             pulseScale: {
               '0%, 100%': { transform: 'scale(1)' },
               '50%': { transform: 'scale(1.03)' },
+            },
+            pulseSubtle: {
+              '0%, 100%': { transform: 'scale(1)', filter: 'brightness(1)' },
+              '50%': { transform: 'scale(1.05)', filter: 'brightness(1.1)' },
             }
           },
         },

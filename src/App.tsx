@@ -31,6 +31,15 @@ import { supabase } from './lib/supabase';
 import { ResetPasswordModal } from './components/modals/ResetPasswordModal';
 import { OnboardingModal } from './components/modals/OnboardingModal';
 
+// ScrollToTop component to fix navigation starting at bottom/footer
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 const AppContent: React.FC = () => {
   // Force HMR Update
   const { session, signOut, onboardingCompleted, user } = useAuth();
@@ -460,6 +469,7 @@ const App: React.FC = () => {
       <AuthProvider>
         <FeedbackProvider>
           <WhatsAppProvider>
+            <ScrollToTop />
             <AppContent />
           </WhatsAppProvider>
         </FeedbackProvider>

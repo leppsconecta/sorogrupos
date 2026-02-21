@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Briefcase, Zap, MapPin, Search, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, Zap, MapPin, Search, X, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-type GroupType = 'CLT' | 'FREELANCE';
+type Vinculo = 'CLT' | 'FREELANCE';
 
-interface WhatsAppGroup {
+interface Grupo {
     id: string;
-    name_group: string;
-    link_invite: string;
-    description: string | null;
-    image: string | null;
+    nome_grupo: string;
+    descricao_grupo: string | null;
+    vinculo: string | null;
+    categoria: string | null;
+    cidade: string | null;
+    total_participantes: number | null;
+    link_convite: string | null;
 }
 
 const WaIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
@@ -20,37 +23,35 @@ const WaIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: 
 );
 
 export const PublicGroups = () => {
-    const [selectedType, setSelectedType] = useState<GroupType | null>(null);
-    const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
+    const [selectedVinculo, setSelectedVinculo] = useState<Vinculo | null>(null);
+    const [grupos, setGrupos] = useState<Grupo[]>([]);
     const [loading, setLoading] = useState(false);
-    const [citySearch, setCitySearch] = useState('');
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
-        if (!selectedType) return;
+        if (!selectedVinculo) return;
         setLoading(true);
-        setCitySearch('');
-
-        // Filter by name_group containing the type keyword as a fallback
-        // since the table doesn't have a dedicated type column yet
-        const keyword = selectedType === 'CLT' ? 'CLT' : 'Freelance';
+        setSearch('');
 
         supabase
-            .from('whatsapp_groups')
-            .select('id, name_group, link_invite, description, image')
-            .or(`name_group.ilike.%${keyword}%,description.ilike.%${keyword}%`)
-            .order('name_group', { ascending: true })
+            .from('grupos')
+            .select('id, nome_grupo, descricao_grupo, vinculo, categoria, cidade, total_participantes, link_convite')
+            .eq('vinculo', selectedVinculo)
+            .eq('apoio', true)
+            .order('nome_grupo', { ascending: true })
             .then(({ data }) => {
-                setGroups((data as WhatsAppGroup[]) || []);
+                setGrupos((data as Grupo[]) || []);
                 setLoading(false);
             });
-    }, [selectedType]);
+    }, [selectedVinculo]);
 
-    const filtered = groups.filter(g => {
-        if (citySearch.trim() === '') return true;
-        const search = citySearch.toLowerCase();
+    const filtered = grupos.filter(g => {
+        if (search.trim() === '') return true;
+        const q = search.toLowerCase();
         return (
-            g.name_group?.toLowerCase().includes(search) ||
-            g.description?.toLowerCase().includes(search)
+            g.nome_grupo?.toLowerCase().includes(q) ||
+            g.cidade?.toLowerCase().includes(q) ||
+            g.descricao_grupo?.toLowerCase().includes(q)
         );
     });
 
@@ -78,46 +79,46 @@ export const PublicGroups = () => {
                     </p>
                 </div>
 
-                {/* Type selector tabs */}
+                {/* Vínculo selector */}
                 <div className="flex gap-3 justify-center mb-10">
-                    {(['CLT', 'FREELANCE'] as GroupType[]).map(type => (
+                    {(['CLT', 'FREELANCE'] as Vinculo[]).map(v => (
                         <button
-                            key={type}
-                            onClick={() => setSelectedType(type)}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 ${selectedType === type
-                                ? type === 'CLT'
-                                    ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20'
-                                    : 'bg-yellow-500 text-white border-yellow-500 shadow-lg shadow-yellow-500/20'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-green-400'
+                            key={v}
+                            onClick={() => setSelectedVinculo(v)}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 ${selectedVinculo === v
+                                    ? v === 'CLT'
+                                        ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20'
+                                        : 'bg-yellow-500 text-white border-yellow-500 shadow-lg shadow-yellow-500/20'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-green-400'
                                 }`}
                         >
-                            {type === 'CLT' ? <Briefcase size={18} /> : <Zap size={18} />}
-                            {type === 'CLT' ? 'Vagas CLT' : 'Freelance & Bicos'}
+                            {v === 'CLT' ? <Briefcase size={18} /> : <Zap size={18} />}
+                            {v === 'CLT' ? 'Vagas CLT' : 'Freelance & Bicos'}
                         </button>
                     ))}
                 </div>
 
-                {!selectedType && (
+                {!selectedVinculo && (
                     <div className="text-center py-16 text-slate-400">
                         <WaIcon size={48} color="#cbd5e1" />
                         <p className="mt-4 font-medium">Selecione uma categoria acima para ver os grupos.</p>
                     </div>
                 )}
 
-                {selectedType && (
+                {selectedVinculo && (
                     <div>
-                        {/* City / keyword search */}
+                        {/* Search */}
                         <div className="relative mb-6 max-w-md mx-auto">
                             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
-                                value={citySearch}
-                                onChange={e => setCitySearch(e.target.value)}
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
                                 placeholder="Pesquisar cidade ou nome do grupo..."
                                 className="w-full pl-11 pr-10 py-3 rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/20 text-slate-800 placeholder:text-slate-400 transition-all"
                             />
-                            {citySearch && (
-                                <button onClick={() => setCitySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            {search && (
+                                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                                     <X size={16} />
                                 </button>
                             )}
@@ -132,35 +133,40 @@ export const PublicGroups = () => {
                             <div className="text-center py-16 text-slate-400">
                                 <MapPin size={40} className="mx-auto mb-3 opacity-40" />
                                 <p className="font-medium">
-                                    {citySearch ? `Nenhum grupo encontrado para "${citySearch}".` : 'Nenhum grupo disponível no momento.'}
+                                    {search
+                                        ? `Nenhum grupo encontrado para "${search}".`
+                                        : 'Nenhum grupo disponível no momento.'}
                                 </p>
                             </div>
                         ) : (
                             <div className="grid md:grid-cols-2 gap-4">
-                                {filtered.map(group => (
+                                {filtered.map(g => (
                                     <div
-                                        key={group.id}
+                                        key={g.id}
                                         className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-green-400 hover:shadow-md hover:shadow-green-500/10 transition-all"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-11 h-11 bg-green-50 text-[#25D366] rounded-full flex items-center justify-center shrink-0 overflow-hidden">
-                                                {group.image ? (
-                                                    <img src={group.image} alt={group.name_group} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <WaIcon size={20} color="#25D366" />
-                                                )}
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-11 h-11 bg-green-50 rounded-full flex items-center justify-center shrink-0">
+                                                <WaIcon size={20} color="#25D366" />
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-slate-800 text-sm leading-tight">{group.name_group}</p>
-                                                {group.description && (
-                                                    <div className="flex items-center gap-1 text-slate-400 text-xs mt-0.5">
-                                                        <MapPin size={11} /> {group.description}
-                                                    </div>
-                                                )}
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-800 text-sm leading-tight truncate">{g.nome_grupo}</p>
+                                                <div className="flex items-center gap-3 mt-0.5">
+                                                    {g.cidade && (
+                                                        <span className="flex items-center gap-1 text-slate-400 text-xs">
+                                                            <MapPin size={11} /> {g.cidade}
+                                                        </span>
+                                                    )}
+                                                    {g.total_participantes != null && (
+                                                        <span className="flex items-center gap-1 text-slate-400 text-xs">
+                                                            <Users size={11} /> {g.total_participantes}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <a
-                                            href={group.link_invite}
+                                            href={g.link_convite ?? '#'}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="ml-3 shrink-0 px-4 py-2 bg-[#25D366] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#128C7E] transition-colors shadow-md shadow-green-500/20"
