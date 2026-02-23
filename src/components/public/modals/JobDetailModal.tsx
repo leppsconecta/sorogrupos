@@ -179,7 +179,7 @@ export const JobDetailContent: React.FC<JobDetailContentProps> = ({
                     <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={job.status_anunciante ? () => setShowAdvertiserModal(true) : onApply}
+                                onClick={onApply}
                                 className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
                                 style={brandColor ? { backgroundColor: brandColor } : {}}
                             >

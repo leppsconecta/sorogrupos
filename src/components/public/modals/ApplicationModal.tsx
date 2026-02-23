@@ -10,11 +10,13 @@ interface ApplicationModalProps {
     jobOwnerId: string;
     jobId: string;
     companyId: string; // Added companyId prop
+    isAdvertiser?: boolean;
+    advertiserCta?: string;
 }
 
 type Step = 'contact_info' | 'personal_info' | 'professional_info' | 'verification' | 'success';
 
-const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId, companyId }) => {
+const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jobTitle, jobOwnerId, jobId, companyId, isAdvertiser, advertiserCta }) => {
     const [step, setStep] = useState<Step>('contact_info');
     const [formData, setFormData] = useState({
         name: '',
@@ -462,6 +464,80 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
         }
     };
 
+    const renderAdvertiserCta = () => {
+        if (!advertiserCta) return null;
+
+        const emailMatch = advertiserCta.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+        const phoneMatch = advertiserCta.match(/(\+?\d{1,3}[\s-]?)?\(?\d{2}\)?[\s-]?\d{4,5}[\s-]?\d{4}/);
+        // Basic heuristic for address: assuming if it's not just an email/phone, it might have an address part or just be text
+        const hasEmail = !!emailMatch;
+        const hasPhone = !!phoneMatch;
+        const email = emailMatch ? emailMatch[0] : '';
+        const phone = phoneMatch ? phoneMatch[0].replace(/\D/g, '') : '';
+
+        const handleCopy = (text: string, type: string) => {
+            navigator.clipboard.writeText(text);
+            alert(`${type} copiado para a área de transferência!`); // Simple feedback, could use toast
+        };
+
+        return (
+            <div className="flex flex-col items-center text-center space-y-6 animate-fadeIn py-4">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-inner">
+                    <Briefcase size={32} />
+                </div>
+
+                <h3 className="text-xl font-bold text-slate-800">Candidatar-se a esta vaga</h3>
+
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 w-full text-left space-y-4">
+                    <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                        {advertiserCta}
+                    </p>
+                </div>
+
+                <div className="w-full space-y-3">
+                    {hasPhone && (
+                        <a
+                            href={`https://wa.me/${phone}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-3.5 rounded-xl bg-green-600 text-white font-bold tracking-wide shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all flex items-center justify-center gap-2 text-sm"
+                        >
+                            <Phone size={18} /> Contatar via WhatsApp
+                        </a>
+                    )}
+
+                    {hasEmail && (
+                        <button
+                            onClick={() => handleCopy(email, 'E-mail')}
+                            className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold tracking-wide shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
+                        >
+                            <MessageCircle size={18} /> Copiar E-mail
+                        </button>
+                    )}
+
+                    {!hasEmail && !hasPhone && advertiserCta.length > 20 && (
+                        <div className="flex gap-2 w-full">
+                            <button
+                                onClick={() => handleCopy(advertiserCta, 'Endereço/Texto')}
+                                className="flex-1 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm"
+                            >
+                                Copiar Endereço
+                            </button>
+                            <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(advertiserCta)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-3.5 rounded-xl bg-blue-600 text-white font-bold shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
+                            >
+                                <MapPin size={18} /> Ver no Mapa
+                            </a>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
             <div
@@ -475,7 +551,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                 <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-white relative">
                     <div className="pr-8 w-full">
                         <div className="flex items-center gap-2 mb-2">
-                            {(step === 'personal_info' || step === 'professional_info') && (
+                            {(!isAdvertiser && (step === 'personal_info' || step === 'professional_info')) && (
                                 <button
                                     onClick={() => {
                                         if (step === 'personal_info') setStep('contact_info');
@@ -487,11 +563,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                                 </button>
                             )}
                             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                {step === 'verification' ? <Lock size={20} className="text-blue-600" /> : <Send size={20} className="text-blue-600" />}
-                                {getStepTitle()}
+                                {isAdvertiser ? <Briefcase size={20} className="text-blue-600" /> : step === 'verification' ? <Lock size={20} className="text-blue-600" /> : <Send size={20} className="text-blue-600" />}
+                                {isAdvertiser ? 'Instruções da Vaga' : getStepTitle()}
                             </h2>
                         </div>
-                        {step !== 'success' && (
+                        {(!isAdvertiser && step !== 'success') && (
                             <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
                                 <div
                                     className="h-full bg-blue-600 transition-all duration-500 ease-out"
@@ -508,7 +584,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ isOpen, onClose, jo
                     </button>
                 </div>
 
-                {step === 'success' ? (
+                {isAdvertiser ? (
+                    <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                        {renderAdvertiserCta()}
+                    </div>
+                ) : step === 'success' ? (
                     <div className="w-full text-center py-12 px-10 flex flex-col items-center">
                         <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
                             <CheckCircle size={40} />

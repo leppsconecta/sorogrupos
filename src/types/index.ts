@@ -131,6 +131,7 @@ export interface Job {
     schedule?: string;
     anunciante?: string;
     status_anunciante?: boolean;
+    cta_anunciante?: string;
     application_link?: string;
     application_text?: string;
 }

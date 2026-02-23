@@ -100,6 +100,7 @@ export const PublicJobs = () => {
                     companyData: company,
                     anunciante: j.anunciante,
                     status_anunciante: j.status_anunciante,
+                    cta_anunciante: j.cta_anunciante,
                     application_link: j.application_link,
                     application_text: j.application_text
                 };
@@ -253,6 +254,8 @@ export const PublicJobs = () => {
                         jobOwnerId={(selectedJob as any).ownerId}
                         jobId={selectedJob.id}
                         companyId={(selectedJob as any).companyId}
+                        isAdvertiser={!!(selectedJob as any).status_anunciante}
+                        advertiserCta={(selectedJob as any).cta_anunciante}
                     />
                     <ReportModal
                         isOpen={isReportModalOpen}
