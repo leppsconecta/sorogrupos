@@ -245,7 +245,7 @@ Cód. Vaga: *${code}*
                 city: jobDraft.city,
                 region: jobDraft.region,
                 job_type: jobDraft.type === 'file' ? 'image' : 'text', // Mapping back to DB enum
-                employment_type: jobDraft.bond === 'CLT ( Fixo )' ? 'CLT' : jobDraft.bond, // Mapping back
+                employment_type: jobDraft.bond === 'CLT ( Fixo )' ? 'CLT' : jobDraft.bond === 'Estágio' ? 'Estágio' : jobDraft.bond, // Mapping back
                 requirements: jobDraft.requirements,
                 benefits: jobDraft.benefits,
                 activities: jobDraft.activities,
@@ -542,6 +542,7 @@ Cód. Vaga: *${code}*
                                                 <option value="Pessoa Jurídica">Pessoa Jurídica</option>
                                                 <option value="Freelance">Freelance</option>
                                                 <option value="Temporário">Temporário</option>
+                                                <option value="Estágio">Estágio</option>
                                             </select>
                                             <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
                                                 <ChevronDown size={14} />

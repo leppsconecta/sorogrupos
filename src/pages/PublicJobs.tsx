@@ -36,10 +36,13 @@ export const PublicJobs = () => {
             const from = currentPage * JOBS_PER_PAGE;
             const to = from + JOBS_PER_PAGE - 1;
 
+            const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
             let query = supabase
                 .from('jobs')
                 .select('*')
                 .eq('status', 'active')
+                .gte('created_at', fortyEightHoursAgo)
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
@@ -50,7 +53,7 @@ export const PublicJobs = () => {
             if (searchTerm) {
                 const safeTerm = searchTerm.replace(/[%_(),]/g, '').trim();
                 if (safeTerm) {
-                    query = query.or(`title.ilike.%${safeTerm}%,code.ilike.%${safeTerm}%,city.ilike.%${safeTerm}%,salary_range.ilike.%${safeTerm}%`);
+                    query = query.or(`title.ilike.%${safeTerm}%,code.ilike.%${safeTerm}%,city.ilike.%${safeTerm}%,region.ilike.%${safeTerm}%,employment_type.ilike.%${safeTerm}%,salary_range.ilike.%${safeTerm}%`);
                 }
             }
 
@@ -84,7 +87,7 @@ export const PublicJobs = () => {
                     city: j.city,
                     region: j.state || 'SP',
                     schedule: j.work_schedule || 'Horário a combinar',
-                    type: j.employment_type === 'CLT' ? 'CLT' : j.employment_type === 'PJ' ? 'PJ' : 'Freelance',
+                    type: j.employment_type === 'CLT' ? 'CLT' : j.employment_type === 'PJ' ? 'PJ' : j.employment_type === 'Estágio' ? 'Estágio' : 'Freelance',
                     salary: j.salary_range ? `R$ ${j.salary_range}` : undefined,
                     postedAt: new Date(j.created_at).toLocaleDateString(),
                     description: j.description || j.observation || '',
@@ -159,7 +162,7 @@ export const PublicJobs = () => {
                         Conectando talentos ao <span className="text-yellow-400">futuro</span>
                     </h1>
                     <p className="text-blue-200/80 font-medium text-sm uppercase tracking-widest mb-8">
-                        Vagas atualizadas todos os dias às 00:00
+                        Vagas dos últimos 2 dias
                     </p>
 
                     {/* Search & Filter Bar */}
@@ -175,7 +178,7 @@ export const PublicJobs = () => {
                             />
                         </div>
                         <div className="flex p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar md:overflow-visible">
-                            {['Todos', 'CLT', 'PJ', 'Freelance'].map((type) => (
+                            {['Todos', 'CLT', 'PJ', 'Freelance', 'Estágio'].map((type) => (
                                 <button
                                     key={type}
                                     onClick={() => setFilterType(type as any)}

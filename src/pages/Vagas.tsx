@@ -100,6 +100,7 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingJob, setViewingJob] = useState<Vaga | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterBond, setFilterBond] = useState<string>('Todos');
 
   const [jobCreationStep, setJobCreationStep] = useState<'selection' | 'form' | 'upload' | 'preview'>('selection');
 
@@ -240,7 +241,9 @@ export const Vagas: React.FC<VagasProps> = ({ initialJobId, onClearTargetJob }) 
     if (filterStatus === 'active') matchesFilter = vaga.status === 'Ativa';
     if (filterStatus === 'inactive') matchesFilter = vaga.status === 'Pausada';
 
-    return matchesFolder && matchesSearch && matchesFilter;
+    const matchesBond = filterBond === 'Todos' || vaga.bond === filterBond;
+
+    return matchesFolder && matchesSearch && matchesFilter && matchesBond;
   });
 
   // Carregar dados (Empresas, Setores, Vagas)
@@ -603,7 +606,7 @@ Cód. Vaga: *${code}*
         function: jobDraft.role,
         company_name: jobDraft.companyName,
         hide_company: jobDraft.hideCompany,
-        employment_type: jobDraft.bond === 'CLT ( Fixo )' ? 'CLT' : jobDraft.bond === 'Pessoa Jurídica' ? 'PJ' : jobDraft.bond,
+        employment_type: jobDraft.bond === 'CLT ( Fixo )' ? 'CLT' : jobDraft.bond === 'Pessoa Jurídica' ? 'PJ' : jobDraft.bond === 'Estágio' ? 'Estágio' : jobDraft.bond,
         city: jobDraft.city,
         region: jobDraft.region,
         activities: jobDraft.activities,
@@ -1209,6 +1212,25 @@ Cód. Vaga: *${code}*
                 </button>
               </div>
 
+              {/* Filter Bond Select */}
+              <div className="relative">
+                <select
+                  value={filterBond}
+                  onChange={(e) => setFilterBond(e.target.value)}
+                  className="appearance-none bg-slate-100 dark:bg-slate-800 border-none rounded-xl pl-3 pr-8 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 outline-none transition-all cursor-pointer h-full"
+                >
+                  <option value="Todos">Vínculo: Todos</option>
+                  <option value="CLT">CLT</option>
+                  <option value="PJ">PJ</option>
+                  <option value="Freelance">Freelance</option>
+                  <option value="Temporário">Temporário</option>
+                  <option value="Estágio">Estágio</option>
+                </select>
+                <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400">
+                  <ChevronDown size={12} />
+                </div>
+              </div>
+
               <div className={`relative transition-all duration-300 ease-out ${isSearchExpanded ? 'flex-1' : 'w-10 sm:w-64'}`}>
                 {/* Mobile Trigger (Visible when collapsed on Mobile) */}
                 <button
@@ -1535,6 +1557,7 @@ Cód. Vaga: *${code}*
                               <option value="Pessoa Jurídica">Pessoa Jurídica</option>
                               <option value="Freelance">Freelance</option>
                               <option value="Temporário">Temporário</option>
+                              <option value="Estágio">Estágio</option>
                             </select>
                             <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
                               <ChevronDown size={14} />

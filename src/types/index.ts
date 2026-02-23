@@ -117,7 +117,7 @@ export interface Job {
     title: string;
     company?: string;
     location?: string;
-    type?: 'CLT' | 'Freelance' | 'PJ';
+    type?: 'CLT' | 'Freelance' | 'PJ' | 'Estágio';
     salary?: string;
     postedAt?: string;
     description?: string;
@@ -139,7 +139,8 @@ export enum FilterType {
     ALL = 'Todos',
     CLT = 'CLT',
     FREELANCE = 'Freelance',
-    PJ = 'PJ'
+    PJ = 'PJ',
+    ESTAGIO = 'Estágio'
 }
 
 export interface CompanyProfile {
