@@ -98,7 +98,8 @@ export const Perfil: React.FC = () => {
         instagram: '',
         facebook: '',
         linkedin: '',
-        is_public_active: true
+        is_public_active: true,
+        type_business: 'empresa' as 'agencia' | 'empresa'
     });
 
     const { updateCompany } = useAuth();
@@ -183,7 +184,8 @@ export const Perfil: React.FC = () => {
                 instagram: company.instagram || '',
                 facebook: company.facebook || '',
                 linkedin: company.linkedin || '',
-                is_public_active: company.is_public_active ?? true
+                is_public_active: company.is_public_active ?? true,
+                type_business: company.type_business || 'empresa'
             });
             fetchJobs();
         }
@@ -257,6 +259,7 @@ export const Perfil: React.FC = () => {
                     facebook: formData.facebook,
                     linkedin: formData.linkedin,
                     is_public_active: formData.is_public_active,
+                    type_business: formData.type_business,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', company.id);

@@ -19,7 +19,8 @@ import {
   Shield,
   Zap,
   Camera,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
@@ -242,7 +243,8 @@ export const Configuracao: React.FC = () => {
     complement: company?.complement || '',
     neighborhood: company?.neighborhood || '',
     city: company?.city || '',
-    state: company?.state || ''
+    state: company?.state || '',
+    type_business: company?.type_business || 'empresa'
   });
 
   const [loadingCep, setLoadingCep] = useState(false);
@@ -292,7 +294,8 @@ export const Configuracao: React.FC = () => {
         complement: company.complement || '',
         neighborhood: company.neighborhood || '',
         city: company.city || '',
-        state: company.state || ''
+        state: company.state || '',
+        type_business: company.type_business || 'empresa'
       }));
 
     }
@@ -408,6 +411,7 @@ export const Configuracao: React.FC = () => {
         state: formDataCompany.state,
 
         linkedin: formatLinkedinSave(formDataCompany.linkedin),
+        type_business: formDataCompany.type_business,
         updated_at: new Date().toISOString()
       };
 
@@ -602,7 +606,7 @@ export const Configuracao: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
                 <InputField
                   label="Nome da Empresa"
                   icon={Building2}
@@ -618,7 +622,29 @@ export const Configuracao: React.FC = () => {
                   onChange={(e: any) => setFormDataCompany({ ...formDataCompany, cnpj: e.target.value })}
                 />
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Perfil</span>
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                      <User size={18} />
+                    </div>
+                    <select
+                      value={formDataCompany.type_business}
+                      onChange={(e) => setFormDataCompany({ ...formDataCompany, type_business: e.target.value as any })}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-5 py-3.5 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="empresa">Empresa</option>
+                      <option value="agencia">Agência de empregos</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                      <ChevronDown size={18} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <div className="md:col-span-2 mb-2">
                     <h4 className="text-sm font-bold text-slate-700 dark:text-white flex items-center gap-2">
                       <Phone size={16} className="text-blue-500" /> Contato Comercial
@@ -643,7 +669,7 @@ export const Configuracao: React.FC = () => {
                   />
                 </div>
 
-                <div className="md:col-span-2 space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="md:col-span-3 space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                   <h4 className="text-sm font-bold text-slate-700 dark:text-white flex items-center gap-2">
                     <MapPin size={16} className="text-blue-500" /> Endereço da Empresa
                   </h4>
@@ -730,7 +756,7 @@ export const Configuracao: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
+              <div className="md:col-span-3 pt-8 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-6">
                   <h4 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
                     <Globe size={16} /> Redes Sociais e Site

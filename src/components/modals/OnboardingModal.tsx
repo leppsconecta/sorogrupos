@@ -35,6 +35,7 @@ export const OnboardingModal: React.FC = () => {
     const [companyNeighborhood, setCompanyNeighborhood] = useState('');
     const [companyCity, setCompanyCity] = useState('');
     const [companyState, setCompanyState] = useState('');
+    const [businessType, setBusinessType] = useState<'agencia' | 'empresa' | ''>('');
 
     const [loadingCep, setLoadingCep] = useState(false);
 
@@ -156,8 +157,8 @@ export const OnboardingModal: React.FC = () => {
             return;
         }
 
-        if (!fullName || !personalPhone || !companyName || !companyEmail || !companyPhone || !companyCep) {
-            setError('Preencha os campos obrigatórios (Perfil e Empresa).');
+        if (!fullName || !personalPhone || !companyName || !companyEmail || !companyPhone || !companyCep || !businessType) {
+            setError('Preencha os campos obrigatórios (Perfil, Empresa e Tipo de Perfil).');
             return;
         }
 
@@ -190,6 +191,7 @@ export const OnboardingModal: React.FC = () => {
                         name: companyName,
                         email: companyEmail,
                         whatsapp: dbCompanyPhone,
+                        type_business: businessType,
                         zip_code: companyCep.replace(/\D/g, ''),
                         cep: companyCep,
                         address: companyAddress,
@@ -377,6 +379,32 @@ export const OnboardingModal: React.FC = () => {
                             <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest flex items-center gap-2 mb-2 border-b border-slate-100 pb-2 pt-2">
                                 <Building size={14} /> Dados da Empresa
                             </h3>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Tipo perfil</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBusinessType('agencia')}
+                                        className={`py-3 px-4 rounded-xl text-sm font-bold transition-all border-2 flex items-center justify-center gap-2 ${businessType === 'agencia'
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                            : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200'
+                                            }`}
+                                    >
+                                        Agência de empregos
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBusinessType('empresa')}
+                                        className={`py-3 px-4 rounded-xl text-sm font-bold transition-all border-2 flex items-center justify-center gap-2 ${businessType === 'empresa'
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                            : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200'
+                                            }`}
+                                    >
+                                        Empresa
+                                    </button>
+                                </div>
+                            </div>
 
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">Nome da Empresa</label>

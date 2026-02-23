@@ -22,6 +22,7 @@ export interface Company {
     email: string | null;
     whatsapp: string | null;
     linkedin: string | null;
+    type_business: 'agencia' | 'empresa';
     created_at: string;
     updated_at: string;
 }
@@ -164,6 +165,7 @@ export interface CompanyProfile {
     facebook?: string;
     linkedin?: string;
     is_public_active?: boolean;
+    type_business?: 'agencia' | 'empresa';
 }
 
 export interface UserProfile {

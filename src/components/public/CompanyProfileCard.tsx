@@ -294,7 +294,7 @@ const CompanyProfileCard: React.FC<CompanyProfileCardProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-1 justify-center lg:justify-start bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider w-fit border border-blue-100 mx-auto lg:mx-0 mt-1">
-                            <BadgeCheck size={12} strokeWidth={3} /> Empresa Verificada
+                            <BadgeCheck size={12} strokeWidth={3} /> {company.type_business === 'agencia' ? 'Agência de Empregos' : 'Empresa'} Verificada
                         </div>
                     </div>
 
