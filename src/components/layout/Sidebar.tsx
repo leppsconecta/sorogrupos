@@ -20,7 +20,9 @@ import {
   Pin,
   PinOff,
   Menu,
-  LogOut
+  LogOut,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -60,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
   // State
   const [isExpanded, setIsExpanded] = useState(true);
   const [newCandidatesTotal, setNewCandidatesTotal] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -140,6 +143,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
       if (timerRef.current) clearTimeout(timerRef.current);
     } else {
       resetTimer();
+    }
+  };
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (company?.short_id) {
+      navigator.clipboard.writeText(company.short_id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -285,6 +298,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCreateGroup, theme, toggleTh
             <div className="overflow-hidden flex-1">
               <p className="text-base font-bold text-white group-hover:text-blue-200 transition-colors">Configurações</p>
               <p className="text-xs text-blue-300/70 truncate font-mono">{user?.email}</p>
+              {company?.short_id && (
+                <div
+                  className="flex items-center gap-1.5 mt-1 cursor-pointer group/copy"
+                  onClick={handleCopyId}
+                  title="Copiar ID"
+                >
+                  <p className="text-[10px] text-blue-300/50 font-mono tracking-wider group-hover/copy:text-blue-300 transition-colors">
+                    ID: {company.short_id}
+                  </p>
+                  {copied ? (
+                    <Check size={10} className="text-green-400" />
+                  ) : (
+                    <Copy size={10} className="text-blue-300/30 group-hover/copy:text-blue-300 transition-colors" />
+                  )}
+                </div>
+              )}
             </div>
           )}
         </Link>

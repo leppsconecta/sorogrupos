@@ -11,6 +11,7 @@ export interface Profile {
 export interface Company {
     id: string;
     owner_id: string;
+    short_id?: string | null;
     name: string;
     cnpj: string | null;
     // address removed

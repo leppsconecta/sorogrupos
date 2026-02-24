@@ -20,6 +20,7 @@ export type Database = {
                     linkedin: string | null
                     name: string | null
                     owner_id: string
+                    short_id: string | null
                     updated_at: string | null
                     website: string | null
                     whatsapp: string | null
@@ -35,6 +36,7 @@ export type Database = {
                     linkedin?: string | null
                     name?: string | null
                     owner_id: string
+                    short_id?: string | null
                     updated_at?: string | null
                     website?: string | null
                     whatsapp?: string | null
@@ -50,6 +52,7 @@ export type Database = {
                     linkedin?: string | null
                     name?: string | null
                     owner_id?: string
+                    short_id?: string | null
                     updated_at?: string | null
                     website?: string | null
                     whatsapp?: string | null
