@@ -184,6 +184,17 @@ export interface UserProfile {
 
 export type AccountStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
 
+export interface Affiliate {
+    id: string;
+    user_id: string;
+    code: string;
+    name?: string;
+    phone?: string;
+    state?: string;
+    city?: string;
+    created_at: string;
+}
+
 export interface UserAccount {
     id: string;
     user_id: string;

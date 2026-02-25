@@ -2,7 +2,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { UserProfile, Company, AccountStatus, UserAccount, UserSubscription } from '../types';
+import { UserProfile, Company, AccountStatus, UserAccount, UserSubscription, Affiliate } from '../types';
 
 interface AuthContextType {
     session: Session | null;
@@ -13,7 +13,9 @@ interface AuthContextType {
     accountStatus: AccountStatus;
     planType: string | null;
     subscription: UserSubscription | null;
+    affiliate: Affiliate | null;
     onboardingCompleted: boolean | null;
+    affiliateOnboardingCompleted: boolean | null;
     refreshProfile: () => Promise<void>;
     signOut: () => Promise<void>;
     signInWithGoogle: () => Promise<{ error: any }>;
@@ -33,7 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [accountStatus, setAccountStatus] = useState<AccountStatus>('trial');
     const [planType, setPlanType] = useState<string | null>(null);
     const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+    const [affiliate, setAffiliate] = useState<Affiliate | null>(null);
     const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+    const [affiliateOnboardingCompleted, setAffiliateOnboardingCompleted] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
     const [ipAddress, setIpAddress] = useState<string | null>(null);
 
@@ -88,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('companies')
                 .select('*')
                 .eq('owner_id', userId)
-                .single();
+                .maybeSingle();
 
             setCompany(companyData);
 
@@ -97,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('user_accounts')
                 .select('*')
                 .eq('user_id', userId)
-                .single();
+                .maybeSingle();
 
             if (accountData) {
                 setAccount(accountData);
@@ -109,14 +113,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('user_subscriptions')
                 .select('*')
                 .eq('user_id', userId)
-                .single();
+                .maybeSingle();
 
             if (subData) {
                 setSubscription(subData);
                 setPlanType(subData.plan_type);
             }
 
-            // Check Onboarding Logic
+            // Get Affiliate optionally
+            const { data: affiliateData } = await supabase
+                .from('affiliates')
+                .select('*')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (affiliateData) {
+                setAffiliate(affiliateData);
+                // Affiliate Onboarding Completed se houver "name"
+                setAffiliateOnboardingCompleted(!!affiliateData.name);
+            } else {
+                setAffiliate(null);
+                setAffiliateOnboardingCompleted(null);
+            }
+
+            // Check Onboarding Logic (Candidatos e Empresas)
             let completed = true;
 
             if (!profileData || !profileData.status_created) {
@@ -211,7 +231,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setPlanType(null);
                 setPlanType(null);
                 setSubscription(null);
+                setAffiliate(null);
                 setOnboardingCompleted(null);
+                setAffiliateOnboardingCompleted(null);
                 setLoading(false);
             }
         });
@@ -258,7 +280,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             accountStatus,
             planType,
             subscription,
+            affiliate,
             onboardingCompleted,
+            affiliateOnboardingCompleted,
             refreshProfile,
             updateCompany,
             logOperatorAction,

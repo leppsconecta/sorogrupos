@@ -16,9 +16,17 @@ const Agendamentos = React.lazy(() => import('./pages/Agendamentos').then(module
 const Candidatos = React.lazy(() => import('./pages/Candidatos').then(module => ({ default: module.Candidatos })));
 const Curriculos = React.lazy(() => import('./pages/Curriculos').then(module => ({ default: module.Curriculos })));
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda').then(module => ({ default: module.MinhaAgenda })));
+
+// Parceiros (Lazy)
+const ParceirosLayout = React.lazy(() => import('./components/layout/parceiros/ParceirosLayout').then(module => ({ default: module.ParceirosLayout })));
+const LoginParceiro = React.lazy(() => import('./pages/parceiros/LoginParceiro').then(module => ({ default: module.LoginParceiro })));
+const DashboardParceiro = React.lazy(() => import('./pages/parceiros/DashboardParceiro').then(module => ({ default: module.DashboardParceiro })));
+const FinanceiroParceiro = React.lazy(() => import('./pages/parceiros/FinanceiroParceiro').then(module => ({ default: module.FinanceiroParceiro })));
+
 import { LandingPage } from './pages/LandingPage';
 import { PublicJobs } from './pages/PublicJobs';
 import { PublicGroups } from './pages/PublicGroups';
+import { OnboardingParceiroModal } from './components/modals/OnboardingParceiroModal';
 const PublicPage = React.lazy(() => import('./pages/PublicPage').then(module => ({ default: module.PublicPage })));
 
 import { Theme } from './types';
@@ -44,8 +52,17 @@ const AppContent: React.FC = () => {
     }
   }, [location.pathname]);
 
+  // Capture Referral Link globally
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const ref = searchParams.get('ref');
+    if (ref) {
+      localStorage.setItem('referral_code', ref);
+    }
+  }, [location.search]);
+
   // Force HMR Update
-  const { session, signOut, onboardingCompleted, user } = useAuth();
+  const { session, signOut, onboardingCompleted, affiliateOnboardingCompleted, user } = useAuth();
   const { showToast } = useFeedback();
 
   const navigate = useNavigate();
@@ -71,6 +88,7 @@ const AppContent: React.FC = () => {
   } = useWhatsApp();
 
   const isLoggedIn = !!session;
+  const isSetupComplete = user?.user_metadata?.candidate_onboarding_complete === true;
 
   const [theme, setTheme] = useState<Theme>('light');
   const [triggerCreateGroup, setTriggerCreateGroup] = useState(0);
@@ -190,6 +208,16 @@ const AppContent: React.FC = () => {
                 <Route path="/vagas" element={<PublicJobs />} />
                 <Route path="/grupos" element={<PublicGroups />} />
 
+                {/* Affiliate/Partner Routes */}
+                <Route path="/parceiros/login" element={<LoginParceiro />} />
+                <Route path="/parceiros" element={
+                  isLoggedIn ? <ParceirosLayout theme={theme} toggleTheme={toggleTheme} onLogout={signOut} /> : <Navigate to="/parceiros/login" />
+                }>
+                  <Route index element={<Navigate to="/parceiros/painel" replace />} />
+                  <Route path="painel" element={<DashboardParceiro />} />
+                  <Route path="financeiro" element={<FinanceiroParceiro />} />
+                </Route>
+
                 {/* Protected Routes */}
                 <Route path="/painel" element={!isLoggedIn ? <Navigate to="/" /> : <Dashboard {...commonProps} />} />
                 <Route path="/anunciar" element={!isLoggedIn ? <Navigate to="/" /> : <Marketing {...commonProps} />} />
@@ -217,8 +245,11 @@ const AppContent: React.FC = () => {
 
       {showDashboardUI && <BottomNav />}
 
-      {/* Onboarding Modal */}
-      {isLoggedIn && onboardingCompleted === false && <OnboardingModal />}
+      {/* Onboarding Modal (apenas para candidatos/empresas, não parceiros) */}
+      {isLoggedIn && onboardingCompleted === false && !location.pathname.startsWith('/parceiros') && <OnboardingModal />}
+
+      {/* Onboarding de Parceiros */}
+      {isLoggedIn && affiliateOnboardingCompleted === false && location.pathname.startsWith('/parceiros') && <OnboardingParceiroModal />}
 
       {/* Shared WhatsApp Connection Modal used via Context logic */}
       {isConnectModalOpen && (

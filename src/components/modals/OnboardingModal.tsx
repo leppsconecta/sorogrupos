@@ -217,6 +217,18 @@ export const OnboardingModal: React.FC = () => {
                 throw claimError;
             }
 
+            // Re-authenticate silently since changing password via admin invalidates the current session token
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: authEmail,
+                password: authPassword,
+            });
+
+            if (signInError) {
+                console.error("Silent login failed after claim:", signInError);
+                // We don't throw, we let it succeed, but they might be logged out and have to log in manually.
+                // Ideally this restores the session for the refreshProfile
+            }
+
             // await refreshProfile();
             setSuccess(true);
 
@@ -242,8 +254,11 @@ export const OnboardingModal: React.FC = () => {
                         Crie sua primeira vaga e divulgue automaticamente nos grupos de WhatsApp.
                     </p>
                     <button
-                        onClick={() => {
-                            window.location.href = '/vagas';
+                        onClick={async () => {
+                            // First route the user successfully to the dashboard avoiding home redirection
+                            navigate('/anunciar');
+                            // Then update context
+                            await refreshProfile();
                         }}
                         className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                     >

@@ -514,6 +514,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
     setLoading(true);
 
     try {
+      const storedRef = localStorage.getItem('referral_code');
+
       const { error, data } = await supabase.auth.signUp({
         email: regEmail,
         password: regPassword,
@@ -523,6 +525,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ autoOpenLogin = false 
             name: regCompany,
             company_name: regCompany,
             whatsapp: `+55${regPhone.replace(/\D/g, '')}`, // Persist with +55 prefix stripped of formatting
+            referral_code: storedRef || null,
           }
         }
       });

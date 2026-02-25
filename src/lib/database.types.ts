@@ -9,6 +9,74 @@ export type Json =
 export type Database = {
     public: {
         Tables: {
+            affiliates: {
+                Row: {
+                    id: string
+                    user_id: string
+                    code: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    code: string
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    code?: string
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "affiliates_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: true
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            referrals: {
+                Row: {
+                    id: string
+                    affiliate_id: string
+                    referred_user_id: string
+                    created_at: string
+                    status: string
+                }
+                Insert: {
+                    id?: string
+                    affiliate_id: string
+                    referred_user_id: string
+                    created_at?: string
+                    status?: string
+                }
+                Update: {
+                    id?: string
+                    affiliate_id?: string
+                    referred_user_id?: string
+                    created_at?: string
+                    status?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "referrals_affiliate_id_fkey"
+                        columns: ["affiliate_id"]
+                        isOneToOne: false
+                        referencedRelation: "affiliates"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "referrals_referred_user_id_fkey"
+                        columns: ["referred_user_id"]
+                        isOneToOne: true
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             companies: {
                 Row: {
                     cnpj: string | null
