@@ -8,7 +8,8 @@ import {
     Wallet,
     Settings,
     Copy,
-    Check
+    Check,
+    Users
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
@@ -48,6 +49,7 @@ export const SidebarParceiros: React.FC<SidebarParceirosProps> = ({ isExpanded, 
 
     const links = [
         { to: "/parceiros/painel", icon: LayoutDashboard, label: "Painel" },
+        { to: "/parceiros/clientes", icon: Users, label: "Clientes" },
         { to: "/parceiros/financeiro", icon: Wallet, label: "Financeiro" }
     ];
 

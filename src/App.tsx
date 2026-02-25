@@ -27,6 +27,7 @@ import { LandingPage } from './pages/LandingPage';
 import { PublicJobs } from './pages/PublicJobs';
 import { PublicGroups } from './pages/PublicGroups';
 import { OnboardingParceiroModal } from './components/modals/OnboardingParceiroModal';
+import { ClientesParceiro } from './pages/parceiros/ClientesParceiro';
 const PublicPage = React.lazy(() => import('./pages/PublicPage').then(module => ({ default: module.PublicPage })));
 
 import { Theme } from './types';
@@ -215,6 +216,7 @@ const AppContent: React.FC = () => {
                 }>
                   <Route index element={<Navigate to="/parceiros/painel" replace />} />
                   <Route path="painel" element={<DashboardParceiro />} />
+                  <Route path="clientes" element={<ClientesParceiro />} />
                   <Route path="financeiro" element={<FinanceiroParceiro />} />
                 </Route>
 
