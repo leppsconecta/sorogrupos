@@ -12,6 +12,7 @@ interface Referral {
         full_name: string | null;
         email: string | null;
     } | null;
+    type?: 'empresa' | 'candidato';
 }
 
 export const DashboardParceiro: React.FC = () => {
@@ -38,18 +39,62 @@ export const DashboardParceiro: React.FC = () => {
                 if (affiliateData) {
                     const { data: refData, error: refErr } = await supabase
                         .from('referrals')
-                        .select(`
-              id,
-              created_at,
-              status,
-              profiles:referred_user_id ( full_name )
-            `)
+                        .select('*')
                         .eq('affiliate_id', affiliateData.id)
                         .order('created_at', { ascending: false });
 
                     if (refErr) throw refErr;
 
-                    setReferrals(refData as unknown as Referral[] || []);
+                    if (!refData || refData.length === 0) {
+                        setReferrals([]);
+                        setLoading(false);
+                        return;
+                    }
+
+                    const referredUserIds = refData.map(r => r.referred_user_id);
+
+                    // 3. Fetch Profiles, Companies, Accounts with IN queries
+                    const [
+                        { data: profiles },
+                        { data: companies },
+                        { data: accounts }
+                    ] = await Promise.all([
+                        supabase.from('profiles').select('*').in('id', referredUserIds),
+                        supabase.from('companies').select('*').in('owner_id', referredUserIds),
+                        supabase.from('user_accounts').select('*').in('user_id', referredUserIds)
+                    ]);
+
+                    // 4. Combine in a local format suitable for this dashboard
+                    const combinedData: Referral[] = refData.map(ref => {
+                        const profile = profiles?.find(p => p.id === ref.referred_user_id);
+                        const company = companies?.find(c => c.owner_id === ref.referred_user_id);
+                        const account = accounts?.find(a => a.user_id === ref.referred_user_id);
+
+                        let type: 'empresa' | 'candidato' = 'candidato';
+                        let name = 'Usuário Incompleto';
+
+                        if (company && company.name) {
+                            type = 'empresa';
+                            name = company.name;
+                        } else if (profile && profile.full_name) {
+                            type = 'candidato';
+                            name = profile.full_name;
+                        }
+
+                        return {
+                            id: ref.id,
+                            created_at: ref.created_at,
+                            // Real account status overrides referral status if present
+                            status: account?.status || ref.status,
+                            type,
+                            profiles: {
+                                full_name: name,
+                                email: null
+                            }
+                        };
+                    });
+
+                    setReferrals(combinedData || []);
                 }
             } catch (err: any) {
                 console.error('Erro ao buscar indicados:', err);
@@ -302,7 +347,14 @@ export const DashboardParceiro: React.FC = () => {
                                                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center font-bold text-xs uppercase">
                                                     {(ref.profiles?.full_name || 'U')[0]}
                                                 </div>
-                                                {ref.profiles?.full_name || 'Usuário Não Identificado'}
+                                                <div className="flex flex-col">
+                                                    <span>{ref.profiles?.full_name || 'Usuário Não Identificado'}</span>
+                                                    {ref.type && (
+                                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                                                            {ref.type}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4 md:px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
